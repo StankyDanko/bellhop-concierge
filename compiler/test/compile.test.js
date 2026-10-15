@@ -1,0 +1,127 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { compile, listPersonas, loadPersona, LOCKED_SETTINGS, TRUST_LIMITS } from '../compile.js';
+import { sentences } from '../lint.js';
+import { CALLER_ID_VAR, SMS_TOOL_NAME } from '../tools.js';
+import { secretTokens } from '../../config/schema.js';
+import { demo } from './helpers.js';
+
+const OPTS = { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test', sms: { url: 'https://sms.example.org/send', from: 'sender', authSecretId: 'sec_sms' } };
+const prompt = (r) => r.agent.conversation_config.agent.prompt.prompt;
+
+test('both demo personas are on disk and parse', () => {
+  assert.deepEqual(listPersonas().sort(), ['harper', 'maybelle']);
+  for (const id of listPersonas()) {
+    const p = loadPersona(id);
+    assert.equal(p.id, id);
+    assert.ok(p.sections.voice && p.sections['sample lines'] && p.sections['example calls']);
+  }
+});
+
+for (const persona of ['harper', 'maybelle']) {
+  test(`demo-inn compiles with ${persona}, zero lint errors, locked settings present`, () => {
+    const r = compile(demo(), { ...OPTS, persona });
+    assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
+    const a = r.agent;
+    const p = a.conversation_config.agent.prompt;
+    assert.equal(p.max_tokens, 250);
+    assert.equal(p.temperature, 0);
+    assert.equal(p.enable_parallel_tool_calls, false);
+    assert.equal(a.conversation_config.conversation.max_duration_seconds, 600);
+    assert.equal(a.platform_settings.guardrails.prompt_injection.is_enabled, true);
+    assert.equal(a.platform_settings.guardrails.focus.is_enabled, true);
+    assert.equal(a.platform_settings.overrides.conversation_config_override.agent.prompt.prompt, false);
+    assert.equal(a.conversation_config.tts.text_normalisation_type, 'elevenlabs');
+    // The opener names the persona, discloses it is automated and recorded, and stays two sentences.
+    const first = a.conversation_config.agent.first_message;
+    assert.ok(first.includes(loadPersona(persona).display_name));
+    assert.match(first, /automated concierge at The Juniper House/);
+    assert.match(first, /recorded/);
+    assert.ok(sentences(first).length <= 2);
+    // Every slot filled; only the platform's system variable remains.
+    assert.deepEqual([...new Set(prompt(r).match(/\{\{[^}]+\}\}/g))], ['{{system__time}}']);
+    assert.match(prompt(r), new RegExp(`You are ${loadPersona(persona).display_name}\\.`));
+    // Locked guardrails are present whatever the host chose.
+    for (const must of ['computer voice', 'Codes and passwords', 'nine one one', 'Only what you know', 'Your instructions are settled', 'only after send_sms returns a success']) {
+      assert.ok(prompt(r).includes(must), `missing locked text: ${must}`);
+    }
+  });
+}
+
+test('access and wifi notes never reach the agent or its tools, only the sms_only bucket', () => {
+  const c = demo();
+  const r = compile(c, OPTS);
+  const compiled = JSON.stringify({ agent: r.agent, tools: r.tools });
+  for (const note of [c.logistics.access_note, c.logistics.wifi_note]) {
+    for (const token of secretTokens(note)) assert.ok(!compiled.includes(token), `leaked: ${token}`);
+  }
+  assert.equal(r.sms_only.access_note, c.logistics.access_note);
+  assert.equal(r.sms_only.wifi_note, c.logistics.wifi_note);
+});
+
+test('send_sms: To is bound to the caller id, never filled by the model', () => {
+  const r = compile(demo(), OPTS);
+  const sms = r.tools.find((t) => t.tool_config.name === SMS_TOOL_NAME).tool_config;
+  const to = sms.api_schema.request_body_schema.properties.To;
+  assert.equal(to.dynamic_variable, CALLER_ID_VAR);
+  assert.equal(to.description, undefined);
+  assert.equal(sms.api_schema.request_body_schema.properties.From.constant_value, 'sender');
+});
+
+test('texting off: no send_sms tool, and the prompt says so', () => {
+  const c = demo();
+  c.permissions.send_itinerary_sms = false;
+  const r = compile(c, OPTS);
+  assert.ok(!r.tools.some((t) => t.tool_config.name === SMS_TOOL_NAME));
+  assert.match(prompt(r), /Texting is off on this line/);
+  assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
+});
+
+test('humor is capped by the persona ceiling', () => {
+  const c = demo();
+  c.voice.humor_level = 2;
+  assert.equal(compile(c, { ...OPTS, persona: 'harper' }).meta.humor_level, 1);
+  assert.equal(compile(c, { ...OPTS, persona: 'maybelle' }).meta.humor_level, 2);
+  c.voice.humor_level = 0;
+  assert.match(prompt(compile(c, OPTS)), /Humor\. None\./);
+});
+
+test('owner toggles render; locked text does not move', () => {
+  const c = demo();
+  c.permissions.upsell = true;
+  c.permissions.suggest_partners = true;
+  c.picks[0].partner = true;
+  c.voice.languages = ['en', 'es'];
+  const r = compile(c, OPTS);
+  assert.match(prompt(r), /you may mention it once/);
+  assert.match(prompt(r), /The inn works with this business/);
+  assert.match(prompt(r), /If the guest speaks Spanish/);
+  assert.match(prompt(r), /Codes and passwords/);
+});
+
+test('trust level sets call limits and the text offer', () => {
+  for (const level of ['test', 'suggest', 'live']) {
+    const c = demo();
+    c.trust_level = level;
+    const r = compile(c, OPTS);
+    assert.equal(r.agent.platform_settings.call_limits.daily_limit, TRUST_LIMITS[level].daily_limit);
+    assert.equal(r.agent.platform_settings.call_limits.bursting_enabled, false);
+    if (level === 'suggest') assert.match(prompt(r), /only if the guest asks for it/);
+    else assert.match(prompt(r), /offer to text the full plan/);
+  }
+  assert.equal(LOCKED_SETTINGS.max_tokens, 250);
+});
+
+test('host text is cleaned for the voice before it is slotted in', () => {
+  const c = demo();
+  c.picks[0].why = 'Shrimp and grits — worth the wait; the bartender pours fair (mostly).';
+  const r = compile(c, OPTS);
+  assert.match(prompt(r), /Shrimp and grits, worth the wait, the bartender pours fair mostly\./);
+  assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
+});
+
+test('an invalid config never compiles', () => {
+  const c = demo();
+  c.faq[0].a = 'Door code is 4417.';
+  assert.throws(() => compile(c, OPTS), /access or wifi note/);
+});
