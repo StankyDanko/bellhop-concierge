@@ -12,6 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY server ./server
+COPY config ./config
+COPY compiler ./compiler
+COPY personas ./personas
+COPY template ./template
+COPY dashboard/dist ./dashboard/dist
 # Cache dir (a named volume is mounted here at run time); owned by the non-root user.
 RUN mkdir -p /app/server/data && chown -R node:node /app/server/data
 ENV NODE_ENV=production
