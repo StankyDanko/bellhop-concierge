@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Bellhop Concierge: a phone concierge for small inns. Picks from Qloo's taste graph, with the reason for each." />
+    <title>Bellhop Concierge</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="/theme.js"></script>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Shown until the app loads. The badge is neutral on purpose: it only says
+           "Answering now" after the app reads /api/health-summary. -->
+      <div class="boot">
+        <p class="wordmark">Bellhop Concierge</p>
+        <p><span class="live-badge" data-live-badge data-state="checking" role="status"><span class="live-dot" aria-hidden="true"></span>Checking the line</span></p>
+        <noscript><p>This dashboard needs JavaScript. The source is public; see the repository README.</p></noscript>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

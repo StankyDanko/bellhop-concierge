@@ -1,0 +1,318 @@
+/* ============================================================================
+   tokens.css — the house design token sheet
+   Zeus / StankyDanko · v1.0 · 2026-08-08
+   ----------------------------------------------------------------------------
+   Zero build. Plain custom properties. Link it before any other stylesheet:
+
+       <link rel="stylesheet" href="/path/to/tokens.css">
+       <link rel="stylesheet" href="./kit.css">
+
+   TWO LAYERS. Do not skip the second one.
+     LAYER 1 — primitives (--ink-900, --gold-500). Raw values. Never referenced
+               by a component.
+     LAYER 2 — semantic aliases (--color-bg, --color-accent). Roles with a
+               meaning. Components reference THESE ONLY.
+     A component that names a primitive is a defect (DESIGN-DOCTRINE C1).
+
+   DARK-FIRST. Bare :root is the dark theme, because dark is the house default
+   for tools and dashboards. Light is the derived override, not the origin.
+
+   THEME RESOLUTION — three states, and all three are handled below:
+     1. data-theme="light" on <html>  → forced light
+     2. data-theme="dark"  on <html>  → forced dark
+     3. no attribute                  → system, via prefers-color-scheme
+
+   Tailwind/React projects: mirror these VALUES into the framework config.
+   The values are the standard; the delivery mechanism is not.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   BREAKPOINTS — documentation, not usable values
+   ---------------------------------------------------------------------------
+   Custom properties DO NOT work inside @media/@container prelude values.
+   `@media (min-width: var(--bp-md))` silently never matches. Write the literal
+   px value and cite the name in a comment.
+
+     --bp-sm   640px   large phone landscape / small tablet refinements
+     --bp-md   768px   TEST GATE — tablet portrait; sidebar may appear
+     --bp-lg  1024px   drawer becomes a permanent sidebar; bottom tabs retire
+     --bp-xl  1280px   full desktop density, wide tables, multi-panel
+
+   THE THREE TEST GATES (RESPONSIVE-CHECKLIST.md step 2):
+     390 x 844    iPhone-class phone. The gate that finds overflow.
+     768 x 1024   tablet portrait. The gate that finds half-collapsed layouts.
+     1440 x 900   laptop. The gate that finds unbounded line length.
+
+   Breakpoints are for PAGE-LEVEL layout shifts only. A component decides its
+   own layout with @container. See RESPONSIVE-STANDARD.md §1.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* ==========================================================================
+     LAYER 1 — PRIMITIVES (dark palette)
+     Navy-tinted near-black, never pure #000 (DESIGN-DOCTRINE C4).
+     Elevation is a LIGHTNESS ladder, not a shadow ladder (C5).
+     ========================================================================== */
+  --ink-950: #0b0d12;
+  --ink-900: #12151c;
+  --ink-850: #171b24;
+  --ink-800: #1e2330;
+  --ink-700: #2a3140;
+  --ink-500: #6b7488;
+  --ink-400: #98a1b3;
+  --ink-200: #c6cdda;
+  --ink-050: #e6e9f0;
+
+  --gold-400: #e0b757;
+  --gold-500: #d4a437;   /* house accent */
+  --gold-700: #8a6413;   /* accent that passes AA on light surfaces */
+
+  --green-400: #4ade80;
+  --amber-400: #fbbf24;
+  --red-400:   #f87171;
+  --blue-400:  #60a5fa;
+
+  --paper-000: #ffffff;
+  --paper-050: #f7f8fa;
+  --paper-100: #eef0f5;
+  --paper-200: #e2e6ee;
+  --paper-300: #d3d9e4;
+  --slate-600: #4d5566;
+  --slate-800: #14171f;
+
+  /* ==========================================================================
+     LAYER 2 — SEMANTIC: COLOR (dark theme = default)
+     ========================================================================== */
+  --color-bg:           var(--ink-950);
+  --color-surface:      var(--ink-900);
+  --color-surface-2:    var(--ink-850);
+  --color-surface-3:    var(--ink-800);
+  --color-border:       var(--ink-700);
+  --color-border-strong:var(--ink-500);
+
+  --color-text:         var(--ink-050);   /* ~15:1 on --color-bg */
+  --color-text-dim:     var(--ink-400);   /* ~7:1  — secondary */
+  --color-text-faint:   var(--ink-500);   /* ~3.5:1 — non-essential ONLY */
+
+  --color-accent:       var(--gold-500);
+  --color-accent-hover: var(--gold-400);
+  --color-on-accent:    #171106;          /* text ON a solid accent fill */
+  --color-accent-tint:  rgb(212 164 55 / 0.14);   /* chip fills — C8 */
+
+  --color-success:      var(--green-400);
+  --color-warning:      var(--amber-400);
+  --color-danger:       var(--red-400);
+  --color-info:         var(--blue-400);
+  --color-success-tint: rgb(74 222 128 / 0.14);
+  --color-warning-tint: rgb(251 191 36 / 0.14);
+  --color-danger-tint:  rgb(248 113 113 / 0.14);
+
+  --color-focus:        var(--gold-400);
+  --color-scrim:        rgb(4 6 10 / 0.66);
+  --color-skeleton:     var(--ink-800);
+
+  /* ==========================================================================
+     SEMANTIC: TYPOGRAPHY
+     No webfonts. Zero external requests is a house rule for the kit.
+     ========================================================================== */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Fluid scale. clamp() outranks per-breakpoint font rules (Lane 1). */
+  --text-2xs: 0.6875rem;                                        /* 11px, fixed */
+  --text-xs:  clamp(0.75rem,   0.735rem + 0.08vw, 0.8125rem);
+  --text-sm:  clamp(0.8125rem, 0.790rem + 0.12vw, 0.875rem);
+  --text-md:  clamp(0.9375rem, 0.905rem + 0.17vw, 1rem);
+  --text-lg:  clamp(1.0625rem, 1.000rem + 0.30vw, 1.25rem);
+  --text-xl:  clamp(1.25rem,   1.100rem + 0.75vw, 1.75rem);
+  --text-2xl: clamp(1.625rem,  1.350rem + 1.35vw, 2.5rem);
+  --text-3xl: clamp(2rem,      1.500rem + 2.50vw, 3.5rem);
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold:   700;
+
+  --leading-tight: 1.15;   /* headings */
+  --leading-snug:  1.35;   /* UI rows */
+  --leading-body:  1.55;   /* prose */
+
+  --tracking-caps: 0.08em; /* uppercase ALWAYS gets tracking — T5 */
+  --tracking-display: -0.02em;
+
+  --measure: 68ch;         /* max line length for prose — T3 */
+
+  /* ==========================================================================
+     SEMANTIC: SPACE
+     Fixed 4px-grid steps for component internals (predictable).
+     Fluid clamp() steps for page rhythm (breathes with the viewport).
+     ========================================================================== */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+
+  --space-gutter:  clamp(1rem, 0.75rem + 1.2vw, 2rem);
+  --space-section: clamp(1.5rem, 1rem + 2.4vw, 3rem);
+
+  /* ==========================================================================
+     SEMANTIC: SHAPE + DEPTH
+     Dark UI uses hairline borders as the edge strategy; shadows only float.
+     ========================================================================== */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:  12px;
+  --radius-full: 9999px;
+
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-float: 0 20px 60px rgb(0 0 0 / 0.55);
+  --ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus);
+
+  /* ==========================================================================
+     SEMANTIC: TOUCH TARGETS
+     WCAG 2.2 AA floor is 24px. The house floor is 44px, Apple HIG.
+     ========================================================================== */
+  --touch-min: 2.75rem;      /* 44px — every interactive element */
+  --touch-comfort: 3rem;     /* 48px — primary controls on coarse pointers */
+  --touch-gap: var(--space-2);
+
+  /* ==========================================================================
+     SEMANTIC: Z-INDEX LADDER
+     Nine rungs, named. A raw z-index in component CSS is a defect.
+     ========================================================================== */
+  --z-base:    0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-tabbar: 150;
+  --z-scrim:  200;
+  --z-drawer: 210;
+  --z-modal:  300;
+  --z-popover:350;
+  --z-toast:  400;
+
+  /* ==========================================================================
+     SEMANTIC: SAFE AREA
+     Requires: <meta name="viewport" content="... viewport-fit=cover">
+     Without that meta tag every env() below resolves to 0px.
+     ========================================================================== */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --pad-safe-bottom: max(var(--space-4), var(--safe-bottom));
+
+  /* ==========================================================================
+     SEMANTIC: MOTION
+     ========================================================================== */
+  --dur-fast: 140ms;
+  --dur-slow: 280ms;
+  --ease-out: cubic-bezier(0.22, 0.8, 0.28, 1);
+  --ease-in:  cubic-bezier(0.6, 0.05, 0.9, 0.3);
+
+  color-scheme: dark light;
+}
+
+/* ============================================================================
+   LIGHT THEME — derived, never designed first.
+   Only the semantic layer is redefined. Primitives never move.
+   ========================================================================== */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-bg:            var(--paper-050);
+    --color-surface:       var(--paper-000);
+    --color-surface-2:     var(--paper-100);
+    --color-surface-3:     var(--paper-200);
+    --color-border:        var(--paper-300);
+    --color-border-strong: #a8b1c2;
+
+    --color-text:       var(--slate-800);
+    --color-text-dim:   var(--slate-600);
+    --color-text-faint: #7b8396;
+
+    --color-accent:       var(--gold-700);
+    --color-accent-hover: #6f5010;
+    --color-on-accent:    var(--paper-000);
+    --color-accent-tint:  rgb(138 100 19 / 0.12);
+
+    --color-success: #15803d;
+    --color-warning: #a16207;
+    --color-danger:  #b91c1c;
+    --color-info:    #1d4ed8;
+    --color-success-tint: rgb(21 128 61 / 0.10);
+    --color-warning-tint: rgb(161 98 7 / 0.12);
+    --color-danger-tint:  rgb(185 28 28 / 0.10);
+
+    --color-focus:    var(--gold-700);
+    --color-scrim:    rgb(20 23 31 / 0.44);
+    --color-skeleton: var(--paper-200);
+
+    --shadow-raise: 0 1px 2px rgb(20 23 31 / 0.08);
+    --shadow-float: 0 20px 45px rgb(20 23 31 / 0.18);
+  }
+}
+
+/* Forced light — the toggle must beat the system preference in both directions. */
+:root[data-theme="light"] {
+  --color-bg:            var(--paper-050);
+  --color-surface:       var(--paper-000);
+  --color-surface-2:     var(--paper-100);
+  --color-surface-3:     var(--paper-200);
+  --color-border:        var(--paper-300);
+  --color-border-strong: #a8b1c2;
+
+  --color-text:       var(--slate-800);
+  --color-text-dim:   var(--slate-600);
+  --color-text-faint: #7b8396;
+
+  --color-accent:       var(--gold-700);
+  --color-accent-hover: #6f5010;
+  --color-on-accent:    var(--paper-000);
+  --color-accent-tint:  rgb(138 100 19 / 0.12);
+
+  --color-success: #15803d;
+  --color-warning: #a16207;
+  --color-danger:  #b91c1c;
+  --color-info:    #1d4ed8;
+  --color-success-tint: rgb(21 128 61 / 0.10);
+  --color-warning-tint: rgb(161 98 7 / 0.12);
+  --color-danger-tint:  rgb(185 28 28 / 0.10);
+
+  --color-focus:    var(--gold-700);
+  --color-scrim:    rgb(20 23 31 / 0.44);
+  --color-skeleton: var(--paper-200);
+
+  --shadow-raise: 0 1px 2px rgb(20 23 31 / 0.08);
+  --shadow-float: 0 20px 45px rgb(20 23 31 / 0.18);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* ============================================================================
+   COARSE POINTERS — hover is not available, so hit areas grow.
+   This block belongs in the token sheet because it changes a TOKEN, not a rule.
+   ========================================================================== */
+@media (hover: none), (pointer: coarse) {
+  :root {
+    --touch-min: 3rem;       /* 48px */
+    --touch-comfort: 3.25rem;/* 52px */
+    --touch-gap: var(--space-3);
+  }
+}
+
+/* ============================================================================
+   REDUCED MOTION — a hard requirement, not a nicety (DESIGN-DOCTRINE M6).
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-slow: 1ms;
+  }
+}

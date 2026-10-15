@@ -14,6 +14,7 @@ import { recommendNearby } from './tools/recommend-nearby.js';
 import { resolveTaste } from './tools/resolve-taste.js';
 import { logSession } from './tools/log-session.js';
 import { createSendLimiter, sendSms } from './tools/send-sms.js';
+import { mountDashboard } from './api/index.js';
 
 /** Tool name (what the voice agent calls) -> handler. */
 export const TOOLS = {
@@ -42,8 +43,9 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/twilio.js').SmsSender} deps.sms
  * @param {import('./lib/sessions.js').SessionStore} deps.sessions
  * @param {() => Date} [deps.now]
+ * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the host dashboard (server/api/)
  */
-export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now }) {
+export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
   const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions };
@@ -78,6 +80,10 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
       }
     });
   }
+
+  // Host dashboard: JSON under /api, the built React app at /, /build, /property/:id.
+  // Optional, so the tool server runs without it (tests, a tools-only deploy).
+  if (dashboard) mountDashboard(app, { ...dashboard, ctx, sessionsDb: dashboard.sessionsDb ?? sessions?.db, toolNames: Object.keys(TOOLS) });
 
   app.notFound((c) => c.json({ ok: false, status: 'error', error: { code: 'not_found' } }, 404));
   return app;

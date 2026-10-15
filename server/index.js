@@ -13,6 +13,8 @@ import { createQlooClient } from './lib/qloo.js';
 import { createTicketmasterClient } from './lib/ticketmaster.js';
 import { SessionStore } from './lib/sessions.js';
 import { createSmsSender } from './lib/twilio.js';
+import { openDashboardDb } from './api/db.js';
+import { dashboardEnv } from './api/index.js';
 
 const config = loadConfig();
 if (!config.toolSecret) {
@@ -26,6 +28,8 @@ const logger = jsonLogger;
 
 const sessions = new SessionStore({ path: config.sessionsPath, hashKey: config.toolSecret });
 const sms = createSmsSender({ config: config.sms, logger });
+// Host configs live in the same SQLite file as the session log (seeds the demo inn on first run).
+const dashboardDb = openDashboardDb({ path: process.env.DASHBOARD_DB_PATH || config.sessionsPath });
 
 let app;
 try {
@@ -37,6 +41,7 @@ try {
     logger,
     sms,
     sessions,
+    dashboard: { db: dashboardDb, env: dashboardEnv() },
   });
 } catch (err) {
   console.error(`Startup failed: ${err.message}`);
@@ -52,6 +57,7 @@ const shutdown = () => {
   server.close(() => {
     cache?.close();
     sessions.close();
+    dashboardDb.close();
     process.exit(0);
   });
 };

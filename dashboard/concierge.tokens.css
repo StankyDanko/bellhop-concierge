@@ -1,0 +1,84 @@
+/* ============================================================================
+   concierge.tokens.css : Bellhop Concierge "Front Desk" register
+   Layer order:  tokens.css (house primitives + semantics)  ->  this file.
+   Link both, tokens.css first. Components reference ONLY --color-* / --space-*
+   etc. (DESIGN-DOCTRINE C1). Raw hex appears in this file and nowhere else.
+
+   DEFAULT THEME IS LIGHT (deliberate, documented exception to the brand's
+   dark-native constant; see DESIGN-LANGUAGE.md section 2). Ship
+   <html data-theme="light"> and let the toggle write localStorage.
+   Dark is fully supported and is the system fallback if a visitor has chosen it.
+   ========================================================================== */
+
+:root {
+  /* --- Added semantic roles (not in tokens.css) ---------------------------- */
+  /* TASTE / CHARACTER: Qloo taste-graph data and the persona voice. This is the
+     brand purple (#a78bfa family) in its "creative" role. */
+  --color-taste:        #a78bfa;
+  --color-taste-tint:   rgb(167 139 250 / 0.14);
+  --color-taste-text:   #a78bfa;                 /* text-on-tint, 5.4:1 on tint */
+
+  /* LIVE: the line is answering. Brand green, "alive". Only live things glow. */
+  --color-live:         var(--green-400);
+  --glow-live: 0 0 12px rgb(74 222 128 / 0.33), 0 0 32px rgb(74 222 128 / 0.13);
+
+  /* Chip text colors that must clear 4.5:1 ON their own tint (C7, C8). In dark
+     the base semantic colors already do; light overrides below. */
+  --color-success-text: var(--color-success);
+  --color-warning-text: var(--color-warning);
+  --color-accent-text:  var(--color-accent);
+
+  /* Form field edge: UI-component contrast needs 3:1 (WCAG 1.4.11). */
+  --color-field-border: var(--ink-500);          /* 3.9:1 on surface */
+
+  /* LOCKED rows: a guardrail you cannot change. Hatched, not dimmed. */
+  --color-locked-bg: var(--color-surface-2);
+  --pattern-locked: repeating-linear-gradient(135deg,
+      transparent 0 6px, rgb(152 161 179 / 0.07) 6px 7px);
+
+  /* Radii: controls / cards / sheets / pill (P1) */
+  --r-control: var(--radius-md);   /*  8 */
+  --r-card:    var(--radius-lg);   /* 12 */
+  --r-sheet:   16px;
+  --r-pill:    var(--radius-full);
+
+  /* Page rhythm (S3: airy-calm, between tool and marketing) */
+  --page-max: 72rem;               /* 1152px content column at 1440 */
+  --prose-max: 62ch;
+}
+
+/* Light overrides. Same three-state resolution as tokens.css. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-taste:        #6240c4;               /* 6.5:1 on bg */
+    --color-taste-tint:   rgb(98 64 196 / 0.12);
+    --color-taste-text:   #6240c4;
+    --color-live:         #15803d;
+    --glow-live: none;                           /* glow is a dark-surface effect; light uses the pulse ring */
+    --color-success-text: #166534;               /* 6.2:1 on its tint */
+    --color-warning-text: #854d0e;               /* 5.9:1 on its tint */
+    --color-accent-text:  #7a560f;               /* 5.6:1 on its tint */
+    --color-field-border: #7b8396;               /* 3.8:1 on white */
+    --pattern-locked: repeating-linear-gradient(135deg,
+        transparent 0 6px, rgb(77 85 102 / 0.08) 6px 7px);
+  }
+}
+:root[data-theme="light"] {
+  --color-taste:        #6240c4;
+  --color-taste-tint:   rgb(98 64 196 / 0.12);
+  --color-taste-text:   #6240c4;
+  --color-live:         #15803d;
+  --glow-live: none;
+  --color-success-text: #166534;
+  --color-warning-text: #854d0e;
+  --color-accent-text:  #7a560f;
+  --color-field-border: #7b8396;
+  --pattern-locked: repeating-linear-gradient(135deg,
+      transparent 0 6px, rgb(77 85 102 / 0.08) 6px 7px);
+}
+
+/* Type scale: tokens.css fluid scale is kept; the Concierge ladder picks 7 steps
+   (see DESIGN-LANGUAGE.md section 4) and adds ONE display step for the number. */
+:root {
+  --text-number: clamp(2.25rem, 1.2rem + 5.2vw, 4.5rem);  /* the phone number only */
+}
