@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "property": {
+    "name": "The Juniper House",
+    "address": "27 Larkspur Lane, Savannah, GA 31401",
+    "lat": 32.0749,
+    "lng": -81.0943,
+    "timezone": "America/New_York",
+    "website": "https://juniperhouse.example"
+  },
+  "voice": {
+    "persona_id": "harper",
+    "humor_level": 1,
+    "languages": ["en"],
+    "feel": "Like staying with a friend who knows every kitchen in town and lets you sleep in."
+  },
+  "guests": {
+    "typical": "Couples on a long weekend, a few small groups of friends, the odd solo traveler.",
+    "here_for": "Walking the squares, eating well, a night out with music, and a slow morning after."
+  },
+  "logistics": {
+    "checkin": "Four in the afternoon",
+    "checkout": "Eleven in the morning",
+    "parking": "Free street parking on Larkspur Lane, and two spots behind the carriage house.",
+    "access_note": "Side gate keypad 4417, then the brass lockbox by the porch swing, code 2290.",
+    "wifi_note": "Network JuniperGuest, password SweetTea1907"
+  },
+  "rules": {
+    "list": [
+      "Quiet hours are ten at night to eight in the morning.",
+      "Breakfast is on the porch from eight to ten.",
+      "Dogs are welcome in the two garden rooms only."
+    ],
+    "never_bend": [
+      "No smoking anywhere on the property, porches included.",
+      "No more than four guests in any room."
+    ]
+  },
+  "picks": [
+    { "name": "Tidewater Oyster Counter", "why": "Shrimp and grits worth the wait, and the bartender pours a fair drink.", "category": "food" },
+    { "name": "Moonlit Pecan Coffee", "why": "The best biscuit downtown, and it opens at seven.", "category": "coffee" },
+    { "name": "Forsyth Park", "why": "A shady walk under the oaks, five minutes from the porch.", "category": "outdoors" },
+    { "name": "The Gaslight Listening Room", "why": "Small room, good sound, a band playing most nights.", "category": "music" }
+  ],
+  "avoid": [
+    { "name": "Riverboat Buffet Cruise", "reason": "Guests keep telling us it was a long two hours." }
+  ],
+  "faq": [
+    { "q": "Is breakfast included?", "a": "Yes. Breakfast is on the porch from eight to ten, and there is coffee in the parlor all day." },
+    { "q": "Can I check in early?", "a": "Sometimes. Early check-in depends on the room, so Dana confirms it the morning of your arrival." },
+    { "q": "Do you have bikes?", "a": "Two loaner bikes wait in the carriage house. Helmets are on the hook by the door." },
+    { "q": "Where should I park?", "a": "Street parking on Larkspur Lane is free, and there are two spots behind the carriage house." },
+    { "q": "Is the inn walkable to the river?", "a": "Yes, about fifteen minutes on foot through the squares." }
+  ],
+  "handoff": {
+    "name": "Dana",
+    "phone_last4": "0142",
+    "triggers": ["a problem with the room", "a lockout", "anything about the bill or a reservation change", "a noise complaint"],
+    "hours": "eight in the morning to nine at night, every day"
+  },
+  "permissions": {
+    "send_itinerary_sms": true,
+    "suggest_partners": false,
+    "upsell": false
+  },
+  "trust_level": "test"
+}

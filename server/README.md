@@ -398,3 +398,8 @@ GSM-7, segment math, truncation order), shared-secret auth, the why trace, the P
 (including that a refused request never reaches the transport), the cache (TTL, cache-only,
 mock bypass, bounded retries, no credentials in logs), and the mock path of every tool end
 to end over HTTP.
+
+## Deployed (2026-10-15)
+
+Live in mock mode at **https://concierge.southernsky.cloud** (`/health`, `POST /tools/<name>` with `X-Concierge-Secret`).
+Container `bellhop-concierge` on the Reliable VPS, port 4040. See `deploy/README.md` for deploy, layout, and rollback.
