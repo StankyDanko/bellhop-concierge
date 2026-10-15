@@ -45,7 +45,7 @@ written so you can read it), 2 means the config was invalid.
    `{{system__time}}` is left for the platform to fill on each call.
 4. **Build the tools.** One webhook per server tool, with names, routes, enums, and the auth
    header imported from `server/`, so the agent cannot drift from the server. The inn's
-   coordinates are compile-time constants and its timezone is a platform variable, so the model
+   coordinates and timezone are compile-time constants, so the model
    never types them. `send_sms` posts to the tool server's own `/tools/send_sms` route and binds
    `to` to `system__caller_id`: the model cannot address a
    text to anyone but the caller.

@@ -282,7 +282,6 @@ export function compile(config, opts = {}) {
       agent: {
         first_message: firstMessage,
         language: c.voice.languages[0],
-        dynamic_variables: { dynamic_variable_placeholders: { property_timezone: c.property.timezone } },
         prompt: {
           prompt,
           llm: opts.llm ?? DEFAULTS.llm,

@@ -46,14 +46,17 @@ test('every body property is filled exactly one way', () => {
   for (const t of r.tools) walk(t.tool_config.api_schema.request_body_schema, t.tool_config.name);
 });
 
-test('the inn coordinates are constants, the timezone is a platform variable', () => {
+test('the inn coordinates and timezone are constants; only system variables are bound', () => {
   for (const name of ['recommend_nearby', 'events_nearby', 'area_insights', 'cross_domain']) {
     const p = byName[name].api_schema.request_body_schema.properties;
     assert.equal(p.lat.constant_value, demo().property.lat);
     assert.equal(p.lng.constant_value, demo().property.lng);
   }
-  assert.equal(byName.events_nearby.api_schema.request_body_schema.properties.timezone.dynamic_variable, 'property_timezone');
-  assert.equal(r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders.property_timezone, 'America/New_York');
+  assert.equal(byName.events_nearby.api_schema.request_body_schema.properties.timezone.constant_value, 'America/New_York');
+  // An inbound phone call supplies no custom variables, so every bound variable must be a system one.
+  const bound = JSON.stringify(r.tools).match(/"dynamic_variable":"[^"]+"/g) ?? [];
+  assert.ok(bound.length > 0);
+  for (const m of bound) assert.match(m, /"dynamic_variable":"system__/);
 });
 
 /** Build the body the platform would send: constants and variables filled, model fields from a sample. */
@@ -83,7 +86,7 @@ function bodyFor(schema, vars) {
 
 test('a body built from each compiled schema is accepted by the real server (mock mode)', async () => {
   const { app } = makeApp();
-  const vars = { ...SYSTEM_VARS, ...r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders };
+  const vars = SYSTEM_VARS;
   for (const name of Object.keys(TOOLS)) {
     const body = bodyFor(byName[name].api_schema.request_body_schema, vars);
     for (const req of byName[name].api_schema.request_body_schema.required ?? []) assert.ok(req in body, `${name}: ${req} missing`);

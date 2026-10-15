@@ -8,8 +8,10 @@
 // api_schema.{url, method, request_headers, request_body_schema}). Each body property is
 // filled one of three ways, exactly one per property:
 //   description       the language model fills it
-//   dynamic_variable  the platform fills it at call time (system__caller_id, system__conversation_id, property_timezone)
-//   constant_value    fixed at compile time (the inn's coordinates, property id, persona)
+//   dynamic_variable  the platform fills it at call time (system__caller_id, system__conversation_id)
+//   constant_value    fixed at compile time (the inn's coordinates and timezone, property id, persona)
+// Only system__* variables are used: an inbound phone call supplies no custom variables, and a tool
+// that needs a missing variable is refused by the platform.
 // Binding a field to a variable or a constant takes it out of the model's hands entirely,
 // which is the structural version of a prompt rule.
 
@@ -51,7 +53,7 @@ const TASTE = {
 const WHEN = s('tonight or weekend. Use tonight unless the guest said the weekend.', { enum: ['tonight', 'weekend'] });
 
 /**
- * @param {{ lat: number, lng: number }} property
+ * @param {{ lat: number, lng: number, timezone: string }} property
  * @param {{ propertyId: string, persona: string }} ids
  * @returns {Record<string, { description: string, timeout: number, body: object }>}
  */
@@ -127,7 +129,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
           when: WHEN,
           classification: s(`Optional kind of event, one of ${CLASSIFICATIONS.join(', ')}`, { enum: [...CLASSIFICATIONS] }),
           take: n('How many events to return, one to five. Use three.'),
-          timezone: { type: 'string', dynamic_variable: 'property_timezone' },
+          timezone: { type: 'string', constant_value: property.timezone },
         },
       },
     },
