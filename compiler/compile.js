@@ -9,7 +9,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { assertValidConfig } from '../config/schema.js';
 import { lintCompiled } from './lint.js';
-import { serverToolConfigs, smsToolConfig } from './tools.js';
+import { SMS_TOOL_NAME, serverToolConfigs } from './tools.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const TEMPLATE_PATH = `${ROOT}template/concierge.md`;
@@ -34,11 +34,6 @@ const DEFAULTS = {
   llm: 'claude-sonnet-4-5',
   toolBaseUrl: '<https://your-tool-server.example>',
   toolSecretId: '<workspace secret id for CONCIERGE_TOOL_SECRET>',
-  sms: {
-    url: '<SMS provider send endpoint, for example the Twilio Messages API>',
-    from: '<verified sending number for this property>',
-    authSecretId: '<workspace secret id for the SMS provider Authorization header>',
-  },
   voiceId: '<voice id chosen after a listening test>',
 };
 
@@ -214,6 +209,9 @@ function renderSending(c) {
   ].join(' ');
 }
 
+/** A short, stable id for the session log: "The Juniper House" -> "the-juniper-house". */
+export const propertySlug = (name) => String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'property';
+
 // ---- template ----------------------------------------------------------------
 
 /**
@@ -238,7 +236,6 @@ export function fillSlots(text, slots) {
  * @param {string} [opts.voiceId]
  * @param {string} [opts.toolBaseUrl]
  * @param {string} [opts.toolSecretId]
- * @param {{ url?: string, from?: string, authSecretId?: string }} [opts.sms]
  * @param {string} [opts.templatePath]
  * @param {string} [opts.personasDir]
  */
@@ -270,11 +267,13 @@ export function compile(config, opts = {}) {
   const prompt = fillSlots(template, slots).replace(/\n{3,}/g, '\n\n').trim();
   const firstMessage = fillSlots(persona.opener, inner);
 
-  const sms = { ...DEFAULTS.sms, ...(opts.sms ?? {}) };
-  const tools = [
-    ...serverToolConfigs({ property: c.property, baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl, secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId }),
-    ...(c.permissions.send_itinerary_sms ? [smsToolConfig(sms)] : []),
-  ];
+  const tools = serverToolConfigs({
+    property: c.property,
+    propertyId: propertySlug(c.property.name),
+    persona: persona.id,
+    baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
+    secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
+  }).filter((t) => c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME);
 
   const agent = {
     name: `${c.property.name} Concierge, ${persona.display_name}${c.trust_level === 'test' ? ' [test]' : ''}`,

@@ -28,6 +28,8 @@ const int = (v, fallback) => {
  * @property {object} cache
  * @property {string} cache.path
  * @property {boolean} cache.only       serve cached responses only, never call upstream
+ * @property {import('./lib/twilio.js').SmsConfig} sms
+ * @property {string} sessionsPath     SQLite file for the session log
  * @property {string} defaultTimezone  IANA zone used to compute "tonight" / "this weekend"
  */
 
@@ -53,6 +55,16 @@ export function loadConfig(env = process.env) {
       path: env.CACHE_PATH ?? new URL('./data/cache.sqlite', import.meta.url).pathname,
       only: flag(env.CACHE_ONLY),
     },
+    sms: {
+      mock: flag(env.SMS_MOCK),
+      accountSid: env.TWILIO_ACCOUNT_SID ?? '',
+      apiKeySid: env.TWILIO_API_KEY_SID ?? '',
+      apiKeySecret: env.TWILIO_API_KEY_SECRET ?? '',
+      authToken: env.TWILIO_AUTH_TOKEN ?? '',
+      from: env.SMS_FROM_NUMBER ?? '',
+      timeoutMs: int(env.SMS_TIMEOUT_MS, 8000),
+    },
+    sessionsPath: env.SESSIONS_PATH ?? new URL('./data/sessions.sqlite', import.meta.url).pathname,
     defaultTimezone: env.DEFAULT_TIMEZONE ?? 'America/New_York',
   };
 }

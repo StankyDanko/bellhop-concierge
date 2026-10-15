@@ -11,6 +11,8 @@ import { ResponseCache } from './lib/cache.js';
 import { jsonLogger } from './lib/log.js';
 import { createQlooClient } from './lib/qloo.js';
 import { createTicketmasterClient } from './lib/ticketmaster.js';
+import { SessionStore } from './lib/sessions.js';
+import { createSmsSender } from './lib/twilio.js';
 
 const config = loadConfig();
 if (!config.toolSecret) {
@@ -22,6 +24,9 @@ const needsCache = !(config.qloo.mock && config.ticketmaster.mock);
 const cache = needsCache ? new ResponseCache({ path: config.cache.path, only: config.cache.only }) : null;
 const logger = jsonLogger;
 
+const sessions = new SessionStore({ path: config.sessionsPath, hashKey: config.toolSecret });
+const sms = createSmsSender({ config: config.sms, logger });
+
 let app;
 try {
   app = createApp({
@@ -30,6 +35,8 @@ try {
     ticketmaster: createTicketmasterClient({ config: config.ticketmaster, cache, logger }),
     timezone: config.defaultTimezone,
     logger,
+    sms,
+    sessions,
   });
 } catch (err) {
   console.error(`Startup failed: ${err.message}`);
@@ -38,12 +45,13 @@ try {
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   logger({ svc: 'server', listening: info.port, qloo: config.qloo.mock ? 'mock' : config.cache.only ? 'cache-only' : 'live',
-    ticketmaster: config.ticketmaster.mock ? 'mock' : config.ticketmaster.apiKey ? 'live' : 'disabled' });
+    ticketmaster: config.ticketmaster.mock ? 'mock' : config.ticketmaster.apiKey ? 'live' : 'disabled', sms: sms.mode });
 });
 
 const shutdown = () => {
   server.close(() => {
     cache?.close();
+    sessions.close();
     process.exit(0);
   });
 };

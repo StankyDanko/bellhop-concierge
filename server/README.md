@@ -44,7 +44,7 @@ Requires Node 20 or newer. From the repository root:
 
 ```bash
 npm install
-npm test        # node --test, 50 tests, no network, no keys
+npm test        # node --test, no network, no keys
 npm run mock    # serves on :8787 from server/fixtures, no keys needed
 ```
 
@@ -92,6 +92,13 @@ was live keeps answering the same questions.
 | `CACHE_PATH` | `server/data/cache.sqlite` | |
 | `CACHE_ONLY` | | `1` = never call upstream |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
+| `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
+| `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
+| `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | | revocable API key pair (preferred) |
+| `TWILIO_AUTH_TOKEN` | | used only when no key pair is set |
+| `SMS_FROM_NUMBER` | | the verified sending number, E.164. Without it (and credentials) live sending is `disabled` and fails closed |
+| `SMS_TIMEOUT_MS` | `8000` | |
+| `SESSIONS_PATH` | `server/data/sessions.sqlite` | the session log |
 
 `npm run probe:qloo` makes one live call per Qloo capability and prints the response
 shapes next to what the normalizers extracted. Run it the day a key arrives.
@@ -352,9 +359,42 @@ built.
   "compare": { "status": "skipped", "reason": "no compare groups given" } }
 ```
 
+### `send_sms`
+
+Sends the text `compose_itinerary` built. The agent binds `to` to the platform's caller id, so
+the model cannot choose the recipient.
+
+| Field | Type | Notes |
+|---|---|---|
+| `to` | E.164 string | bound to `system__caller_id` |
+| `body` | string | at most 320 characters, every link https; sent exactly as given, nothing appended |
+
+Answers `{ ok: true, sent: true, sid, status }` only after Twilio returned 2xx with a message sid.
+Any other outcome is a 502 with `sent: false` and a `say` line, so the agent never claims a text
+went out when it did not. At most three texts go to one number per hour. The log records the
+message sid and Twilio's status, never the number or the body. `SMS_MOCK=1` returns a fake
+`SMmock...` sid.
+
+### `log_session`
+
+The agent's last call on every guest call: one anonymous row for the host dashboard.
+
+| Field | Filled by | Notes |
+|---|---|---|
+| `session_id` | platform, `system__conversation_id` | primary key; a repeat call updates the row |
+| `caller_id` | platform, `system__caller_id` | stored ONLY as HMAC-SHA256 keyed by `CONCIERGE_TOOL_SECRET` |
+| `call_duration_secs` | platform | used to back-date `started_at` |
+| `property_id`, `persona` | compile-time constants | |
+| `entities` | model | up to 12 taste names; anything that looks like an email, phone, or room number is dropped |
+| `picks_count`, `events_count`, `sms_sent` | model | |
+
+Table: `sessions(id, property_id, persona, started_at, caller_hash, entities_json, picks_count,
+events_count, sms_sent, created_at)` in `SESSIONS_PATH`. No names, numbers, transcripts, or
+message bodies are stored.
+
 ## How Qloo is load-bearing
 
-Four of the six tools call Qloo directly, and the other two exist to put Qloo's picks in
+Four of the eight tools call Qloo directly, and the rest exist to put Qloo's picks in
 front of the guest. Every capability below is
 called from `lib/qloo.js` and appears by endpoint in each response's `meta.upstream` and
 in the server log, one JSON line per call (endpoint and parameters, never the key).
@@ -393,7 +433,7 @@ are the places most likely to need a correction, all of them in one file each:
 npm test
 ```
 
-50 tests on Node's built-in runner, all offline: the SMS composer (length, footer, links,
+Tests on Node's built-in runner, all offline: the SMS composer (length, footer, links,
 GSM-7, segment math, truncation order), shared-secret auth, the why trace, the PII guard
 (including that a refused request never reaches the transport), the cache (TTL, cache-only,
 mock bypass, bounded retries, no credentials in logs), and the mock path of every tool end

@@ -12,6 +12,8 @@ import { crossDomain } from './tools/cross-domain.js';
 import { eventsNearby } from './tools/events-nearby.js';
 import { recommendNearby } from './tools/recommend-nearby.js';
 import { resolveTaste } from './tools/resolve-taste.js';
+import { logSession } from './tools/log-session.js';
+import { createSendLimiter, sendSms } from './tools/send-sms.js';
 
 /** Tool name (what the voice agent calls) -> handler. */
 export const TOOLS = {
@@ -21,10 +23,14 @@ export const TOOLS = {
   events_nearby: eventsNearby,
   compose_itinerary: composeItinerary,
   area_insights: areaInsights,
+  send_sms: sendSms,
+  log_session: logSession,
 };
 
 /** A line the agent can say when a lookup fails, instead of inventing an answer. */
 const FALLBACK_SAY = "I couldn't reach my recommendations desk just now.";
+/** Said when a text did not go out. The agent must never say it was sent. */
+const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
 
 /**
  * @param {object} deps
@@ -33,17 +39,21 @@ const FALLBACK_SAY = "I couldn't reach my recommendations desk just now.";
  * @param {import('./lib/ticketmaster.js').TicketmasterClient} deps.ticketmaster
  * @param {string} deps.timezone
  * @param {import('./lib/log.js').Logger} deps.logger
+ * @param {import('./lib/twilio.js').SmsSender} deps.sms
+ * @param {import('./lib/sessions.js').SessionStore} deps.sessions
  * @param {() => Date} [deps.now]
  */
-export function createApp({ secret, qloo, ticketmaster, timezone, logger, now }) {
+export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now }) {
+  if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, timezone, now };
+  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions };
 
   app.get('/health', (c) => c.json({
     ok: true,
     service: 'bellhop-concierge-tools',
     qloo: qloo.mode,
     ticketmaster: ticketmaster.enabled ? 'enabled' : 'disabled',
+    sms: sms.mode,
     tools: Object.keys(TOOLS),
   }));
 
@@ -84,7 +94,8 @@ function toErrorResponse(tool, err, logger) {
   }
   if (err instanceof UpstreamError) {
     logger({ svc: 'tool', tool, error: err.code, upstream: err.service });
-    return [{ ok: false, tool, status: 'error', error: { code: err.code, service: err.service, retryable: err.retryable }, say: FALLBACK_SAY }, 502];
+    const say = err.service === 'twilio' ? SMS_FAILED_SAY : FALLBACK_SAY;
+    return [{ ok: false, tool, status: 'error', ...(err.service === 'twilio' ? { sent: false } : {}), error: { code: err.code, service: err.service, retryable: err.retryable }, say }, 502];
   }
   logger({ svc: 'tool', tool, error: 'internal', detail: String(err?.stack ?? err) });
   return [{ ok: false, tool, status: 'error', error: { code: 'internal' }, say: FALLBACK_SAY }, 500];

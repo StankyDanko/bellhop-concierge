@@ -3,7 +3,7 @@
 //
 //   node bin/compile.js config/examples/demo-inn.json [--persona maybelle] [--out agent.json]
 //        [--tool-base-url https://tools.example.org] [--tool-secret-id <id>]
-//        [--sms-url <url>] [--sms-from <number>] [--sms-secret-id <id>] [--llm <id>] [--voice-id <id>]
+//        [--llm <id>] [--voice-id <id>]
 //   node bin/compile.js --print-schema        the JSON Schema for host configs
 //
 // Exit codes: 0 compiled with no lint errors, 1 lint errors (output still written),
@@ -25,9 +25,6 @@ try {
       out: { type: 'string' },
       'tool-base-url': { type: 'string' },
       'tool-secret-id': { type: 'string' },
-      'sms-url': { type: 'string' },
-      'sms-from': { type: 'string' },
-      'sms-secret-id': { type: 'string' },
       llm: { type: 'string' },
       'voice-id': { type: 'string' },
       'print-schema': { type: 'boolean' },
@@ -52,12 +49,11 @@ try {
   process.exit(2);
 }
 
-const sms = Object.fromEntries(Object.entries({ url: o['sms-url'], from: o['sms-from'], authSecretId: o['sms-secret-id'] }).filter(([, v]) => v));
 let result;
 try {
   result = compile(config, {
     persona: o.persona, llm: o.llm, voiceId: o['voice-id'],
-    toolBaseUrl: o['tool-base-url'], toolSecretId: o['tool-secret-id'], sms,
+    toolBaseUrl: o['tool-base-url'], toolSecretId: o['tool-secret-id'],
   });
 } catch (err) {
   console.error(err instanceof ConfigError ? err.message : `compile failed: ${err.message}`);

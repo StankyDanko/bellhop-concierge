@@ -6,7 +6,7 @@ import { CALLER_ID_VAR, SMS_TOOL_NAME } from '../tools.js';
 import { secretTokens } from '../../config/schema.js';
 import { demo } from './helpers.js';
 
-const OPTS = { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test', sms: { url: 'https://sms.example.org/send', from: 'sender', authSecretId: 'sec_sms' } };
+const OPTS = { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test' };
 const prompt = (r) => r.agent.conversation_config.agent.prompt.prompt;
 
 test('both demo personas are on disk and parse', () => {
@@ -62,10 +62,23 @@ test('access and wifi notes never reach the agent or its tools, only the sms_onl
 test('send_sms: To is bound to the caller id, never filled by the model', () => {
   const r = compile(demo(), OPTS);
   const sms = r.tools.find((t) => t.tool_config.name === SMS_TOOL_NAME).tool_config;
-  const to = sms.api_schema.request_body_schema.properties.To;
+  const to = sms.api_schema.request_body_schema.properties.to;
   assert.equal(to.dynamic_variable, CALLER_ID_VAR);
   assert.equal(to.description, undefined);
-  assert.equal(sms.api_schema.request_body_schema.properties.From.constant_value, 'sender');
+  // It posts to our own server, which holds the sending number and checks the body again.
+  assert.equal(sms.api_schema.url, 'https://tools.example.org/tools/send_sms');
+  assert.deepEqual(Object.keys(sms.api_schema.request_body_schema.properties).sort(), ['body', 'to']);
+});
+
+test('log_session: caller and call id come from the platform, property and persona are constants', () => {
+  const r = compile(demo(), OPTS);
+  const t = r.tools.find((x) => x.tool_config.name === 'log_session').tool_config;
+  const p = t.api_schema.request_body_schema.properties;
+  assert.equal(p.caller_id.dynamic_variable, CALLER_ID_VAR);
+  assert.equal(p.session_id.dynamic_variable, 'system__conversation_id');
+  assert.equal(p.property_id.constant_value, 'the-juniper-house');
+  assert.equal(p.persona.constant_value, 'harper');
+  assert.match(prompt(r), /call log_session once/);
 });
 
 test('texting off: no send_sms tool, and the prompt says so', () => {

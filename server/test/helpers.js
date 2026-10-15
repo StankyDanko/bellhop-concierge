@@ -5,6 +5,8 @@ import { ResponseCache } from '../lib/cache.js';
 import { silentLogger } from '../lib/log.js';
 import { createQlooClient } from '../lib/qloo.js';
 import { createTicketmasterClient } from '../lib/ticketmaster.js';
+import { SessionStore } from '../lib/sessions.js';
+import { createSmsSender } from '../lib/twilio.js';
 
 export const SECRET = 'test-secret-0123456789';
 export const PROPERTY = { lat: 32.079, lng: -81.095 };
@@ -14,14 +16,16 @@ const qlooConfig = { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock
 const tmConfig = { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: '', mock: true, timeoutMs: 1000 };
 
 /**
- * @param {{ qlooTransport?: any, logger?: any }} [opts]
+ * @param {{ qlooTransport?: any, logger?: any, sms?: any }} [opts]
  */
-export function makeApp({ qlooTransport, logger = silentLogger } = {}) {
+export function makeApp({ qlooTransport, logger = silentLogger, sms } = {}) {
   const cache = new ResponseCache({ path: ':memory:' });
   const qloo = createQlooClient({ config: qlooConfig, cache, logger, transport: qlooTransport });
   const ticketmaster = createTicketmasterClient({ config: tmConfig, cache, logger });
-  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: 'America/New_York', logger, now: () => FIXED_NOW });
-  return { app, cache };
+  const sessions = new SessionStore({ path: ':memory:', hashKey: SECRET, now: () => FIXED_NOW });
+  const smsSender = sms ?? createSmsSender({ config: { mock: true }, logger });
+  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: 'America/New_York', logger, sms: smsSender, sessions, now: () => FIXED_NOW });
+  return { app, cache, sessions };
 }
 
 /** POST a tool call with the right secret. */

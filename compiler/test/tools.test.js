@@ -14,9 +14,11 @@ import { demo } from './helpers.js';
 const r = compile(demo(), { toolBaseUrl: 'https://tools.example.org/', toolSecretId: 'sec_test' });
 const byName = Object.fromEntries(r.tools.map((t) => [t.tool_config.name, t.tool_config]));
 
-test('one webhook per server tool, plus send_sms, and nothing else', () => {
+test('one webhook per server tool (send_sms and log_session included), and nothing else', () => {
   assert.deepEqual(SERVER_TOOL_NAMES, Object.keys(TOOLS));
-  assert.deepEqual(Object.keys(byName).sort(), [...Object.keys(TOOLS), SMS_TOOL_NAME].sort());
+  assert.ok(SERVER_TOOL_NAMES.includes(SMS_TOOL_NAME));
+  assert.ok(SERVER_TOOL_NAMES.includes('log_session'));
+  assert.deepEqual(Object.keys(byName).sort(), Object.keys(TOOLS).sort());
 });
 
 test('each server tool posts to its own route with the server auth header', () => {
@@ -60,7 +62,11 @@ const SAMPLE = {
   taste: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }, { id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' }],
   interests: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }],
   picks: [{ name: 'Lemongrass Lantern', why: 'Fans of Thai food love it', url: 'https://example.com/lemongrass-lantern' }],
+  body: 'Tonight for 2: 1. Lemongrass Lantern https://example.com/lemongrass-lantern Reply STOP to opt out.',
+  entities: ['Thai food'],
 };
+/** What the platform fills in at call time. */
+const SYSTEM_VARS = { system__caller_id: '+15555550100', system__conversation_id: 'conv_test_1', system__call_duration_secs: 95 };
 function bodyFor(schema, vars) {
   const out = {};
   for (const [k, p] of Object.entries(schema.properties)) {
@@ -77,7 +83,7 @@ function bodyFor(schema, vars) {
 
 test('a body built from each compiled schema is accepted by the real server (mock mode)', async () => {
   const { app } = makeApp();
-  const vars = r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders;
+  const vars = { ...SYSTEM_VARS, ...r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders };
   for (const name of Object.keys(TOOLS)) {
     const body = bodyFor(byName[name].api_schema.request_body_schema, vars);
     for (const req of byName[name].api_schema.request_body_schema.required ?? []) assert.ok(req in body, `${name}: ${req} missing`);

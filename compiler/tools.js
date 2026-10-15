@@ -1,4 +1,4 @@
-// ElevenLabs webhook tool definitions for the six server tools plus send_sms.
+// ElevenLabs webhook tool definitions, one per server tool (send_sms and log_session included).
 //
 // Tool names and enums are imported from the server so the agent and the server cannot
 // drift: TOOLS (server/app.js) is the route table, TARGETS and CLASSIFICATIONS are the
@@ -8,8 +8,8 @@
 // api_schema.{url, method, request_headers, request_body_schema}). Each body property is
 // filled one of three ways, exactly one per property:
 //   description       the language model fills it
-//   dynamic_variable  the platform fills it at call time (system__caller_id, property_timezone)
-//   constant_value    fixed at compile time (the inn's coordinates)
+//   dynamic_variable  the platform fills it at call time (system__caller_id, system__conversation_id, property_timezone)
+//   constant_value    fixed at compile time (the inn's coordinates, property id, persona)
 // Binding a field to a variable or a constant takes it out of the model's hands entirely,
 // which is the structural version of a prompt rule.
 
@@ -25,6 +25,10 @@ export const toolPath = (name) => `/tools/${name}`;
 export { SECRET_HEADER };
 /** The platform's caller-id system variable. */
 export const CALLER_ID_VAR = 'system__caller_id';
+/** The platform's per-call id and elapsed-time system variables. */
+export const CONVERSATION_ID_VAR = 'system__conversation_id';
+export const CALL_DURATION_VAR = 'system__call_duration_secs';
+export const SESSION_TOOL_NAME = 'log_session';
 
 const s = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const n = (description) => ({ type: 'number', description });
@@ -48,9 +52,10 @@ const WHEN = s('tonight or weekend. Use tonight unless the guest said the weeken
 
 /**
  * @param {{ lat: number, lng: number }} property
+ * @param {{ propertyId: string, persona: string }} ids
  * @returns {Record<string, { description: string, timeout: number, body: object }>}
  */
-function serverToolSpecs(property) {
+function serverToolSpecs(property, { propertyId, persona }) {
   const LAT = { type: 'number', constant_value: property.lat };
   const LNG = { type: 'number', constant_value: property.lng };
   return {
@@ -170,18 +175,55 @@ function serverToolSpecs(property) {
         },
       },
     },
+    send_sms: {
+      description: "Texts the guest the itinerary, to the number they are calling from. Body is compose_itinerary's body field, unchanged. Only say it was sent after this tool returns sent true.",
+      timeout: 12,
+      body: {
+        type: 'object',
+        required: ['to', 'body'],
+        properties: {
+          to: { type: 'string', dynamic_variable: CALLER_ID_VAR },
+          body: s('The body field returned by compose_itinerary, copied exactly. Never write your own.'),
+        },
+      },
+    },
+    log_session: {
+      description: 'Records a short anonymous summary of this call for the inn. Call it once, just before you end the call. It never changes what you say.',
+      timeout: 8,
+      body: {
+        type: 'object',
+        required: ['picks_count', 'events_count', 'sms_sent'],
+        properties: {
+          session_id: { type: 'string', dynamic_variable: CONVERSATION_ID_VAR },
+          caller_id: { type: 'string', dynamic_variable: CALLER_ID_VAR },
+          call_duration_secs: { type: 'number', dynamic_variable: CALL_DURATION_VAR },
+          property_id: { type: 'string', constant_value: propertyId },
+          persona: { type: 'string', constant_value: persona },
+          entities: {
+            type: 'array',
+            description: 'The tastes the guest named, as resolve_taste echoed them, up to eight. Empty if none.',
+            items: s('One taste, for example Thai food'),
+          },
+          picks_count: n('How many places you recommended on this call, zero if none'),
+          events_count: n('How many events you recommended on this call, zero if none'),
+          sms_sent: b('True only if send_sms returned sent true on this call'),
+        },
+      },
+    },
   };
 }
 
 /**
  * @param {object} p
  * @param {{ lat: number, lng: number }} p.property
+ * @param {string} p.propertyId   short slug for the session log
+ * @param {string} p.persona      persona id for the session log
  * @param {string} p.baseUrl      where the tool server is reachable, https in production
  * @param {string} p.secretId     ElevenLabs workspace secret id holding CONCIERGE_TOOL_SECRET
  * @returns {Array<{ tool_config: object }>}
  */
-export function serverToolConfigs({ property, baseUrl, secretId }) {
-  const specs = serverToolSpecs(property);
+export function serverToolConfigs({ property, propertyId = 'property', persona = 'unknown', baseUrl, secretId }) {
+  const specs = serverToolSpecs(property, { propertyId, persona });
   const missing = SERVER_TOOL_NAMES.filter((name) => !specs[name]);
   const extra = Object.keys(specs).filter((name) => !SERVER_TOOL_NAMES.includes(name));
   if (missing.length || extra.length) {
@@ -203,41 +245,4 @@ export function serverToolConfigs({ property, baseUrl, secretId }) {
       },
     },
   }));
-}
-
-/**
- * The text-message tool. It posts to an SMS provider's send endpoint (Twilio's Messages
- * API shape: form fields To, From, Body). To is bound to the caller's own number by the
- * platform, so the model cannot address a text to anyone else.
- *
- * @param {object} p
- * @param {string} p.url           the provider's send endpoint
- * @param {string} p.from          the sending number, a verified sender for this property
- * @param {string} p.authSecretId  workspace secret id holding the provider's Authorization header
- */
-export function smsToolConfig({ url, from, authSecretId }) {
-  return {
-    tool_config: {
-      type: 'webhook',
-      name: SMS_TOOL_NAME,
-      description: "Texts the guest the itinerary, to the number they are calling from. Body is compose_itinerary's body field, unchanged. Only say it was sent after this tool returns a success.",
-      response_timeout_secs: 10,
-      tool_error_handling_mode: 'summarized',
-      api_schema: {
-        url,
-        method: 'POST',
-        content_type: 'application/x-www-form-urlencoded',
-        request_headers: { Authorization: { secret_id: authSecretId } },
-        request_body_schema: {
-          type: 'object',
-          required: ['To', 'From', 'Body'],
-          properties: {
-            To: { type: 'string', dynamic_variable: CALLER_ID_VAR },
-            From: { type: 'string', constant_value: from },
-            Body: s('The body field returned by compose_itinerary, copied exactly. Never write your own.'),
-          },
-        },
-      },
-    },
-  };
 }

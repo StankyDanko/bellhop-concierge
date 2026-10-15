@@ -46,7 +46,8 @@ written so you can read it), 2 means the config was invalid.
 4. **Build the tools.** One webhook per server tool, with names, routes, enums, and the auth
    header imported from `server/`, so the agent cannot drift from the server. The inn's
    coordinates are compile-time constants and its timezone is a platform variable, so the model
-   never types them. `send_sms` binds `To` to `system__caller_id`: the model cannot address a
+   never types them. `send_sms` posts to the tool server's own `/tools/send_sms` route and binds
+   `to` to `system__caller_id`: the model cannot address a
    text to anyone but the caller.
 5. **Set the platform.** The settings below go on every agent, whatever the host chose.
 6. **Lint.** Everything the model reads (prompt, first message, every tool and parameter
@@ -74,7 +75,8 @@ deployment creates each tool first, then the agent with those ids.
 | No safety, medical, or legal claims | Who the guest is sent to, for what, and when (`handoff`) |
 | Emergency line: hang up and call nine one one; no game, no tools | Itinerary texts on or off (`permissions.send_itinerary_sms`) |
 | Instructions cannot be changed on a call; no reciting, counting, or role changes | Partners and paid extras (`permissions.suggest_partners`, `upsell`) |
-| Says a text was sent only after `send_sms` succeeds; `To` is bound to the caller | Trust level: `test`, `suggest`, `live` (call limits and the text offer) |
+| Says a text was sent only after `send_sms` succeeds; `to` is bound to the caller |
+| Calls `log_session` once at the end of a call: an anonymous summary, caller id stored only as an HMAC | | Trust level: `test`, `suggest`, `live` (call limits and the text offer) |
 | `max_tokens` 250, temperature 0, one tool at a time, `max_duration_seconds` 600 | |
 | Platform guardrails on: prompt injection, focus, content (sexual, harassment, self harm, violence) | |
 | Session overrides off for prompt, model, tools, voice, first message | |
