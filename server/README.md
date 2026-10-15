@@ -441,5 +441,5 @@ to end over HTTP.
 
 ## Deployed (2026-10-15)
 
-Live in mock mode at **https://concierge.southernsky.cloud** (`/health`, `POST /tools/<name>` with `X-Concierge-Secret`).
+Live in mock mode at **https://concierge.southernsky.cloud**: dashboard (`/`, `/build`, `/property/demo`), `/api/*` (writes need `X-Admin-Token`), `/health`, and `POST /tools/<name>` with `X-Concierge-Secret`. Caddy proxies the whole hostname to the container. No fake sessions are seeded in production (sessions come only from `log_session`).
 Container `bellhop-concierge` on the Reliable VPS, port 4040. See `deploy/README.md` for deploy, layout, and rollback.
