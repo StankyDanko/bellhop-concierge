@@ -1,0 +1,24 @@
+{
+  "name": "bellhop-concierge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bellhop Concierge: a phone concierge for small inns. Tool server for a voice agent, powered by the Qloo taste graph and Ticketmaster.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "/usr/bin/node server/index.js",
+    "dev": "/usr/bin/node --watch server/index.js",
+    "mock": "QLOO_MOCK=1 TICKETMASTER_MOCK=1 CONCIERGE_TOOL_SECRET=${CONCIERGE_TOOL_SECRET:-local-dev-secret-change-me} /usr/bin/node server/index.js",
+    "test": "/usr/bin/node --test server/",
+    "live": "/usr/bin/node --env-file=server/.env server/index.js",
+    "probe:qloo": "/usr/bin/node --env-file=server/.env server/scripts/probe-qloo.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "better-sqlite3": "^12.11.1",
+    "hono": "^4.13.13"
+  }
+}

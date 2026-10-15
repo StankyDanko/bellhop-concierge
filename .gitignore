@@ -8,3 +8,7 @@ snapshots/
 *.sqlite
 *.sqlite-*
 .serena/
+
+# Tool server: cached upstream responses (Qloo terms forbid committing response data)
+server/data/
+server/.env
