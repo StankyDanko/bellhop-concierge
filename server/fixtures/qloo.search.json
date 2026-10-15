@@ -1,0 +1,41 @@
+{
+  "_note": "Synthetic fixtures, hand-written to the documented /search envelope. Not Qloo response data. Ids are fake (fx-*).",
+  "cases": [
+    {
+      "match": { "query": "sturgill simpson" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Sturgill Simpson", "entity_id": "fx-artist-sturgill-simpson", "type": "urn:entity", "subtype": "urn:entity:artist",
+          "properties": { "description": "Country and Americana singer-songwriter." }, "popularity": 0.93,
+          "tags": [ { "tag_id": "urn:tag:genre:music:country", "name": "Country", "type": "urn:tag:genre:music" } ] },
+        { "name": "Sturgill Simpson Tribute Band", "entity_id": "fx-artist-sturgill-tribute", "type": "urn:entity", "subtype": "urn:entity:artist",
+          "properties": {}, "popularity": 0.12, "tags": [] }
+      ] } }
+    },
+    {
+      "match": { "query": "wes anderson" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Wes Anderson", "entity_id": "fx-person-wes-anderson", "type": "urn:entity", "subtype": "urn:entity:person",
+          "properties": { "description": "Film director and screenwriter." }, "popularity": 0.95,
+          "tags": [ { "tag_id": "urn:tag:genre:media:comedy", "name": "Comedy", "type": "urn:tag:genre:media" } ] }
+      ] } }
+    },
+    {
+      "match": { "query": "kacey musgraves" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Kacey Musgraves", "entity_id": "fx-artist-kacey-musgraves", "type": "urn:entity", "subtype": "urn:entity:artist",
+          "properties": {}, "popularity": 0.94, "tags": [] }
+      ] } }
+    },
+    {
+      "match": { "query": "grand budapest" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "The Grand Budapest Hotel", "entity_id": "fx-movie-grand-budapest-hotel", "type": "urn:entity", "subtype": "urn:entity:movie",
+          "properties": { "release_year": 2014 }, "popularity": 0.9, "tags": [] }
+      ] } }
+    },
+    {
+      "match": {},
+      "response": { "success": true, "results": { "entities": [] } }
+    }
+  ]
+}

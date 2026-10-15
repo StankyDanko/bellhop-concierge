@@ -1,0 +1,27 @@
+{
+  "_note": "Synthetic fixtures, hand-written to the documented /v2/tags envelope. Not Qloo response data.",
+  "cases": [
+    {
+      "match": { "filter.query": "thai food" },
+      "response": { "success": true, "results": { "tags": [
+        { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "type": "urn:tag:genre:place:restaurant" }
+      ] } }
+    },
+    {
+      "match": { "filter.query": "jazz bars" },
+      "response": { "success": true, "results": { "tags": [
+        { "id": "urn:tag:genre:place:bar:jazz", "name": "Jazz Bar", "type": "urn:tag:genre:place:bar" }
+      ] } }
+    },
+    {
+      "match": { "filter.query": "spicy food" },
+      "response": { "success": true, "results": { "tags": [
+        { "id": "urn:tag:keyword:place:spicy", "name": "Spicy", "type": "urn:tag:keyword:place" }
+      ] } }
+    },
+    {
+      "match": {},
+      "response": { "success": true, "results": { "tags": [] } }
+    }
+  ]
+}

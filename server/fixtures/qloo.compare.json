@@ -1,0 +1,13 @@
+{
+  "_note": "Synthetic fixture, hand-written to the /v2/analysis/compare request shape. The response shape is UNVERIFIED (not documented in the notes we built from). Not Qloo response data.",
+  "cases": [
+    {
+      "match": {},
+      "response": { "success": true, "results": { "tags": [
+        { "tag_id": "urn:tag:genre:place:restaurant:barbecue", "name": "Barbecue", "query": { "a": 0.81, "b": 0.34, "difference": 0.47 } },
+        { "tag_id": "urn:tag:genre:place:bar:cocktail", "name": "Cocktail Bar", "query": { "a": 0.42, "b": 0.77, "difference": -0.35 } },
+        { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "query": { "a": 0.6, "b": 0.58, "difference": 0.02 } }
+      ] } }
+    }
+  ]
+}
