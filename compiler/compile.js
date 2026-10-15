@@ -312,6 +312,7 @@ export function compile(config, opts = {}) {
     },
     platform_settings: {
       guardrails: {
+        version: '1', // required discriminator: the API 422s a guardrails object without it
         prompt_injection: { is_enabled: true },
         focus: { is_enabled: true },
         content: {

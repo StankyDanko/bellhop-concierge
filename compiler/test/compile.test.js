@@ -28,6 +28,7 @@ for (const persona of ['harper', 'maybelle']) {
     assert.equal(p.temperature, 0);
     assert.equal(p.enable_parallel_tool_calls, false);
     assert.equal(a.conversation_config.conversation.max_duration_seconds, 600);
+    assert.equal(a.platform_settings.guardrails.version, '1', 'the API rejects guardrails without its version discriminator');
     assert.equal(a.platform_settings.guardrails.prompt_injection.is_enabled, true);
     assert.equal(a.platform_settings.guardrails.focus.is_enabled, true);
     assert.equal(a.platform_settings.overrides.conversation_config_override.agent.prompt.prompt, false);

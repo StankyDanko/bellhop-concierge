@@ -102,14 +102,15 @@ request_body_schema}`, property-level `dynamic_variable` and `constant_value`,
 `response_timeout_secs` (5 to 300), `tool_error_handling_mode` (`auto`, `summarized`,
 `passthrough`, `hide`).
 
-Not confirmed in the reference, used as observed on working agents, so verify with a GET after
-the first create: `api_schema.content_type`; `request_headers` values of the form
-`{ secret_id }`; `enum` and `items` on body properties; numeric `constant_value`;
-`built_in_tools.end_call` with `params.system_tool_type`; `platform_settings.privacy.
+Confirmed by a live create on 2026-10-15 (every field sent was read back unchanged on a GET):
+`api_schema.content_type`; `request_headers` values of the form `{ secret_id }`; `enum` and
+`items` on body properties; numeric `constant_value`; `dynamic_variable` on string and number
+properties; `built_in_tools.end_call` with `params.system_tool_type`; `platform_settings.privacy.
 {retention_days, record_voice}`; `guardrails.content.config.<category>.threshold`;
-`platform_settings.evaluation.criteria` item fields; the parent path of
-`tts.text_normalisation_type`; and the `llm` id `claude-sonnet-4-5`. An unknown field name can be
-ignored silently by an API, so a GET after every write is the real check.
+`platform_settings.evaluation.criteria` item fields; `tts.text_normalisation_type` (under `tts`);
+`call_limits`; `overrides`; and the `llm` id `claude-sonnet-4-5`. The create call also showed that
+`platform_settings.guardrails` needs `version: "1"`: without it the API answers 422. An unknown
+field name can still be ignored silently by an API, so a GET after every write remains the real check.
 
 ## How this relates to the hosted product
 
