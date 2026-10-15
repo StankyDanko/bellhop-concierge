@@ -1,0 +1,243 @@
+// ElevenLabs webhook tool definitions for the six server tools plus send_sms.
+//
+// Tool names and enums are imported from the server so the agent and the server cannot
+// drift: TOOLS (server/app.js) is the route table, TARGETS and CLASSIFICATIONS are the
+// server's own validators. compile.js asserts that every server tool has a definition here.
+//
+// Field names follow the ElevenLabs create-tool shape (tool_config.type "webhook",
+// api_schema.{url, method, request_headers, request_body_schema}). Each body property is
+// filled one of three ways, exactly one per property:
+//   description       the language model fills it
+//   dynamic_variable  the platform fills it at call time (system__caller_id, property_timezone)
+//   constant_value    fixed at compile time (the inn's coordinates)
+// Binding a field to a variable or a constant takes it out of the model's hands entirely,
+// which is the structural version of a prompt rule.
+
+import { TOOLS } from '../server/app.js';
+import { SECRET_HEADER } from '../server/lib/auth.js';
+import { TARGETS } from '../server/tools/cross-domain.js';
+import { CLASSIFICATIONS } from '../server/tools/events-nearby.js';
+
+export const SERVER_TOOL_NAMES = Object.freeze(Object.keys(TOOLS));
+export const SMS_TOOL_NAME = 'send_sms';
+/** The route the server mounts each tool on (server/app.js: app.post(`/tools/${name}`)). */
+export const toolPath = (name) => `/tools/${name}`;
+export { SECRET_HEADER };
+/** The platform's caller-id system variable. */
+export const CALLER_ID_VAR = 'system__caller_id';
+
+const s = (description, extra = {}) => ({ type: 'string', description, ...extra });
+const n = (description) => ({ type: 'number', description });
+const b = (description) => ({ type: 'boolean', description });
+
+const TASTE = {
+  type: 'array',
+  description: 'The resolved items exactly as resolve_taste returned them, one to eight.',
+  items: {
+    type: 'object',
+    description: 'One resolved taste item.',
+    required: ['id', 'name'],
+    properties: {
+      id: s('The id from resolve_taste, for example fx-artist-sturgill-simpson or urn:tag:genre:place:restaurant:thai'),
+      name: s('The name from resolve_taste, for example Sturgill Simpson'),
+    },
+  },
+};
+
+const WHEN = s('tonight or weekend. Use tonight unless the guest said the weekend.', { enum: ['tonight', 'weekend'] });
+
+/**
+ * @param {{ lat: number, lng: number }} property
+ * @returns {Record<string, { description: string, timeout: number, body: object }>}
+ */
+function serverToolSpecs(property) {
+  const LAT = { type: 'number', constant_value: property.lat };
+  const LNG = { type: 'number', constant_value: property.lng };
+  return {
+    resolve_taste: {
+      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words.",
+      timeout: 15,
+      body: {
+        type: 'object',
+        required: ['mentions'],
+        properties: {
+          mentions: {
+            type: 'array',
+            description: 'One to six things the guest named, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson.',
+            items: s('One thing the guest named, for example Sturgill Simpson'),
+          },
+        },
+      },
+    },
+    recommend_nearby: {
+      description: 'Places near the inn ranked for this guest, each with the reason it fits. Call it after resolve_taste.',
+      timeout: 15,
+      body: {
+        type: 'object',
+        required: ['taste', 'lat', 'lng'],
+        properties: {
+          taste: TASTE,
+          lat: LAT,
+          lng: LNG,
+          radius_miles: n('How far to look, in miles. Default three. Use one for walking.'),
+          take: n('How many places to return, one to five. Use three.'),
+          constraints: {
+            type: 'object',
+            description: 'What you learned about the plan. Leave out anything the guest did not say.',
+            properties: {
+              party_size: n('How many people, for example two'),
+              budget: n('One is cheap, four is a splurge. Leave out if unknown.'),
+              kids: b('True if children are coming'),
+              when: WHEN,
+              max_minutes: n('The longest drive the guest will accept, in minutes, for example fifteen as 15'),
+            },
+          },
+        },
+      },
+    },
+    cross_domain: {
+      description: 'Picks in another category that fit the same taste, such as a film for a music fan. Call it after resolve_taste.',
+      timeout: 15,
+      body: {
+        type: 'object',
+        required: ['taste', 'target'],
+        properties: {
+          taste: TASTE,
+          target: s(`The category to pick from, one of ${TARGETS.join(', ')}`, { enum: [...TARGETS] }),
+          take: n('How many to return, one to three. Use one.'),
+          lat: LAT,
+          lng: LNG,
+        },
+      },
+    },
+    events_nearby: {
+      description: 'Ticketed events near the inn tonight or this weekend, with a short time label for each.',
+      timeout: 12,
+      body: {
+        type: 'object',
+        required: ['lat', 'lng', 'when'],
+        properties: {
+          lat: LAT,
+          lng: LNG,
+          when: WHEN,
+          classification: s(`Optional kind of event, one of ${CLASSIFICATIONS.join(', ')}`, { enum: [...CLASSIFICATIONS] }),
+          take: n('How many events to return, one to five. Use three.'),
+          timezone: { type: 'string', dynamic_variable: 'property_timezone' },
+        },
+      },
+    },
+    compose_itinerary: {
+      description: 'Builds the text message from the picks you chose. It sends nothing. Pass its body field to send_sms unchanged.',
+      timeout: 8,
+      body: {
+        type: 'object',
+        required: ['picks'],
+        properties: {
+          picks: {
+            type: 'array',
+            description: 'One to three picks in the order you would recommend them, copied from tool results.',
+            items: {
+              type: 'object',
+              description: 'One pick.',
+              required: ['name'],
+              properties: {
+                name: s('The name exactly as a tool returned it'),
+                why: s('The why field from the tool result'),
+                url: s('The url field from the tool result, if there was one'),
+                detail: s('For an event, its when_label, for example Fri 8pm'),
+              },
+            },
+          },
+          guest: {
+            type: 'object',
+            description: 'The plan the guest agreed to.',
+            properties: { party_size: n('How many people'), when: WHEN },
+          },
+        },
+      },
+    },
+    area_insights: {
+      description: 'What the neighborhood around the inn leans toward, in aggregate. Only when a guest asks what the area is into.',
+      timeout: 15,
+      body: {
+        type: 'object',
+        required: ['lat', 'lng'],
+        properties: {
+          lat: LAT,
+          lng: LNG,
+          radius_miles: n('How far around the inn, in miles. Use two.'),
+          interests: { ...TASTE, description: 'Optional. Resolved items from resolve_taste to compare against the area.' },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * @param {object} p
+ * @param {{ lat: number, lng: number }} p.property
+ * @param {string} p.baseUrl      where the tool server is reachable, https in production
+ * @param {string} p.secretId     ElevenLabs workspace secret id holding CONCIERGE_TOOL_SECRET
+ * @returns {Array<{ tool_config: object }>}
+ */
+export function serverToolConfigs({ property, baseUrl, secretId }) {
+  const specs = serverToolSpecs(property);
+  const missing = SERVER_TOOL_NAMES.filter((name) => !specs[name]);
+  const extra = Object.keys(specs).filter((name) => !SERVER_TOOL_NAMES.includes(name));
+  if (missing.length || extra.length) {
+    throw new Error(`tool definitions out of sync with server/app.js: missing ${missing.join(',') || 'none'}, extra ${extra.join(',') || 'none'}`);
+  }
+  return SERVER_TOOL_NAMES.map((name) => ({
+    tool_config: {
+      type: 'webhook',
+      name,
+      description: specs[name].description,
+      response_timeout_secs: specs[name].timeout,
+      tool_error_handling_mode: 'summarized',
+      api_schema: {
+        url: `${baseUrl.replace(/\/+$/, '')}${toolPath(name)}`,
+        method: 'POST',
+        content_type: 'application/json',
+        request_headers: { [SECRET_HEADER]: { secret_id: secretId } },
+        request_body_schema: specs[name].body,
+      },
+    },
+  }));
+}
+
+/**
+ * The text-message tool. It posts to an SMS provider's send endpoint (Twilio's Messages
+ * API shape: form fields To, From, Body). To is bound to the caller's own number by the
+ * platform, so the model cannot address a text to anyone else.
+ *
+ * @param {object} p
+ * @param {string} p.url           the provider's send endpoint
+ * @param {string} p.from          the sending number, a verified sender for this property
+ * @param {string} p.authSecretId  workspace secret id holding the provider's Authorization header
+ */
+export function smsToolConfig({ url, from, authSecretId }) {
+  return {
+    tool_config: {
+      type: 'webhook',
+      name: SMS_TOOL_NAME,
+      description: "Texts the guest the itinerary, to the number they are calling from. Body is compose_itinerary's body field, unchanged. Only say it was sent after this tool returns a success.",
+      response_timeout_secs: 10,
+      tool_error_handling_mode: 'summarized',
+      api_schema: {
+        url,
+        method: 'POST',
+        content_type: 'application/x-www-form-urlencoded',
+        request_headers: { Authorization: { secret_id: authSecretId } },
+        request_body_schema: {
+          type: 'object',
+          required: ['To', 'From', 'Body'],
+          properties: {
+            To: { type: 'string', dynamic_variable: CALLER_ID_VAR },
+            From: { type: 'string', constant_value: from },
+            Body: s('The body field returned by compose_itinerary, copied exactly. Never write your own.'),
+          },
+        },
+      },
+    },
+  };
+}
