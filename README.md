@@ -11,4 +11,23 @@ This is the open reference implementation of the Concierge edition of Bellhop, S
 receptionist. It is licensed under AGPL-3.0 (see LICENSE). Built for the Qloo Agentic Hackathon,
 October 2026.
 
-Status: scaffolding (2026-10-15). Architecture and setup docs land in `docs/` as the build proceeds.
+## What is here
+
+| Path | What it is | Status |
+|---|---|---|
+| [`server/`](server/README.md) | The tool server the voice agent calls: taste resolution, nearby picks, cross-domain picks, live events, the text-message composer, and area insights for the host dashboard. Qloo and Ticketmaster clients with a mock layer and a private cache. | working, mock mode |
+| `docs/` | Architecture and setup docs | in progress |
+
+## Quick start
+
+```bash
+npm install
+npm test       # offline test suite
+npm run mock   # tool server on :8787 using synthetic fixtures, no API keys needed
+```
+
+See [server/README.md](server/README.md) for the endpoint contracts, live and cache-only
+modes, and how each Qloo capability is used.
+
+Qloo response data is never committed to this repository. Cached responses live in
+`server/data/`, which is gitignored.
