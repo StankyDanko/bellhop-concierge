@@ -54,7 +54,7 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
     ok: true,
     service: 'bellhop-concierge-tools',
     qloo: qloo.mode,
-    ticketmaster: ticketmaster.enabled ? 'enabled' : 'disabled',
+    ticketmaster: ticketmaster.mode ?? (ticketmaster.enabled ? 'live' : 'disabled'),
     sms: sms.mode,
     tools: Object.keys(TOOLS),
   }));

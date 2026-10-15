@@ -54,6 +54,7 @@ export function createTicketmasterClient({ config, cache, logger, transport }) {
 
   return {
     enabled,
+    mode: config.mock ? 'mock' : (enabled ? 'live' : 'disabled'),
     /**
      * @param {{ lat: number, lng: number, radiusMiles: number, start: string, end: string,
      *           classification?: string, size?: number }} q
