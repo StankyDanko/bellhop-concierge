@@ -13,7 +13,7 @@ Idempotent. It tars the repo to the VPS (the VPS has no rsync), builds the image
 Zeus (`Containerfile`), ships it, tags the old image `:prev`, loads the new one, and recreates the
 container. Other modes: `--status`, `--logs`, `--rollback`, `--sync-env`.
 
-Defaults, override with env: `DEPLOY_HOST=<your-vps-host>`, `DEPLOY_USER=<user>`.
+Required env: `DEPLOY_HOST` and `DEPLOY_USER` (your VPS address and SSH user). Put them in `server/.env`, which is gitignored.
 
 ## Where things live on the VPS
 
@@ -48,5 +48,5 @@ The reload CLI can take over a minute to return; the new route is live in second
 ## Roll back
 
 - App: `node deploy.mjs --rollback` (runs `localhost/bellhop-concierge:prev`).
-- Take it offline: `ssh <user>@<your-vps-host> "sg docker -c 'docker rm -f bellhop-concierge'"`.
+- Take it offline: `ssh <user>@<host> "sg docker -c 'docker rm -f bellhop-concierge'"`.
 - Remove the route: delete the addon file with sudo, validate, reload.

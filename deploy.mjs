@@ -5,7 +5,7 @@
 //   node deploy.mjs --logs      tail container logs
 //   node deploy.mjs --rollback  re-run the previous image (kept as :prev)
 //   node deploy.mjs --sync-env  push local server/.env to the VPS and recreate the container
-// Env: DEPLOY_HOST (default <your-vps-host>), DEPLOY_USER (required).
+// Env: DEPLOY_HOST and DEPLOY_USER are required (set them in server/.env or the shell).
 // The Caddy route is NOT managed here (root-owned addon dir); see deploy/README.md.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
@@ -14,8 +14,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const HOST = process.env.DEPLOY_HOST || '<your-vps-host>';
+const HOST = process.env.DEPLOY_HOST;
 const USER = process.env.DEPLOY_USER;
+if (!HOST || !USER) {
+  console.error('deploy: set DEPLOY_HOST and DEPLOY_USER (see deploy/README.md)');
+  process.exit(2);
+}
 const TARGET = `${USER}@${HOST}`;
 const REMOTE = `/home/${USER}/bellhop-concierge`;
 const NAME = 'bellhop-concierge';
