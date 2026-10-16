@@ -158,6 +158,7 @@ Errors are never reported as success:
 | 401 | `unauthorized` | missing or wrong secret |
 | 413 | `body_too_large` | body over 32 KB |
 | 422 | `pii_refused` | the request would have sent personal data to Qloo |
+| 429 | `rate_limited` | a local limit refused the call before any upstream request (today, the `send_sms` hourly limit); the response has `reason: "rate_limited"` and a `say` line |
 | 502 | `unauthorized`, `forbidden`, `rate_limited`, `timeout`, `cache_miss`, ... | upstream failed; the response includes `say`, a line the agent can speak instead of inventing an answer |
 
 ### `resolve_taste`
@@ -496,7 +497,9 @@ the model cannot choose the recipient.
 
 Answers `{ ok: true, sent: true, sid, status }` only after Twilio returned 2xx with a message sid.
 Any other outcome is a 502 with `sent: false` and a `say` line, so the agent never claims a text
-went out when it did not. At most three texts go to one number per hour. The log records the
+went out when it did not. At most three texts go to one number per hour; the fourth answers 429
+with `reason: "rate_limited"`, `sent: false`, and `say: "The text could not be sent right now,
+so here is the top pick by name."`, and nothing reaches Twilio. The log records the
 message sid and Twilio's status, never the number or the body. `SMS_MOCK=1` returns a fake
 `SMmock...` sid.
 

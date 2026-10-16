@@ -6,14 +6,17 @@
 //   - the body is at most 320 characters (compose_itinerary's budget) and is sent as is;
 //     nothing is appended here, the footer is already in it
 //   - every link in the body is https
-//   - at most SENDS_PER_HOUR texts to one number per hour (a looping call cannot run up a bill)
+//   - at most SENDS_PER_HOUR texts to one number per hour (a looping call cannot run up a bill);
+//     the next one answers 429 with reason rate_limited, sent false, and a line to say
 // It answers { sent: true, sid, status } only after Twilio accepted the message.
 
-import { InputError, UpstreamError } from '../lib/errors.js';
+import { InputError, RateLimited } from '../lib/errors.js';
 import { MAX_CHARS } from '../lib/sms.js';
 
 export const E164 = /^\+[1-9]\d{7,14}$/;
 export const SENDS_PER_HOUR = 3;
+/** Said when the hourly limit refuses a text. The agent still never says it was sent. */
+export const RATE_LIMITED_SAY = 'The text could not be sent right now, so here is the top pick by name.';
 const URL_LIKE = /\b([a-z][a-z0-9+.-]*):\/\/[^\s]+/gi;
 const BARE_WWW = /(^|\s)www\./i;
 
@@ -53,7 +56,7 @@ export async function sendSms(body, { sms, smsLimiter }) {
   const problem = bodyProblem(body.body);
   if (problem) throw new InputError(problem);
   if (!smsLimiter.take(to)) {
-    throw new UpstreamError('send limit reached for this number', { service: 'twilio', code: 'send_limit' });
+    throw new RateLimited('send limit reached for this number', { service: 'twilio', say: RATE_LIMITED_SAY });
   }
   const r = await sms.send(to, body.body);
   return {
