@@ -17,7 +17,7 @@
     "probe:qloo": "/usr/bin/node --env-file=server/.env server/scripts/probe-qloo.js",
     "compile": "/usr/bin/node bin/compile.js",
     "schema": "/usr/bin/node bin/compile.js --print-schema > config/schema.json",
-    "build:dashboard": "vite build --config dashboard/vite.config.js",
+    "build:dashboard": "vite build --config dashboard/vite.config.js && /usr/bin/node dashboard/scripts/build-legal.mjs",
     "dev:dashboard": "vite --config dashboard/vite.config.js",
     "smoke:dashboard": "/usr/bin/node dashboard/scripts/smoke.mjs",
     "hooks": "git config core.hooksPath scripts/githooks"

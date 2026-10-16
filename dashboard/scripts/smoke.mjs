@@ -42,7 +42,7 @@ async function waitUp() {
 
 try {
   check(await waitUp(), 'server answers /health');
-  for (const path of ['/', '/build', '/property/demo', '/privacy', '/terms']) {
+  for (const path of ['/', '/build', '/property/demo']) {
     const res = await fetch(BASE + path);
     const html = await res.text();
     check(res.status === 200, `${path} returns 200`);
@@ -76,6 +76,15 @@ try {
   // The privacy and terms pages: a carrier review looks for these two sentences word for word.
   check(bundle.includes('Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.'), 'bundle carries the privacy page SMS sentence');
   check(bundle.includes('Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.'), 'bundle carries the footer bridge sentence');
+  // The same pages as whole documents, readable with no JavaScript (dashboard/scripts/build-legal.mjs).
+  for (const [path, title] of [['/privacy', 'Privacy'], ['/terms', 'Terms'], ['/sms-terms', 'Terms']]) {
+    const res = await fetch(BASE + path);
+    const html = await res.text();
+    check(res.status === 200 && /^<!doctype html>/i.test(html), `${path} returns a whole HTML document on a direct load`);
+    check(html.includes('never sold, shared, or transferred to third parties for marketing') && html.includes('a service of E Brands, LLC.'),
+      `${path} carries the SMS sentence and the bridge sentence without JavaScript`);
+    check(!/<script/i.test(html) && html.includes(`<h1 id="legal-title">${title}</h1>`), `${path} is the ${title} page, with no scripts`);
+  }
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
 } finally {
