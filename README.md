@@ -101,6 +101,7 @@ weekend. The details, request and response shapes included, are in
 4. **The Qloo shapes are a careful reading of the docs, not yet a live response.** The client
    was written before a key existed. `npm run probe:qloo` prints every shape side by side the
    day one arrives, and the places most likely to need a fix are listed in `server/README.md`.
+   Each guess, how it gets checked, and the key-day steps: [QLOO-NOTES.md](QLOO-NOTES.md).
 5. **Demographics describe people who share these tastes nearby,** not this inn's guests. The
    callers' fingerprint is a small, self-selected sample, which is why every panel shows its
    call count and stays dark under five.

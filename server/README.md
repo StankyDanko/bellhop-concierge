@@ -387,7 +387,7 @@ Live events from the Ticketmaster Discovery API.
 |---|---|---|
 | `lat`, `lng` | number | |
 | `radius_miles` | number, default 10 | 1-50 |
-| `when` | `tonight` (default) or `weekend` | tonight = now to 3 am; weekend = Friday 5 pm (or now, if later) to Sunday 11 pm, in the property's timezone |
+| `when` | `tonight` (default) or `weekend` | tonight = now to 4 am after the call's calendar day (the end of its evening, below); weekend = Friday 5 pm (or now, if later) to Sunday 11 pm, in the property's timezone |
 | `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy` |
 | `timezone` | optional IANA zone | defaults to `DEFAULT_TIMEZONE` |
 | `take` | number, default 5 | 1-10 |
@@ -399,7 +399,7 @@ Live events from the Ticketmaster Discovery API.
 // response
 { "ok": true, "tool": "events_nearby", "status": "ok",
   "window": { "when": "tonight", "start": "2026-10-15T23:02:12.089Z",
-              "end": "2026-10-16T07:00:00.000Z", "timezone": "America/New_York" },
+              "end": "2026-10-16T08:00:00.000Z", "timezone": "America/New_York" },
   "events": [ { "id": "fx-evt-1", "name": "Hollow Pines String Band", "venue": "The Lyric Annex",
     "start": "2026-10-17T00:00:00Z", "url": "https://example.com/events/hollow-pines",
     "local_date": "2026-10-16", "local_time": "20:00:00", "category": "Music", "source": "Ticketmaster",
@@ -411,13 +411,28 @@ Live events from the Ticketmaster Discovery API.
 Event links that are not https come back as `url: null`. (The mock fixture returns the
 same events whatever the window; the live API filters by it.)
 
+What "tonight" means, in the property's timezone, measured from the time of the call: an
+evening runs from 4 pm on a calendar day to 4 am the next morning, and tonight is the evening
+of the call's own calendar day. That holds after midnight too: at 00:16 on Friday a guest who
+says "tonight" means Friday evening, so a Friday 8 pm show is `Tonight 8pm`. A call between
+midnight and 4 am also counts shows later in those same small hours as tonight. Any other show
+on the call's date is `Today`; anything else is its weekday.
+
+| Call (New York) | Show | `when_label` | `say` opens with |
+|---|---|---|---|
+| Fri 00:16 | Fri 8 pm | `Tonight 8pm` | `Tonight at eight` |
+| Fri 6 pm | Fri 8 pm | `Tonight 8pm` | `Tonight at eight` |
+| Fri 10 am | Fri 2 pm | `Today 2pm` | `Today at two in the afternoon` |
+| Thu 3 pm | Fri 8 pm | `Fri 8pm` | `Friday at eight` |
+| Fri 11 pm | Sat 12:30 am | `Tonight 12:30am` | `Tonight at twelve thirty in the morning` |
+
 Every field below is built from Ticketmaster's own fields and the property's timezone, nothing else:
 
 | Field | Notes |
 |---|---|
-| `when_label` | for the text: `Tonight 8pm` only when the event falls on tonight (the evening until 3 am) in the property's timezone, otherwise the weekday, `Fri 8pm`. A date with no time is `Sat`, or `Today`, never `Tonight` |
+| `when_label` | for the text: `Tonight 8pm`, `Today 2pm`, or the weekday, `Fri 8pm`, by the rule above. A date with no time is `Sat`, or `Today`, never `Tonight` |
 | `tonight` | boolean, the same test |
-| `say` | one spoken-ready line: day and time in words, venue, name. `Friday at seven thirty, The Lyric Annex, Hollow Pines String Band.` It says nothing about taste or fit, because Ticketmaster does not |
+| `say` | one spoken-ready line: day word, time in words, venue, name. `Friday at seven thirty, The Lyric Annex, Hollow Pines String Band.` It always opens with its own day word (`Tonight`, `Today`, or the weekday, the same word as `when_label`), so the agent never has to add one. It says nothing about taste or fit, because Ticketmaster does not |
 | `pick_token` | HMAC over the name and `when_label` (`lib/pick-token.js`); `compose_itinerary` prints an event's `when_label` only when it verifies |
 
 ### `compose_itinerary`
@@ -671,7 +686,8 @@ are the places most likely to need a correction, all of them in one file each:
 - `lib/qloo.js` `normalizeEntity` and `tools/area-insights.js` `compact*`: property names for
   rating, price, website, heatmap cells, and the compare response.
 
-`npm run probe:qloo` prints exactly these shapes.
+`npm run probe:qloo` prints exactly these shapes. The full list of guesses, how each one is
+checked, and the key-day steps in order are in [`QLOO-NOTES.md`](../QLOO-NOTES.md).
 
 ## Tests
 

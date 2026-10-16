@@ -131,8 +131,8 @@ test('events_nearby: normalized Ticketmaster events in the right window', async 
   assert.equal(json.events[0].when_label, 'Tonight 8pm');
   assert.equal(json.events[0].say, 'Tonight at eight, The Lyric Annex, Hollow Pines String Band.');
   assert.equal(json.events[2].url, null, 'non-https event links are dropped');
-  // Friday 2pm New York -> tonight ends 3am Saturday local (07:00Z).
-  assert.equal(json.window.end, '2026-10-17T07:00:00.000Z');
+  // Friday 2pm New York -> tonight ends 4am Saturday local (08:00Z), where Friday evening ends.
+  assert.equal(json.window.end, '2026-10-17T08:00:00.000Z');
   const weekend = await callTool(app, 'events_nearby', { ...PROPERTY, when: 'weekend' });
   assert.equal(weekend.json.window.start, '2026-10-16T21:00:00.000Z'); // Fri 5pm EDT
   assert.equal(weekend.json.window.end, '2026-10-19T03:00:00.000Z');   // Sun 11pm EDT
