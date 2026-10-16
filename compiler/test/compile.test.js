@@ -77,9 +77,24 @@ test('log_session: caller and call id come from the platform, property and perso
   const p = t.api_schema.request_body_schema.properties;
   assert.equal(p.caller_id.dynamic_variable, CALLER_ID_VAR);
   assert.equal(p.session_id.dynamic_variable, 'system__conversation_id');
-  assert.equal(p.property_id.constant_value, 'the-juniper-house');
+  assert.equal(p.property_id.constant_value, 'demo', 'property.id from the config');
   assert.equal(p.persona.constant_value, 'harper');
   assert.match(prompt(r), /call log_session once/);
+});
+
+test('log_session: without property.id, the property id falls back to a slug of the name', () => {
+  const c = demo();
+  delete c.property.id;
+  const t = compile(c, OPTS).tools.find((x) => x.tool_config.name === 'log_session').tool_config;
+  assert.equal(t.api_schema.request_body_schema.properties.property_id.constant_value, 'the-juniper-house');
+});
+
+test('property.id must be a lowercase slug', () => {
+  for (const bad of ['Demo', 'the juniper', '-demo', 'a'.repeat(65), '']) {
+    const c = demo();
+    c.property.id = bad;
+    assert.throws(() => compile(c, OPTS), /property\.id/, JSON.stringify(bad));
+  }
 });
 
 test('texting off: no send_sms tool, and the prompt says so', () => {

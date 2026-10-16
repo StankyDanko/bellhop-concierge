@@ -65,6 +65,15 @@ list of `tool_config` bodies. The platform now attaches tools by id
 (`conversation_config.agent.prompt.tool_ids`; the inline `prompt.tools` field is deprecated), so
 deployment creates each tool first, then the agent with those ids.
 
+## The property id
+
+`log_session` files every call under a `property_id` that is a compile-time constant, and the
+innkeeper dashboard reads sessions by that same id. Set `property.id` in the config (a lowercase
+slug, for example `"id": "demo"` in `config/examples/demo-inn.json`) and the compiled agent logs
+under exactly that id, so the calls show up on the dashboard page for it. Without `property.id`,
+the compiler falls back to a slug of the inn's name ("The Juniper House" becomes
+`the-juniper-house`). The id only changes where calls are filed: it is never spoken or texted.
+
 ## Example calls and the stop rule
 
 A worked example in the prompt outweighs a rule written next to it, so an example call that

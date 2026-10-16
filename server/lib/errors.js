@@ -25,6 +25,20 @@ export class PiiViolation extends Error {
   }
 }
 
+/**
+ * A local limit refused the request before any upstream call: the caller asked too often.
+ * Maps to HTTP 429 with a reason and a line the agent can say.
+ */
+export class RateLimited extends Error {
+  /** @param {string} message @param {{ service: string, say: string }} info */
+  constructor(message, { service, say }) {
+    super(message);
+    this.name = 'RateLimited';
+    this.service = service;
+    this.say = say;
+  }
+}
+
 /** Input that fails validation at the tool boundary. Maps to HTTP 400. */
 export class InputError extends Error {
   /** @param {string} message */

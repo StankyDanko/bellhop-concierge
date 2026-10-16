@@ -7,6 +7,7 @@ import { locationParams, shapePlace, signalParams } from './places.js';
 import { popularityCounterfactual } from './counterfactual.js';
 import { classifyFavors, FAVORS_LINES } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
+import { signPick } from '../lib/pick-token.js';
 
 /** Average in-town driving speed used to turn "max 15 minutes" into a radius. */
 export const MILES_PER_MINUTE = 0.4;
@@ -76,9 +77,9 @@ async function scoreForTwo(qloo, candidates, guest, companion, take) {
 
 /**
  * @param {any} body
- * @param {{ qloo: import('../lib/qloo.js').QlooClient }} ctx
+ * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string }} ctx
  */
-export async function recommendNearby(body, { qloo }) {
+export async function recommendNearby(body, { qloo, toolSecret }) {
   const taste = tasteSignals(body?.taste);
   const companion = companionSignals(body?.companion_taste);
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
@@ -143,7 +144,9 @@ export async function recommendNearby(body, { qloo }) {
 
   return {
     status: places.length ? 'ok' : 'empty',
-    places,
+    // pick_token signs each place's name and favors, so compose_itinerary can tell a favors
+    // value this tool returned from one the model wrote (lib/pick-token.js).
+    places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
     applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut },
     companion: companionSummary,

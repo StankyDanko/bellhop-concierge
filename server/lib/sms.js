@@ -3,7 +3,8 @@
 // Rules (all enforced here, all unit-tested):
 //   - the whole body, footer included, is at most 320 characters
 //   - links are https only; anything else is dropped and reported
-//   - each pick carries a short "why" for as long as space allows
+//   - each pick carries its "why" whole for as long as space allows; a reason is dropped
+//     whole when it must go, never cut mid-phrase ("Strong match for" says nothing)
 //   - the body is pure GSM-7 so carriers bill it as 160/153-char segments, not 70/67
 //   - the footer is fixed and always present
 //
@@ -18,16 +19,17 @@ export const FOOTER = 'Picks from Qloo taste graph + Ticketmaster. Reply STOP to
 /** The order content gives way when the message is over budget. */
 export const TRUNCATION_ORDER = [
   'drop_header',     // 1. the "Tonight for 2:" line
-  'trim_why_32',     // 2. each why to <= 32 chars, at a word boundary
-  'trim_why_20',     // 3. each why to <= 20 chars
-  'drop_last_pick',  // 4. lowest-ranked picks, one at a time (at least one stays)
-  'drop_marker',     // 4b. the " (both)" marker, only when one is present. It is also tried
+  'drop_last_why',   // 2. the whole reason of the lowest-ranked pick that has one (never the
+                     //    top pick's), tried before each pick drop and only when dropping that
+                     //    one reason alone is enough. Reasons are never trimmed.
+  'drop_last_pick',  // 3. lowest-ranked picks, one at a time (at least one stays)
+  'drop_marker',     // 3b. the " (both)" marker, only when one is present. It is also tried
                      //     before each pick drop, but only when dropping it alone is enough,
                      //     so a marker never costs a pick and is never cut for nothing.
-  'drop_why',        // 5. whys on the remaining pick(s)
-  'drop_detail',     // 6. time/venue detail
-  'trim_name',       // 7. the remaining pick's name
-  'drop_link',       // 8. the remaining pick's link (a cut link is a broken link)
+  'drop_why',        // 4. the remaining pick's whole reason
+  'drop_detail',     // 5. time/venue detail
+  'trim_name',       // 6. the remaining pick's name
+  'drop_link',       // 7. the remaining pick's link (a cut link is a broken link)
 ];
 
 /** Appended to the name of a pick that scored for both the guest and their plus-one. */
@@ -138,14 +140,21 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   };
 
   step('drop_header', () => { header = ''; });
-  step('trim_why_32', () => { items = items.map((it) => ({ ...it, why: trimWords(it.why, 32) })); });
-  step('trim_why_20', () => { items = items.map((it) => ({ ...it, why: trimWords(it.why, 20) })); });
   const markerChars = () => items.filter((it) => it.both).length * BOTH_MARKER.length;
   const dropMarkers = () => { items = items.map((it) => ({ ...it, both: false })); };
+  /** Index of the lowest-ranked pick, other than the top one, that still has a reason. */
+  const lastWhy = () => { for (let i = items.length - 1; i > 0; i--) if (items[i].why) return i; return -1; };
   while (body.length > MAX_CHARS && items.length > 1) {
     if (markerChars() && body.length - markerChars() <= MAX_CHARS) {
       dropMarkers();
       applied.push('drop_marker');
+      body = render();
+      break;
+    }
+    const w = lastWhy();
+    if (w > 0 && body.length - ` - ${items[w].why}`.length <= MAX_CHARS) {
+      items = items.map((it, i) => (i === w ? { ...it, why: '' } : it));
+      applied.push('drop_last_why');
       body = render();
       break;
     }

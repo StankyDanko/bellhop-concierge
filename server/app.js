@@ -7,7 +7,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { requireSecret } from './lib/auth.js';
 import { sessionIdFrom } from './lib/sessions.js';
 import { withTrace } from './lib/upstream.js';
-import { InputError, PiiViolation, UpstreamError } from './lib/errors.js';
+import { InputError, PiiViolation, RateLimited, UpstreamError } from './lib/errors.js';
 import { areaInsights } from './tools/area-insights.js';
 import { composeItinerary } from './tools/compose-itinerary.js';
 import { crossDomain } from './tools/cross-domain.js';
@@ -50,7 +50,7 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
 export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions };
+  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret };
 
   app.get('/health', (c) => c.json({
     ok: true,
@@ -102,8 +102,13 @@ function persistTrace(sessions, sessionId, tool, trace, counterfactual, logger) 
   }
 }
 
-/** @returns {[Record<string, unknown>, 400|422|500|502]} */
+/** @returns {[Record<string, unknown>, 400|422|429|500|502]} */
 function toErrorResponse(tool, err, logger) {
+  if (err instanceof RateLimited) {
+    logger({ svc: 'tool', tool, error: 'rate_limited', upstream: err.service });
+    return [{ ok: false, tool, status: 'error', reason: 'rate_limited', ...(err.service === 'twilio' ? { sent: false } : {}),
+      error: { code: 'rate_limited', service: err.service, retryable: false }, say: err.say }, 429];
+  }
   if (err instanceof InputError) {
     return [{ ok: false, tool, status: 'error', error: { code: 'invalid_input', message: err.message } }, 400];
   }

@@ -12,6 +12,8 @@ export const EVENTS_ENDPOINT = '/events.json';
  * @property {string} name
  * @property {string|null} venue
  * @property {string|null} start      ISO timestamp (UTC) or local date when no time is set
+ * @property {string|null} local_date  the venue's calendar date, "2026-10-16"
+ * @property {string|null} local_time  the venue's clock time, "20:00:00", when one is set
  * @property {string|null} url        https only
  * @property {string|null} category   e.g. "Music"
  * @property {'Ticketmaster'} source
@@ -29,6 +31,8 @@ export function normalizeEvents(body) {
       name: String(e?.name ?? ''),
       venue: e?._embedded?.venues?.[0]?.name ?? null,
       start: start.dateTime ?? start.localDate ?? null,
+      local_date: typeof start.localDate === 'string' ? start.localDate : null,
+      local_time: typeof start.localTime === 'string' ? start.localTime : null,
       url,
       category: e?.classifications?.[0]?.segment?.name ?? null,
       source: /** @type {const} */ ('Ticketmaster'),

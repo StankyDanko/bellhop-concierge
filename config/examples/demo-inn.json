@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "property": {
+    "id": "demo",
     "name": "The Juniper House",
     "address": "27 Larkspur Lane, Savannah, GA 31401",
     "lat": 32.0749,

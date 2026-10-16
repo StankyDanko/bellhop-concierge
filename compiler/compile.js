@@ -212,6 +212,12 @@ function renderSending(c) {
 /** A short, stable id for the session log: "The Juniper House" -> "the-juniper-house". */
 export const propertySlug = (name) => String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'property';
 
+/**
+ * The id the session log files a call under. A config's own property.id wins, so the inn's
+ * calls land on the dashboard page that uses that id; otherwise a slug of the name.
+ */
+export const propertyIdOf = (property) => property.id ?? propertySlug(property.name);
+
 // ---- template ----------------------------------------------------------------
 
 /**
@@ -269,7 +275,7 @@ export function compile(config, opts = {}) {
 
   const tools = serverToolConfigs({
     property: c.property,
-    propertyId: propertySlug(c.property.name),
+    propertyId: propertyIdOf(c.property),
     persona: persona.id,
     baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
     secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,

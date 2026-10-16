@@ -78,19 +78,19 @@ function serverToolSpecs(property, { propertyId, persona }) {
         properties: {
           mentions: {
             type: 'array',
-            description: 'One to six things the guest named, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson.',
+            description: 'One to six things the guest likes for themselves, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson. Never something the guest said another person loves.',
             items: s('One thing the guest named, for example Sturgill Simpson'),
           },
           companion_mentions: {
             type: 'array',
-            description: "Optional. The one thing the guest's plus-one loves, in the guest's words, at most two. Leave out for a guest who is alone. Never put these in mentions.",
+            description: "Optional. What the guest says another person with them loves, in the guest's words, at most two. My wife loves Thai becomes Thai food here. Leave out for a guest who is alone. Never put these in mentions.",
             items: s('One thing the plus-one loves, for example Kacey Musgraves'),
           },
         },
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits. Call it after resolve_taste.',
+      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste.',
       timeout: 15,
       body: {
         type: 'object',
@@ -132,7 +132,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend, with a short time label for each.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token.',
       timeout: 12,
       body: {
         type: 'object',
@@ -156,7 +156,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
         properties: {
           picks: {
             type: 'array',
-            description: 'One to three picks in the order you would recommend them, copied from tool results.',
+            description: 'One to three picks in the order you would recommend them. Copy each one exactly as the tool returned it, including its pick_token. Never add or change a field.',
             items: {
               type: 'object',
               description: 'One pick.',
@@ -165,8 +165,9 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 name: s('The name exactly as a tool returned it'),
                 why: s('The why field from the tool result'),
                 url: s('The url field from the tool result, if there was one'),
-                detail: s('For an event, its when_label, for example Fri 8pm'),
-                favors: s('The favors field from recommend_nearby, if there was one', { enum: ['guest', 'companion', 'both'] }),
+                when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
+                favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
+                pick_token: s('The pick_token field from the tool result, copied exactly'),
               },
             },
           },

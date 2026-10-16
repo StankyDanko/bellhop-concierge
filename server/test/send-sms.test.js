@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeApp, callTool, SECRET } from './helpers.js';
 import { createSmsSender } from '../lib/twilio.js';
-import { bodyProblem, createSendLimiter } from '../tools/send-sms.js';
+import { bodyProblem, createSendLimiter, RATE_LIMITED_SAY } from '../tools/send-sms.js';
 import { SessionStore, hashCaller } from '../lib/sessions.js';
 
 const TO = '+15555550100';
@@ -106,8 +106,16 @@ test('at most three texts to one number per hour', async () => {
   const { app } = makeApp();
   for (let i = 0; i < 3; i++) assert.equal((await callTool(app, 'send_sms', { to: TO, body: BODY })).status, 200);
   const { status, json } = await callTool(app, 'send_sms', { to: TO, body: BODY });
-  assert.equal(status, 502);
+  assert.equal(status, 429, 'a local limit is not an upstream failure');
+  assert.equal(json.ok, false);
   assert.equal(json.sent, false);
+  assert.equal(json.reason, 'rate_limited');
+  assert.equal(json.error.code, 'rate_limited');
+  assert.equal(json.say, RATE_LIMITED_SAY);
+  assert.match(json.say, /could not be sent/, 'the line never says the text went out');
+  assert.equal(json.sid, undefined);
+  // Another number is not affected.
+  assert.equal((await callTool(app, 'send_sms', { to: '+15555550101', body: BODY })).status, 200);
 });
 
 test('log_session writes one row; the caller is stored only as an HMAC', async () => {

@@ -158,6 +158,7 @@ Errors are never reported as success:
 | 401 | `unauthorized` | missing or wrong secret |
 | 413 | `body_too_large` | body over 32 KB |
 | 422 | `pii_refused` | the request would have sent personal data to Qloo |
+| 429 | `rate_limited` | a local limit refused the call before any upstream request (today, the `send_sms` hourly limit); the response has `reason: "rate_limited"` and a `say` line |
 | 502 | `unauthorized`, `forbidden`, `rate_limited`, `timeout`, `cache_miss`, ... | upstream failed; the response includes `say`, a line the agent can speak instead of inventing an answer |
 
 ### `resolve_taste`
@@ -317,6 +318,13 @@ swallowed.
 
 The lines never name the plus-one or guess who they are to the guest.
 
+**The pick token.** Every place also carries `pick_token`, a short HMAC (keyed by
+`CONCIERGE_TOOL_SECRET`, `lib/pick-token.js`) over its name and its `favors` value, or over the
+name and an empty favors for a solo guest. `compose_itinerary` keeps a pick's `favors` only when
+its token verifies, so the `(both)` marker can only reach a text when this tool said so. A
+favors value the model filled in, or a pick without a token, is stripped, and
+`compose_itinerary` reports how many in `favors_dropped`.
+
 **At least one pick for both.** When none of the top `take` picks is `both` and a lower
 shortlist entry is, that entry replaces the last pick (only when `take` is two or more, so the
 top pick never moves). `companion.promoted_shared_pick` names it.
@@ -394,12 +402,23 @@ Live events from the Ticketmaster Discovery API.
               "end": "2026-10-16T07:00:00.000Z", "timezone": "America/New_York" },
   "events": [ { "id": "fx-evt-1", "name": "Hollow Pines String Band", "venue": "The Lyric Annex",
     "start": "2026-10-17T00:00:00Z", "url": "https://example.com/events/hollow-pines",
-    "category": "Music", "source": "Ticketmaster", "when_label": "Fri 8pm" } ],
+    "local_date": "2026-10-16", "local_time": "20:00:00", "category": "Music", "source": "Ticketmaster",
+    "when_label": "Tonight 8pm", "tonight": true, "say": "Tonight at eight, The Lyric Annex, Hollow Pines String Band.",
+    "pick_token": "..." } ],
   "meta": { "upstream": [ { "service": "ticketmaster", "endpoint": "/events.json", "via": "mock", "ms": 0 } ] } }
 ```
 
 Event links that are not https come back as `url: null`. (The mock fixture returns the
 same events whatever the window; the live API filters by it.)
+
+Every field below is built from Ticketmaster's own fields and the property's timezone, nothing else:
+
+| Field | Notes |
+|---|---|
+| `when_label` | for the text: `Tonight 8pm` only when the event falls on tonight (the evening until 3 am) in the property's timezone, otherwise the weekday, `Fri 8pm`. A date with no time is `Sat`, or `Today`, never `Tonight` |
+| `tonight` | boolean, the same test |
+| `say` | one spoken-ready line: day and time in words, venue, name. `Friday at seven thirty, The Lyric Annex, Hollow Pines String Band.` It says nothing about taste or fit, because Ticketmaster does not |
+| `pick_token` | HMAC over the name and `when_label` (`lib/pick-token.js`); `compose_itinerary` prints an event's `when_label` only when it verifies |
 
 ### `compose_itinerary`
 
@@ -407,9 +426,11 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 
 | Field | Type | Notes |
 |---|---|---|
-| `picks` | 1-5 of `{ name, why?, url?, detail? }` | in rank order; `detail` is a short label such as `when_label` |
+| `picks` | 1-5 of `{ name, why?, url?, when_label?, favors?, pick_token? }` | in rank order, copied as the tools returned them |
+| (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
+| (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
 | `guest.party_size` | number | used in the header |
-| `guest.when` | `tonight` or `weekend` | used in the header |
+| `guest.when` | `tonight` or `weekend` | used in the header, except that a plan with a verified event that is not tonight says `Your plan` instead of `Tonight` |
 | `intro` | string, optional | replaces the default header |
 
 Rules:
@@ -423,28 +444,32 @@ Rules:
 - When the full message is too long, content gives way in this order, and the response
   lists each step taken in `truncation`:
   1. `drop_header`
-  2. `trim_why_32`: each why to 32 characters at a word boundary
-  3. `trim_why_20`
-  4. `drop_last_pick`: lowest-ranked picks, one at a time; at least one stays
-  5. `drop_why`
-  6. `drop_detail`
-  7. `trim_name`
-  8. `drop_link`: last, because a shortened link is a broken link
+  2. `drop_last_why`: the whole reason of the lowest-ranked pick that has one, never the top
+     pick's, and only when dropping that one reason is enough to fit. It is tried before each
+     pick drop.
+  3. `drop_last_pick`: lowest-ranked picks, one at a time; at least one stays
+  4. `drop_why`: the remaining pick's whole reason
+  5. `drop_detail`
+  6. `trim_name`
+  7. `drop_link`: last, because a shortened link is a broken link
+
+  A reason is never trimmed. It is either in the text whole or not at all, because a cut
+  reason ("Strong match for") reads as a broken sentence and can change its meaning.
 
 ```json
 // request
 { "picks": [
     { "name": "Lemongrass Lantern", "why": "Fans of Thai food and Sturgill Simpson love it",
       "url": "https://example.com/lemongrass-lantern" },
-    { "name": "Hollow Pines String Band", "detail": "Fri 8pm", "why": "Live string band",
+    { "name": "Hollow Pines String Band", "when_label": "Tonight 8pm", "pick_token": "<from events_nearby>",
       "url": "https://example.com/events/hollow-pines" } ],
   "guest": { "party_size": 2, "when": "tonight" } }
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Fri 8pm - Live string band https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 286, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
-  "truncation": [], "rejected_links": [], "meta": { "upstream": [] } }
+  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+  "char_count": 271, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "meta": { "upstream": [] } }
 ```
 
 This tool composes the text only. Sending it is a separate step that must confirm delivery
@@ -496,7 +521,9 @@ the model cannot choose the recipient.
 
 Answers `{ ok: true, sent: true, sid, status }` only after Twilio returned 2xx with a message sid.
 Any other outcome is a 502 with `sent: false` and a `say` line, so the agent never claims a text
-went out when it did not. At most three texts go to one number per hour. The log records the
+went out when it did not. At most three texts go to one number per hour; the fourth answers 429
+with `reason: "rate_limited"`, `sent: false`, and `say: "The text could not be sent right now,
+so here is the top pick by name."`, and nothing reaches Twilio. The log records the
 message sid and Twilio's status, never the number or the body. `SMS_MOCK=1` returns a fake
 `SMmock...` sid.
 

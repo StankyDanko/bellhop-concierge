@@ -174,8 +174,9 @@ test('recommend_nearby: in live mode a repeat call is served from the upstream c
 test('compose_itinerary: the shared pick carries the (both) marker', async () => {
   const { app } = makeApp();
   const recs = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 3 })).json.places;
-  const picks = recs.map((p) => ({ name: p.name, why: p.why, url: p.url, favors: p.favors }));
+  const picks = recs.map((p) => ({ name: p.name, why: p.why, url: p.url, favors: p.favors, pick_token: p.pick_token }));
   const { json } = await callTool(app, 'compose_itinerary', { picks, guest: { party_size: 2, when: 'tonight' } });
+  assert.equal(json.favors_dropped, 0);
   assert.ok(json.char_count <= MAX_CHARS);
   assert.ok(json.body.includes(`The Low Lantern Listening Room${BOTH_MARKER}`));
   assert.ok(!json.body.includes(`Lemongrass Lantern${BOTH_MARKER}`), 'only the shared pick is marked');
