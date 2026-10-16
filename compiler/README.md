@@ -82,8 +82,10 @@ every persona's `## Example calls (compiled)` section and fails the build if an 
 
 - puts more than three concierge questions before the lookup line (the opener's band question
   counts as the first),
-- asks any question after the caller has given three named things (the plus-one's count), or
-- ends on a question instead of the lookup line.
+- asks any question after the caller has given three named things (the plus-one's count),
+- ends on a question instead of the lookup line, or
+- asks the bet in a call where the caller names a companion (we, us, my wife, and so on),
+  because for a guest who is not alone the plus-one question takes the bet's slot.
 
 The format it parses: examples are separated by a blank line, the first line is the title, and
 every other line is `Guest: "..."` or `<display_name>: "..."`. A concierge turn is a question
@@ -93,6 +95,8 @@ prompt: one line per example, `- <title>: 1, 2, 3`, giving the running count of 
 after each guest turn. The test checks that this list names every example in order with one
 count per guest turn, so an edited example cannot go unchecked. At least one example must be a
 couple whose last guest turn answers the plus-one question and brings the count to three.
+The bet is recognized by its words (bet, warm, way off, hunch), and a test checks that each
+persona's own bet sample line matches, so a renamed bet cannot slip past.
 
 ## Locked vs toggleable
 

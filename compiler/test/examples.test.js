@@ -4,7 +4,8 @@
 //   - puts more than three concierge questions before the lookup (the opener's band question
 //     counts as the first, since every example opens by answering or ignoring it),
 //   - asks any question once the caller has given three named things, or
-//   - ends on a question instead of the lookup line.
+//   - ends on a question instead of the lookup line, or
+//   - asks the bet once the caller has named a companion (the plus-one takes the bet's slot).
 // See "Example calls and the stop rule" in compiler/README.md.
 
 import { test } from 'node:test';
@@ -57,6 +58,18 @@ export function audit(example, named) {
   return { questions, breaches };
 }
 
+/** A guest turn that says the caller is not alone: we, us, our, or my wife, my friend, and so on. */
+export const COMPANION = /\b(we|we're|us|our|my (wife|husband|partner|friend|girlfriend|boyfriend|date|kid|son|daughter|mom|dad))\b/i;
+/** A concierge question that is the bet (or a persona's name for it, like the hunch). */
+export const BET = /\b(bet|betting|warm|way off|hunch|feeling you're)\b/i;
+
+/** Every bet question in an example that names a companion anywhere in a guest turn. */
+export function betsWithCompanion(example) {
+  const named = example.turns.some((t) => t.who === 'guest' && COMPANION.test(t.text));
+  if (!named) return [];
+  return example.turns.filter((t) => t.who === 'concierge' && t.text.includes('?') && BET.test(t.text)).map((t) => t.text);
+}
+
 for (const id of listPersonas(PERSONAS_DIR.pathname)) {
   test(`${id}: example calls obey the stop rule`, () => {
     const persona = loadPersona(id, PERSONAS_DIR.pathname);
@@ -74,9 +87,45 @@ for (const id of listPersonas(PERSONAS_DIR.pathname)) {
       assert.deepEqual(breaches, [], `${id} / ${ex.title}`);
       assert.ok(!ex.turns.at(-1).text.includes('?'), `${id} / ${ex.title}: must end on the lookup, not a question`);
       assert.equal(ex.turns.at(-1).who, 'concierge');
+      assert.deepEqual(betsWithCompanion(ex), [], `${id} / ${ex.title}: a companion is named, so the plus-one takes the bet's slot`);
     }
   });
+
+  test(`${id}: the bet detector recognizes this persona's own bet line`, () => {
+    const persona = loadPersona(id, PERSONAS_DIR.pathname);
+    const line = persona.sections['sample lines'].split('\n').find((l) => /^- The (bet|hunch):/.test(l));
+    assert.ok(line, `${id}: no bet or hunch sample line`);
+    assert.match(line, BET);
+  });
 }
+
+test('audit catches a couple who hear the bet and then the plus-one question', () => {
+  const bad = parseExamples([
+    'A pair who hear four questions.',
+    'Guest: "Sturgill Simpson."',
+    'Harper: "Sturgill. Dinner, spicy and loud, or slow and candlelit?"',
+    'Guest: "Spicy. We love Thai."',
+    'Harper: "Thai it is. I am betting you are a Wes Anderson pair. Warm, or way off?"',
+    'Guest: "Way off."',
+    'Harper: "Fair. And one thing your plus-one loves?"',
+    'Guest: "Kacey Musgraves."',
+    'Harper: "Got it. Give me a few seconds."',
+  ].join('\n'), 'Harper')[0];
+  const { questions } = audit(bad, [1, 2, 2, 3]);
+  assert.equal(questions, 4);
+  assert.equal(betsWithCompanion(bad).length, 1);
+});
+
+test('a guest on their own may still hear the bet', () => {
+  const solo = parseExamples([
+    'A guest on their own.',
+    'Guest: "Sturgill Simpson. It is just me this trip."',
+    'Harper: "Sturgill. I am betting you are a Wes Anderson person. Warm, or way off?"',
+    'Guest: "Warm."',
+    'Harper: "Got it. Give me a few seconds."',
+  ].join('\n'), 'Harper')[0];
+  assert.deepEqual(betsWithCompanion(solo), []);
+});
 
 test('at least one example call is a couple, and the plus-one answer is the third named thing', () => {
   const found = [];
