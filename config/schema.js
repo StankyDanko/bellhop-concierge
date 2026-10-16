@@ -30,6 +30,7 @@ export const SCHEMA = {
       additionalProperties: false,
       required: ['name', 'address', 'lat', 'lng', 'timezone'],
       properties: {
+        id: str(64, { pattern: '^[a-z0-9][a-z0-9-]{0,63}$', description: 'Optional slug the session log and the innkeeper dashboard file this inn under, for example demo. Defaults to a slug of the name.' }),
         name: str(60),
         address: str(160),
         lat: { type: 'number', minimum: -90, maximum: 90 },
