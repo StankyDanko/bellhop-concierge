@@ -23,7 +23,7 @@
           "_embedded": { "venues": [ { "name": "The Lyric Annex" } ] } },
         { "id": "fx-evt-2", "name": "Late Night Improv", "url": "https://example.com/events/late-improv",
           "dates": { "start": { "localDate": "2026-10-16", "localTime": "21:30:00", "dateTime": "2026-10-17T01:30:00Z" } },
-          "classifications": [ { "segment": { "name": "Arts & Theatre" } } ],
+          "classifications": [ { "segment": { "name": "Arts & Theatre" }, "genre": { "name": "Comedy" } } ],
           "_embedded": { "venues": [ { "name": "Back Porch Theater" } ] } },
         { "id": "fx-evt-3", "name": "Harbor Film Night: Westerns", "url": "http://example.com/events/film-night",
           "dates": { "start": { "localDate": "2026-10-17" } },
