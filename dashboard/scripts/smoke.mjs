@@ -42,7 +42,7 @@ async function waitUp() {
 
 try {
   check(await waitUp(), 'server answers /health');
-  for (const path of ['/', '/build', '/property/demo']) {
+  for (const path of ['/', '/build', '/property/demo', '/privacy', '/terms']) {
     const res = await fetch(BASE + path);
     const html = await res.text();
     check(res.status === 200, `${path} returns 200`);
@@ -73,6 +73,9 @@ try {
   const insS = await (await fetch(`${BASE}/api/properties/demo/insights?sample=1`)).json();
   check(insS.basis === 'sample' && insS.heatmap?.basis === 'sample' && insS.sample_size === fps.sessions, `insights panels carry basis ${insS.basis} and sample_size ${insS.sample_size}`);
   check(bundle.includes("Your callers' taste fingerprint"), 'bundle carries the fingerprint card');
+  // The privacy and terms pages: a carrier review looks for these two sentences word for word.
+  check(bundle.includes('Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.'), 'bundle carries the privacy page SMS sentence');
+  check(bundle.includes('Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.'), 'bundle carries the footer bridge sentence');
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
 } finally {
