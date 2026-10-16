@@ -6,7 +6,7 @@
 //   /usr/bin/node --env-file=server/.env server/scripts/probe-qloo.js
 
 import { createQlooClient } from '../lib/qloo.js';
-import { compactDemographics, compactHeatmap } from '../tools/area-insights.js';
+import { compactCompare, compactDemographics, compactHeatmap } from '../tools/area-insights.js';
 import { collectDrivers } from '../lib/why.js';
 import { loadConfig } from '../config.js';
 import { PER_PERSON_FILTER } from '../tools/recommend-nearby.js';
@@ -85,5 +85,17 @@ if (id) {
   await probe('compare', async () => {
     const { body } = await qloo.compare({ 'a.signal.interests.entities': id, 'b.signal.interests.entities': id });
     return { results: shape(body?.results) };
+  });
+  await probe('compare: callers vs town (a = fingerprint, b = top local places; shape unverified)', async () => {
+    // The innkeeper "Your callers vs. your town" panel. Group b is the most popular places
+    // near the point with no taste signal. Does compare accept place entities in a group?
+    const { entities: town } = await qloo.popularNearby({
+      'filter.type': 'urn:entity:place', 'filter.location': 'POINT(-81.095 32.079)', 'filter.location.radius': '3219',
+    });
+    const placeIds = town.map((e) => e.entity_id).filter(Boolean).slice(0, 5);
+    if (!placeIds.length) return { town_places: 0, note: 'no places came back to use as group b' };
+    const { body } = await qloo.compare({ 'a.signal.interests.entities': id, 'b.signal.interests.entities': placeIds.join(',') });
+    const list = Array.isArray(body?.results) ? body.results : Object.values(body?.results ?? {}).find(Array.isArray) ?? [];
+    return { town_places: placeIds.length, results: shape(body?.results), first_item_keys: shape(list[0]), compact: compactCompare(body).slice(0, 3) };
   });
 }

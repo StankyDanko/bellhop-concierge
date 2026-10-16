@@ -6,6 +6,7 @@ import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
 import { Counterfactual, SampleSessionCard, SessionTrace, TraceTable } from '../components/QlooTrace.jsx';
+import { BasisTag, FingerprintCard } from '../components/Fingerprint.jsx';
 
 /** One Calls table row plus its expandable Qloo trace row. */
 function SessionTableRow({ s }) {
@@ -69,12 +70,12 @@ const signed = (n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}`;
 
 // ---- panels -------------------------------------------------------------------------------------
 
-function PanelShell({ title, source = 'Qloo', meta, sample, children, footer }) {
+function PanelShell({ title, source = 'Qloo', meta, sample, basis, children, footer }) {
   return (
     <section className="card" aria-label={title}>
       <div className="panel-head">
         <h3>{title}</h3>
-        <div className="row"><SourceChip source={source} />{sample && <SampleBadge />}</div>
+        <div className="row">{basis && <BasisTag basis={basis.basis} n={basis.sample_size} />}<SourceChip source={source} />{sample && <SampleBadge />}</div>
       </div>
       {meta && <p className="micro mono" style={{ marginTop: 'var(--space-1)' }}>{meta}</p>}
       {children}
@@ -87,7 +88,7 @@ function GateCard({ count, min, onSample }) {
   return (
     <div>
       <div className="gate-bricks" aria-hidden="true">{Array.from({ length: min }, (_, i) => <span key={i} className={i < count ? 'on' : ''} />)}</div>
-      <p>Taste insights switch on after {min} guest sessions. You have <span className="tnum">{count}</span>. This keeps any single guest from being picked out of the numbers.</p>
+      <p>Taste insights switch on after {min} calls that name a taste. You have <span className="tnum">{count}</span>. This keeps any single guest from being picked out of the numbers.</p>
       {onSample && <button type="button" className="btn btn-text" onClick={onSample} style={{ marginTop: 'var(--space-2)', paddingInline: 0 }}>Preview what it will look like</button>}
     </div>
   );
@@ -112,7 +113,7 @@ function SectionState({ sec, asOf, onRetry, onSample, demographics, skippedText 
 function Heatmap({ data, inn, onRetry }) {
   const sec = data.heatmap;
   const cells = sec.cells ?? [];
-  const meta = `Radius ${data.area.radius_miles} mi, ${sec.basis === 'guest_taste' ? 'by guest tastes' : 'area-wide, no guest data'}`;
+  const meta = `Radius ${data.area.radius_miles} mi, ${{ callers: "by your callers' tastes", sample: "by sample callers' tastes" }[sec.basis] ?? 'area-wide, no guest data'}`;
   let body;
   if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} />;
   else if (!cells.length) body = <p className="dim" style={{ marginTop: 'var(--space-3)' }}>Not enough overlap in what your guests named to draw a map yet. It tends to sharpen after a few more calls.</p>;
@@ -143,7 +144,7 @@ function Heatmap({ data, inn, onRetry }) {
       </>
     );
   }
-  return <PanelShell title="Where tastes run hottest" meta={meta} sample={data.sample} footer="Aggregate, anonymous. Qloo heatmap.">{body}</PanelShell>;
+  return <PanelShell title="Where tastes run hottest" meta={meta} sample={data.sample} basis={sec} footer="Aggregate, anonymous. Qloo heatmap.">{body}</PanelShell>;
 }
 
 function Diverging({ rows }) {
@@ -178,9 +179,9 @@ function Demographics({ data, onRetry, onSample }) {
     );
   }
   return (
-    <PanelShell title="Who shares these tastes" sample={data.sample}
+    <PanelShell title="Who shares these tastes" sample={data.sample} basis={sec}
       meta={sec.status === 'ok' ? `Across ${sec.interests_counted} guest interest${sec.interests_counted === 1 ? '' : 's'}` : null}
-      footer={data.sample ? 'Shown with example data until your first 5 guest sessions.' : `Aggregate, anonymous. Based on ${data.gate.count} guest sessions.`}>
+      footer={data.sample ? 'Shown with example data until 5 calls name a taste.' : `Aggregate, anonymous. People who like these things around here, from the tastes of ${sec.sample_size ?? data.gate.count} calls.`}>
       {body}
     </PanelShell>
   );
@@ -189,7 +190,7 @@ function Demographics({ data, onRetry, onSample }) {
 function Compare({ data, onRetry, onSample }) {
   const sec = data.compare;
   let body;
-  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} skippedText="Comparing two kinds of guests needs at least two named favorites, like two bands or two films." />;
+  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} skippedText="Comparing your callers with your town needs at least one named favorite, like a band or a film, not only a kind of food." />;
   else {
     const items = [...(sec.items ?? [])].sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 3);
     const a = sec.groups?.a ?? 'Group A';
@@ -209,7 +210,7 @@ function Compare({ data, onRetry, onSample }) {
     );
   }
   return (
-    <PanelShell title={sec.groups ? `Fans of ${sec.groups.a} vs. fans of ${sec.groups.b}` : 'Two kinds of guests'} sample={data.sample} footer="Qloo audience compare. Biggest differences first.">
+    <PanelShell title={sec.groups?.label ?? 'Your callers vs. your town'} sample={data.sample} basis={sec} footer="Qloo audience compare: your callers' tastes against the most popular places near the inn. Biggest differences first.">
       {body}
     </PanelShell>
   );
@@ -238,6 +239,7 @@ export default function Property({ id, health }) {
   const [radius, setRadius] = useState(2);
   const [sample, setSample] = useState(false);
   const [ins, reloadIns] = useApi(`/properties/${id}/insights?radius=${radius}${sample ? '&sample=1' : ''}`);
+  const [fp] = useApi(`/properties/${id}/fingerprint${sample ? '?sample=1' : ''}`);
 
   if (prop.state === 'loading') return <div className="container"><div className="skeleton" style={{ height: '6rem' }} aria-busy="true" aria-label="Loading the property" /></div>;
   if (prop.state === 'error') {
@@ -362,6 +364,7 @@ export default function Property({ id, health }) {
             )}
           </div>
         </div>
+        <div style={{ marginBottom: 'var(--space-4)' }}><FingerprintCard fp={fp} onSample={() => setSample(true)} /></div>
         {ins.state === 'ok' && <p className="micro mono" style={{ marginBottom: 'var(--space-3)' }}>As of {new Date(ins.data.as_of).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · <ViaChip upstream={ins.data.upstream} /></p>}
         {ins.state === 'loading' && (
           <div className="insights-top" aria-busy="true" aria-label="Loading insights">
@@ -375,7 +378,7 @@ export default function Property({ id, health }) {
         )}
         {ins.state === 'ok' && (
           <div className="stack">
-            {ins.data.sample && <Banner tone="info">Showing sample guest tastes ({ins.data.interests.join(', ')}). Shown with example data until your first 5 guest sessions.</Banner>}
+            {ins.data.sample && <Banner tone="info">Showing sample callers' tastes ({ins.data.interests.join(', ')}). Shown with example data until 5 calls name a taste.</Banner>}
             <div className="insights-top">
               <Heatmap data={ins.data} inn={inn} onRetry={reloadIns} />
               <Demographics data={ins.data} onRetry={reloadIns} onSample={() => setSample(true)} />

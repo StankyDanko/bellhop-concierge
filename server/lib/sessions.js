@@ -9,6 +9,7 @@ import Database from 'better-sqlite3';
 import { createHmac } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { entityIdsFromTrace } from './fingerprint.js';
 
 export const SESSIONS_SCHEMA = `
   CREATE TABLE IF NOT EXISTS sessions (
@@ -64,6 +65,47 @@ export function sessionIdFrom(body) {
 function addColumnIfMissing(db, table, column, type) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
   if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+
+/**
+ * Session id prefixes that mark a call as a test, not a guest: the voice platform's
+ * agent-testing harness sends conversation ids starting with `test-`, and our own end-to-end
+ * probes use the other prefixes. Test calls are stored (so a run can be inspected) but never
+ * counted, listed, or folded into the fingerprint.
+ */
+export const TEST_SESSION_PREFIXES = Object.freeze(['test-', 'e2e-', 'laneE-']);
+
+/** @param {string} id */
+export const isTestSessionId = (id) => typeof id === 'string' && TEST_SESSION_PREFIXES.some((p) => id.startsWith(p));
+
+/** SQL that matches a test session by id prefix (prefixes are constants, not input). */
+const TEST_ID_SQL = TEST_SESSION_PREFIXES.map((p) => `substr(id, 1, ${p.length}) = '${p}'`).join(' OR ');
+
+/**
+ * A WHERE fragment (starting with AND) that leaves test sessions out of any read. Matches
+ * on is_test when the column exists and on the id prefix always, so rows from before the
+ * column existed are excluded too.
+ * @param {import('better-sqlite3').Database} db
+ */
+export function excludeTestSql(db) {
+  const hasFlag = db.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'is_test');
+  return ` AND NOT (${hasFlag ? 'COALESCE(is_test, 0) = 1 OR ' : ''}${TEST_ID_SQL})`;
+}
+
+/**
+ * Bring an older sessions table up to date. Each step is guarded by PRAGMA table_info, so it
+ * is safe to run on every start and existing rows keep their values (new columns read NULL).
+ *   trace_count      how many upstream requests were traced under the session id
+ *   entity_ids_json  the Qloo entity and tag ids the call sent as its taste signal (ids only)
+ *   is_test          1 for a test harness or probe call (see TEST_SESSION_PREFIXES)
+ * Rows logged before is_test existed are flagged by their id prefix.
+ * @param {import('better-sqlite3').Database} db
+ */
+export function migrateSessions(db) {
+  addColumnIfMissing(db, 'sessions', 'trace_count', 'INTEGER');
+  addColumnIfMissing(db, 'sessions', 'entity_ids_json', 'TEXT');
+  addColumnIfMissing(db, 'sessions', 'is_test', 'INTEGER DEFAULT 0');
+  db.exec(`UPDATE sessions SET is_test = 1 WHERE COALESCE(is_test, 0) = 0 AND (${TEST_ID_SQL})`);
 }
 
 /** @param {import('better-sqlite3').Database} db */
@@ -124,16 +166,17 @@ export class SessionStore {
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(SESSIONS_SCHEMA);
     this.db.exec(TRACES_SCHEMA);
-    addColumnIfMissing(this.db, 'sessions', 'trace_count', 'INTEGER');
+    migrateSessions(this.db);
     // Upsert: an agent that calls log_session twice for one call updates its row.
     // created_at keeps the first write's time.
     this.upsert = this.db.prepare(`
-      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, trace_count)
-      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at, @trace_count)
+      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, trace_count, entity_ids_json, is_test)
+      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at, @trace_count, @entity_ids_json, @is_test)
       ON CONFLICT(id) DO UPDATE SET
         property_id = excluded.property_id, persona = excluded.persona, started_at = excluded.started_at,
         caller_hash = excluded.caller_hash, entities_json = excluded.entities_json, picks_count = excluded.picks_count,
-        events_count = excluded.events_count, sms_sent = excluded.sms_sent, trace_count = excluded.trace_count
+        events_count = excluded.events_count, sms_sent = excluded.sms_sent, trace_count = excluded.trace_count,
+        entity_ids_json = excluded.entity_ids_json, is_test = excluded.is_test
     `);
     this.insertTrace = this.db.prepare(`
       INSERT INTO session_traces (session_id, tool, trace_json, counterfactual_json, created_at)
@@ -147,6 +190,7 @@ export class SessionStore {
    *           entities: string[], picks_count: number, events_count: number, sms_sent: boolean }} s
    */
   write(s) {
+    const { trace } = readTrace(this.db, s.id);
     const row = {
       id: s.id,
       property_id: s.property_id ?? null,
@@ -159,7 +203,12 @@ export class SessionStore {
       sms_sent: s.sms_sent ? 1 : 0,
       created_at: this.now().toISOString(),
       // Links the row to its call trace: how many upstream requests were recorded under this id.
-      trace_count: readTrace(this.db, s.id).trace.length,
+      trace_count: trace.length,
+      // The guest taste fingerprint's raw material: the resolved Qloo ids this call sent as
+      // signal.interests.entities / .tags, read from its own trace. Ids only.
+      entity_ids_json: JSON.stringify(entityIdsFromTrace(trace)),
+      // A test harness or probe call: stored for inspection, invisible to every dashboard read.
+      is_test: isTestSessionId(s.id) ? 1 : 0,
     };
     this.upsert.run(row);
     return row;

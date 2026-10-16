@@ -1,6 +1,8 @@
 // log_session: the agent's last call on every guest call. Writes one aggregate row to the
-// session log for the host dashboard. The caller id arrives bound to the platform's
-// system__caller_id and is hashed before storage; it is never stored or echoed in the clear.
+// session log for the host dashboard, including the resolved Qloo ids this call sent (read
+// from its own trace), which feed the inn's guest taste fingerprint. The caller id arrives
+// bound to the platform's system__caller_id and is hashed before storage; it is never
+// stored or echoed in the clear.
 //
 // Taste entities are the guest's own words, so each is length-capped and dropped if it looks
 // like an email address, a phone number, or a room number.
@@ -48,5 +50,7 @@ export async function logSession(body, { sessions, now = () => new Date() }) {
     picks_count: Math.round(picks_count), events_count: Math.round(events_count), sms_sent: flag(body?.sms_sent),
   });
   // trace_calls: how many Qloo and Ticketmaster requests this call made, linked by session_id.
-  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, trace_calls: row.trace_count ?? 0, calls: [] };
+  // taste_ids: how many resolved Qloo ids the row added to the inn's guest taste fingerprint.
+  const tasteIds = JSON.parse(row.entity_ids_json ?? '[]').length;
+  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, trace_calls: row.trace_count ?? 0, taste_ids: tasteIds, calls: [] };
 }

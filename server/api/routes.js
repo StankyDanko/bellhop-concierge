@@ -21,9 +21,12 @@ import { composeItinerary } from '../tools/compose-itinerary.js';
 import { eventsNearby } from '../tools/events-nearby.js';
 import { recommendNearby } from '../tools/recommend-nearby.js';
 import { resolveTaste } from '../tools/resolve-taste.js';
-import { readTrace } from '../lib/sessions.js';
+import { excludeTestSql, readTrace } from '../lib/sessions.js';
 import { withTrace } from '../lib/upstream.js';
-import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleSession } from './db.js';
+import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, parseIds } from '../lib/fingerprint.js';
+import { ENTITY_TYPES } from '../lib/qloo.js';
+import { locationParams } from '../tools/places.js';
+import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, loadSampleSession } from './db.js';
 import { LOCKED_RULES, OWNER_TOGGLES } from './guardrails.js';
 
 export const ADMIN_HEADER = 'X-Admin-Token';
@@ -85,9 +88,12 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     try { return hasSessionsTable(sdb); } catch { return false; }
   };
 
+  /** Leaves test harness and probe calls out of every read (see TEST_SESSION_PREFIXES). */
+  const notTest = () => excludeTestSql(sdb);
+
   /** @returns {number} */
   const sessionCount = (propertyId) => (sessionsAvailable()
-    ? sdb.prepare('SELECT COUNT(*) AS n FROM sessions WHERE property_id = ?').get(propertyId).n : 0);
+    ? sdb.prepare(`SELECT COUNT(*) AS n FROM sessions WHERE property_id = ?${notTest()}`).get(propertyId).n : 0);
 
   /** The Qloo call trace filed under a session. Read defensively: older databases have none. */
   const traceOf = (sessionId) => {
@@ -101,7 +107,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
   const listSessions = (propertyId, limit = 50) => {
     if (!sessionsAvailable()) return [];
     return sdb.prepare(`SELECT id, started_at, persona, entities_json, picks_count, events_count, sms_sent
-                        FROM sessions WHERE property_id = ? ORDER BY started_at DESC LIMIT ?`)
+                        FROM sessions WHERE property_id = ?${notTest()} ORDER BY started_at DESC LIMIT ?`)
       .all(propertyId, limit)
       .map((r) => ({
         ...traceOf(r.id),
@@ -114,19 +120,42 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
       }));
   };
 
-  /** The names guests mentioned most across all sessions, most frequent first. */
-  const topEntities = (propertyId, max = 5) => {
-    if (!sessionsAvailable()) return [];
-    const counts = new Map();
-    for (const r of sdb.prepare('SELECT entities_json FROM sessions WHERE property_id = ?').all(propertyId)) {
-      for (const name of new Set(entityNames(r.entities_json).map((n) => n.toLowerCase()))) counts.set(name, (counts.get(name) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([name, n]) => ({ name, sessions: n }));
+  /**
+   * The inn's guest taste fingerprint from its own call log: each session's resolved Qloo
+   * ids (sessions.entity_ids_json, or, for a row logged before that column existed, the ids
+   * in its persisted trace), labeled from the same session's own requests and names.
+   * Session ids are used to join the trace and never leave this function.
+   */
+  const callerFingerprint = (propertyId) => {
+    if (!sessionsAvailable()) return aggregateFingerprint([]);
+    const hasIds = sdb.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'entity_ids_json');
+    const rows = sdb.prepare(`SELECT id, entities_json${hasIds ? ', entity_ids_json' : ''} FROM sessions WHERE property_id = ?${notTest()}`).all(propertyId);
+    return aggregateFingerprint(rows.map((r) => {
+      const { trace } = traceOf(r.id);
+      const ids = parseIds(r.entity_ids_json) ?? entityIdsFromTrace(trace);
+      return { ids, labels: labelIds({ ids, trace, names: entityNames(r.entities_json) }) };
+    }));
+  };
+
+  /**
+   * The fingerprint behind every innkeeper panel, with its basis:
+   *   callers  this inn's own calls, once at least SESSION_GATE of them named a taste
+   *   sample   the labeled sample callers (only when asked for, while gated)
+   *   none     below the floor: no guest signal is used anywhere
+   * The gate counts calls that contributed a taste, so a fingerprint never rests on fewer
+   * than SESSION_GATE people.
+   */
+  const fingerprintFor = (propertyId, sample) => {
+    const own = callerFingerprint(propertyId);
+    const gate = { min: SESSION_GATE, count: own.sessions, open: own.sessions >= SESSION_GATE };
+    if (gate.open) return { basis: 'callers', gate, ...own };
+    if (sample) return { basis: 'sample', gate, ...aggregateFingerprint(loadSampleFingerprintSessions()) };
+    return { basis: 'none', gate, sessions: 0, entities: [], tags: [] };
   };
 
   const lastSessionAt = () => {
     if (!sessionsAvailable()) return null;
-    return sdb.prepare('SELECT MAX(started_at) AS t FROM sessions').get().t ?? null;
+    return sdb.prepare(`SELECT MAX(started_at) AS t FROM sessions WHERE 1 = 1${notTest()}`).get().t ?? null;
   };
 
   // ---- routes ------------------------------------------------------------------
@@ -272,32 +301,56 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     });
   });
 
+  // The guest taste fingerprint: what the people who call this number like, as Qloo ids
+  // ranked by how many calls named them. Aggregate only: no caller hash, no session id, no
+  // number, no transcript. Dark below the five-call floor unless the sample is asked for.
+  api.get('/properties/:id/fingerprint', (c) => {
+    const id = validId(c);
+    const row = id && getProperty(id);
+    if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
+    const fp = fingerprintFor(id, c.req.query('sample') === '1');
+    return c.json({
+      ok: true,
+      basis: fp.basis,
+      sessions: fp.sessions,
+      gate: fp.gate,
+      entities: fp.entities.map(({ id: eid, name, sessions }) => ({ id: eid, name, sessions })),
+      tags: fp.tags.map(({ id: tid, name, sessions }) => ({ id: tid, name, sessions })),
+      generated_at: now().toISOString(),
+    });
+  });
+
   api.get('/properties/:id/insights', async (c) => {
     const id = validId(c);
     const row = id && getProperty(id);
     if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
     const { lat, lng } = JSON.parse(row.config_json).property;
     const radius = [1, 2, 5].includes(Number(c.req.query('radius'))) ? Number(c.req.query('radius')) : 2;
-    const sample = c.req.query('sample') === '1';
-    const count = sessionCount(id);
-    const gateOpen = count >= SESSION_GATE;
-    const top = gateOpen ? topEntities(id) : [];
-    const mentions = sample ? [...SAMPLE_MENTIONS] : top.map((t) => t.name);
+    const fp = fingerprintFor(id, c.req.query('sample') === '1');
+    const sample = fp.basis === 'sample';
+    // The fingerprint's ids go to Qloo as they are: no names are re-resolved through search.
+    const interests = fingerprintSignals(fp);
+    const guestPanels = fp.basis !== 'none' && interests.length > 0;
     try {
-      const out = await cached(`ins:${id}:${radius}:${sample}:${mentions.join('|')}`, () => insightsFor(ctx, { lat, lng, radius, mentions }));
-      const gated = { status: 'gated', count, min: SESSION_GATE };
-      const guestPanels = sample || gateOpen;
+      const out = await cached(`ins:${id}:${radius}:${fp.basis}:${interests.map((i) => i.id).join(',')}`,
+        () => insightsFor(ctx, { lat, lng, radius, interests: guestPanels ? interests : [] }));
+      const { count, min } = fp.gate;
+      const gated = { status: 'gated', count, min, basis: 'none', sample_size: 0 };
+      // Every panel says what it describes: the inn's callers (CALLERS n), the labeled
+      // sample (SAMPLE n), or the area with no guest signal at all (AREA).
+      const label = guestPanels ? { basis: fp.basis, sample_size: fp.sessions } : { basis: 'area', sample_size: 0 };
       return c.json({
         ok: true,
         sample,
+        basis: label.basis,
+        sample_size: label.sample_size,
         as_of: out.as_of,
         area: out.area,
-        gate: { min: SESSION_GATE, count, open: gateOpen },
+        gate: fp.gate,
         interests: guestPanels ? out.interests : [],
-        // The heatmap is area-level when the gate is closed (no guest signal is sent).
-        heatmap: { ...out.heatmap, basis: out.interests.length ? 'guest_taste' : 'area' },
-        demographics: guestPanels ? out.demographics : gated,
-        compare: guestPanels ? out.compare : gated,
+        heatmap: { ...out.heatmap, ...label },
+        demographics: guestPanels ? { ...out.demographics, ...label } : gated,
+        compare: guestPanels ? { ...out.compare, ...label } : gated,
         upstream: out.upstream,
       });
     } catch (err) {
@@ -402,32 +455,45 @@ async function samplePicks(ctx, lat, lng) {
   };
 }
 
-async function insightsFor(ctx, { lat, lng, radius, mentions }) {
+/** How the compare panel names its two groups. */
+export const COMPARE_GROUPS = Object.freeze({ a: "your callers' tastes", b: "the town's top places", label: 'Your callers vs. your town' });
+/** Top local places taken as compare group b. */
+const TOWN_PLACES = 5;
+
+/**
+ * The innkeeper panels for one fingerprint. `interests` are fingerprint ids with labels,
+ * sent to Qloo directly as signal.interests.entities / .tags (no name is re-resolved).
+ * Compare: a = the fingerprint's entity ids, b = the most popular places near the inn
+ * (an unsignaled place insights call). That compare shape is unverified until the live key.
+ */
+async function insightsFor(ctx, { lat, lng, radius, interests }) {
   const calls = [];
-  let interests = [];
-  let resolveFailure = null;
-  if (mentions.length) {
+  const entityIds = interests.filter((i) => !isTagId(i.id));
+  let compare;
+  let compareFailure = null;
+  if (entityIds.length) {
     try {
-      const t = await resolveTaste({ mentions: mentions.slice(0, 6) }, ctx);
-      calls.push(...t.calls);
-      interests = t.resolved.map(({ id, name }) => ({ id, name }));
+      const town = await ctx.qloo.popularNearby({ 'filter.type': ENTITY_TYPES.place, ...locationParams(lat, lng, radius) });
+      calls.push(town.call);
+      const places = town.entities.filter((e) => e.entity_id).slice(0, TOWN_PLACES).map((e) => ({ id: e.entity_id, name: e.name }));
+      if (places.length) compare = { a: entityIds, b: places };
     } catch (err) {
       if (!(err instanceof UpstreamError)) throw err;
-      resolveFailure = err.code;
+      compareFailure = err.code;
     }
   }
-  const entityIds = interests.filter((i) => !i.id.startsWith('urn:tag:'));
-  const compare = entityIds.length >= 2 ? { a: [entityIds[0]], b: [entityIds[1]] } : undefined;
   const res = await areaInsights({ lat, lng, radius_miles: radius, ...(interests.length ? { interests } : {}), ...(compare ? { compare } : {}) }, ctx);
   calls.push(...res.calls);
-  const demographics = resolveFailure ? { status: 'degraded', reason: resolveFailure } : res.demographics;
-  const cmp = compare ? { ...res.compare, groups: { a: compare.a[0].name, b: compare.b[0].name } } : res.compare;
+  let cmp = res.compare;
+  if (compareFailure) cmp = { status: 'degraded', reason: compareFailure };
+  else if (compare) cmp = { ...res.compare, groups: { ...COMPARE_GROUPS } };
+  else if (interests.length) cmp = { status: 'skipped', reason: 'compare needs at least one named favorite, not only kinds of things' };
   return {
     as_of: new Date().toISOString(),
     area: res.area,
-    interests: interests.map((i) => i.name),
+    interests: interests.map((i) => i.name).filter(Boolean),
     heatmap: res.heatmap,
-    demographics,
+    demographics: res.demographics,
     compare: cmp,
     upstream: upstreamSummary(calls),
   };

@@ -520,6 +520,85 @@ message bodies are stored. `trace_count` is added to older databases on open (gu
 counterfactual_json, created_at)`, at most 40 rows per session. The response adds
 `trace_calls`, the number of upstream requests linked to this call.
 
+## Guest taste fingerprint
+
+Taste tools usually learn an audience from a form one person fills in once. This line
+learns it from the calls: every caller names two things they love, Qloo resolves them to
+ids, and those ids add up, call after call, into a fingerprint of the people who call this
+number. The fingerprint then drives every innkeeper panel, so the dashboard describes the
+inn's own callers rather than a zip code.
+
+**What is stored.** At `log_session` time the server reads the session's own call trace
+and copies the resolved ids that call sent to Qloo onto its row, in a new column
+`sessions.entity_ids_json` (a JSON array of ids, at most 16). The ids come from exactly two
+trace params, split on commas and deduplicated:
+
+| Trace param | Holds | Example |
+|---|---|---|
+| `signal.interests.entities` | Qloo entity ids the guest named | `fx-artist-sturgill-simpson` |
+| `signal.interests.tags` | Qloo tag ids for kinds of things | `urn:tag:genre:place:restaurant:thai` |
+
+A request with no `signal.*` (the popularity counterfactual) contributes nothing. Taste
+names stay in `entities_json` as before. The response gains `taste_ids`, how many ids the
+call added. Nothing about the caller is involved: no number, no caller hash, no transcript.
+The column is added to older databases on open (guarded by `PRAGMA table_info`); a row from
+before it existed reads its ids from its persisted trace instead.
+
+**Test calls.** `sessions.is_test` (same guarded migration) is 1 when the session id starts
+with one of `TEST_SESSION_PREFIXES` in `lib/sessions.js` (`test-` from the voice platform's
+agent-testing harness, and our own end-to-end probe prefixes). Older rows are flagged by
+prefix on open. Test calls are stored, so a run can be inspected, but every dashboard read leaves them out: call
+counts, the sessions list, the gate, the fingerprint, and the last-call time.
+
+**`GET /api/properties/:id/fingerprint`** (`?sample=1` for the preview):
+
+```json
+{ "ok": true, "basis": "callers", "sessions": 9,
+  "gate": { "min": 5, "count": 9, "open": true },
+  "entities": [ { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "sessions": 4 } ],
+  "tags": [ { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food", "sessions": 3 } ],
+  "generated_at": "2026-10-16T18:00:00.000Z" }
+```
+
+- `basis`: `callers` (this inn's own calls), `sample` (hand-made fictional callers, only
+  when asked for while gated), or `none` (below the floor: no guest signal anywhere).
+- `sessions`: the sample size, the number of calls that named at least one taste.
+- `gate`: the five-call k-anonymity floor, counted on calls that named a taste, so a
+  fingerprint never rests on fewer than five people. Real callers always win over the sample.
+- Labels come from the same session's own resolve_taste requests and stored names. When
+  the pairing of ids to names is ambiguous an entity is left unnamed rather than mislabeled;
+  a tag falls back to its own id (`...:thai` reads "Thai").
+- Aggregate only. A test checks that no caller hash, session id, or phone-shaped string
+  ever appears in this response or in the insights response.
+
+The sample fingerprint is nine calls: the sample call in `fixtures/sample-session.json`
+(its ids read from its trace, the same path a real call takes) plus eight fictional callers
+in `fixtures/fingerprint.sample-callers.json`. Both are hand-written; neither holds a
+Qloo response.
+
+**How the panels use it.** `GET /api/properties/:id/insights` sends the fingerprint's five
+most-named ids to Qloo directly. No name is re-resolved through `/search`.
+
+| Panel | Qloo call | Fingerprint param |
+|---|---|---|
+| Where tastes run hottest | `GET /v2/insights` `filter.type=urn:heatmap`, `filter.location`, `filter.location.radius` | `signal.interests.entities`, `signal.interests.tags` |
+| Who shares these tastes | `GET /v2/insights` `filter.type=urn:demographics` | `signal.interests.entities`, `signal.interests.tags` |
+| Your callers vs. your town | `GET /v2/analysis/compare` | `a.signal.interests.entities` = the fingerprint's entity ids; `b.signal.interests.entities` = the top 5 places from an unsignaled `GET /v2/insights` `filter.type=urn:entity:place` near the inn |
+
+**Shape unverified until the live key:** the compare call (a = fingerprint, b = top local
+places). Qloo documents compare for interest groups; whether it accepts place entities in a
+group, and what comes back, is untested. `npm run probe:qloo` runs exactly this call
+("compare: callers vs town"). If places are refused, the panel shows as delayed and the
+other panels are unaffected.
+
+Every panel in the insights response carries `basis` (`callers`, `sample`, or `area` when no
+guest signal was sent; `none` on a gated panel) and `sample_size`, and the top level repeats
+both, so the dashboard can tag each panel CALLERS n, SAMPLE, or AREA.
+
+**The honest caveat.** Qloo's heatmap and demographics describe people who share these
+tastes around here, not the callers themselves. The dashboard says so under the fingerprint
+card, and the fingerprint is a small, self-selected sample, always shown with its count.
+
 ## How Qloo is load-bearing
 
 Four of the eight tools call Qloo directly, and the rest exist to put Qloo's picks in
