@@ -2,6 +2,19 @@
   "_note": "Synthetic fixture, hand-written to the Ticketmaster Discovery v2 /events.json shape. Events and venues are fictional.",
   "cases": [
     {
+      "match": { "classificationName": "film" },
+      "response": { "_embedded": { "events": [
+        { "id": "fx-evt-3", "name": "Harbor Film Night: Westerns", "url": "http://example.com/events/film-night",
+          "dates": { "start": { "localDate": "2026-10-17" } },
+          "classifications": [ { "segment": { "name": "Film" } } ],
+          "_embedded": { "venues": [ { "name": "Square Cinema" } ] } },
+        { "id": "fx-evt-4", "name": "Rainy Day Matinee: Animated Shorts", "url": "https://example.com/events/rainy-matinee",
+          "dates": { "start": { "localDate": "2026-10-18", "localTime": "14:00:00", "dateTime": "2026-10-18T18:00:00Z" } },
+          "classifications": [ { "segment": { "name": "Film" }, "genre": { "name": "Animation" } } ],
+          "_embedded": { "venues": [ { "name": "Square Cinema" } ] } }
+      ] }, "page": { "size": 10, "totalElements": 2, "totalPages": 1, "number": 0 } }
+    },
+    {
       "match": {},
       "response": { "_embedded": { "events": [
         { "id": "fx-evt-1", "name": "Hollow Pines String Band", "url": "https://example.com/events/hollow-pines",

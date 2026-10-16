@@ -40,6 +40,36 @@ export function normalizeEvents(body) {
   }).filter((e) => e.name);
 }
 
+/** Every classification name on a raw event, lowercased: segment, genre, subgenre, type, subtype. */
+function classificationNames(e) {
+  const out = new Set();
+  for (const c of Array.isArray(e?.classifications) ? e.classifications : []) {
+    for (const level of ['segment', 'genre', 'subGenre', 'type', 'subType']) {
+      const name = c?.[level]?.name;
+      if (typeof name === 'string' && name.trim()) out.add(name.trim().toLowerCase());
+    }
+  }
+  return out;
+}
+
+/**
+ * Keep only the raw events that carry the requested classification at any level. The API
+ * applies classificationName itself; this applies it again on what came back, so a film
+ * request never answers with a band, whatever the upstream or a fixture returns. An event
+ * with no classification at all is kept, since nothing says it is the wrong kind.
+ * @param {any} body @param {string|undefined} classification
+ */
+export function filterByClassification(body, classification) {
+  const events = body?._embedded?.events;
+  if (!classification || !Array.isArray(events)) return body;
+  const want = classification.trim().toLowerCase();
+  const kept = events.filter((e) => {
+    const names = classificationNames(e);
+    return names.size === 0 || names.has(want);
+  });
+  return { ...body, _embedded: { ...body._embedded, events: kept } };
+}
+
 /**
  * @param {object} opts
  * @param {import('../config.js').Config['ticketmaster']} opts.config
@@ -74,9 +104,11 @@ export function createTicketmasterClient({ config, cache, logger, transport }) {
         sort: 'date,asc',
         size: String(size),
       };
+      // classificationName, not segmentName: Discovery v2 matches it against any level (segment,
+      // genre, subgenre, type, subtype), and comedy and family are genres, not segments.
       if (classification) params.classificationName = classification;
       const { body, call } = await callUpstream(upstream, EVENTS_ENDPOINT, params);
-      return { events: normalizeEvents(body), call };
+      return { events: normalizeEvents(filterByClassification(body, classification)), call };
     },
   };
 }

@@ -122,7 +122,7 @@ test('cross_domain: every target type answers from fixtures; place needs a locat
 
 test('events_nearby: normalized Ticketmaster events in the right window', async () => {
   const { app } = makeApp();
-  const { status, json } = await callTool(app, 'events_nearby', { ...PROPERTY, when: 'tonight', classification: 'music' });
+  const { status, json } = await callTool(app, 'events_nearby', { ...PROPERTY, when: 'tonight' });
   assert.equal(status, 200);
   assert.equal(json.events[0].name, 'Hollow Pines String Band');
   assert.equal(json.events[0].venue, 'The Lyric Annex');

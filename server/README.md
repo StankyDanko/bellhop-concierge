@@ -388,7 +388,7 @@ Live events from the Ticketmaster Discovery API.
 | `lat`, `lng` | number | |
 | `radius_miles` | number, default 10 | 1-50 |
 | `when` | `tonight` (default) or `weekend` | tonight = now to 4 am after the call's calendar day (the end of its evening, below); weekend = Friday 5 pm (or now, if later) to Sunday 11 pm, in the property's timezone |
-| `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy` |
+| `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy`. Sent to Ticketmaster as `classificationName` (it matches a segment, genre, or subgenre; `segmentName` would miss comedy and family, which are genres), then applied again to what comes back, so a `film` request returns only film events. An event with no classification at all is kept |
 | `timezone` | optional IANA zone | defaults to `DEFAULT_TIMEZONE` |
 | `take` | number, default 5 | 1-10 |
 
