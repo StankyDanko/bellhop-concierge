@@ -4,7 +4,7 @@
 // Everything above the transport (cache, retries, logging, normalization) is shared,
 // so switching between mock and live is a single environment variable.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { UpstreamError } from './errors.js';
 
 /** @typedef {(endpoint: string, params: Record<string,string>) => Promise<{ status: number, body: any }>} Transport */
@@ -48,7 +48,10 @@ export function httpTransport({ service, baseUrl, headers = {}, queryAuth = {}, 
  * Fixture transport. Each fixture file holds ordered cases:
  *   { "cases": [ { "match": { "<param>": "<value>" }, "response": { ... } }, ... ] }
  * The first case whose every match pair equals the request param (case-insensitive)
- * wins; a case with an empty match is the fallback.
+ * wins; a case with an empty match is the fallback. A match value of "*" means the
+ * param only has to be present. Overlay files named `<file>.<anything>.json` in the
+ * same directory are read too, and their cases are tried BEFORE the base file's, so a
+ * feature can add narrow fixtures without editing a shared one.
  *
  * @param {{ service: string, dir: URL, files: Record<string,string> }} opts
  *   `files` maps endpoint path -> fixture file name (without .json).
@@ -61,8 +64,9 @@ export function fixtureTransport({ service, dir, files }) {
     const file = files[endpoint];
     if (!file) throw new UpstreamError(`no fixture for ${service} ${endpoint}`, { service, code: 'no_fixture' });
     if (!loaded.has(file)) {
-      const json = JSON.parse(readFileSync(new URL(`${file}.json`, dir), 'utf8'));
-      loaded.set(file, json.cases);
+      const read = (name) => JSON.parse(readFileSync(new URL(name, dir), 'utf8')).cases;
+      const overlays = readdirSync(dir).filter((n) => n.startsWith(`${file}.`) && n.endsWith('.json') && n !== `${file}.json`).sort();
+      loaded.set(file, [...overlays.flatMap(read), ...read(`${file}.json`)]);
     }
     return /** @type {any[]} */ (loaded.get(file));
   };
@@ -70,7 +74,7 @@ export function fixtureTransport({ service, dir, files }) {
   return async (endpoint, params) => {
     const norm = (v) => String(v).trim().toLowerCase();
     const hit = casesFor(endpoint).find((c) =>
-      Object.entries(c.match).every(([k, v]) => params[k] !== undefined && norm(params[k]) === norm(v)));
+      Object.entries(c.match).every(([k, v]) => params[k] !== undefined && (v === '*' || norm(params[k]) === norm(v))));
     if (!hit) return { status: 200, body: { success: true, results: { entities: [] } } };
     // Deep copy so callers can never mutate the fixture.
     return { status: hit.status ?? 200, body: structuredClone(hit.response) };

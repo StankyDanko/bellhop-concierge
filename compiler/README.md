@@ -48,7 +48,10 @@ written so you can read it), 2 means the config was invalid.
    coordinates and timezone are compile-time constants, so the model
    never types them. `send_sms` posts to the tool server's own `/tools/send_sms` route and binds
    `to` to `system__caller_id`: the model cannot address a
-   text to anyone but the caller.
+   text to anyone but the caller. The plus-one inputs (`companion_mentions` on `resolve_taste`,
+   `companion_taste` on `recommend_nearby`, and a pick's `favors` on `compose_itinerary`) are
+   optional and never required, so a call from a guest who is alone compiles and runs exactly as
+   before. See "Companion scoring" in `server/README.md`.
 5. **Set the platform.** The settings below go on every agent, whatever the host chose.
 6. **Lint.** Everything the model reads (prompt, first message, every tool and parameter
    description) is checked. Errors: em or en dashes, the forbidden two-letter word or its long
@@ -61,6 +64,26 @@ The output has two parts for the platform: `agent` is the create-agent body, and
 list of `tool_config` bodies. The platform now attaches tools by id
 (`conversation_config.agent.prompt.tool_ids`; the inline `prompt.tools` field is deprecated), so
 deployment creates each tool first, then the agent with those ids.
+
+## Example calls and the stop rule
+
+A worked example in the prompt outweighs a rule written next to it, so an example call that
+breaks the stop rule teaches the agent to break it. `compiler/test/examples.test.js` parses
+every persona's `## Example calls (compiled)` section and fails the build if an example:
+
+- puts more than three concierge questions before the lookup line (the opener's band question
+  counts as the first),
+- asks any question after the caller has given three named things (the plus-one's count), or
+- ends on a question instead of the lookup line.
+
+The format it parses: examples are separated by a blank line, the first line is the title, and
+every other line is `Guest: "..."` or `<display_name>: "..."`. A concierge turn is a question
+when it contains a question mark. Named things cannot be read from the words reliably, so each
+persona carries a short `## Example call checks` section, which is never compiled into the
+prompt: one line per example, `- <title>: 1, 2, 3`, giving the running count of named things
+after each guest turn. The test checks that this list names every example in order with one
+count per guest turn, so an edited example cannot go unchecked. At least one example must be a
+couple whose last guest turn answers the plus-one question and brings the count to three.
 
 ## Locked vs toggleable
 

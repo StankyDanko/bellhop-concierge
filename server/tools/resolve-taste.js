@@ -33,15 +33,28 @@ export function spokenList(items) {
 const sentenceCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const round2 = (n) => Math.round(n * 100) / 100;
 
+/** Most things the plus-one can contribute. The beat asks for one; two allows a volunteer. */
+export const MAX_COMPANION_MENTIONS = 2;
+
+/** @param {unknown} v @param {string} name @param {number} min @param {number} max */
+function mentionList(v, name, min, max) {
+  return arr(v, name, { min, max }).map((m, i) => {
+    if (typeof m !== 'string' || !m.trim() || m.length > 80) throw new InputError(`${name}[${i}] must be 1-80 characters`);
+    return m.trim();
+  });
+}
+
 /**
- * @param {any} body  { mentions: string[] }
+ * @param {any} body  { mentions: string[], companion_mentions?: string[] }
+ *   companion_mentions: what the guest's plus-one loves, kept in a parallel list so the
+ *   agent never has to tag items one by one. They resolve exactly like mentions and come
+ *   back in companion_resolved, ready to pass to recommend_nearby as companion_taste.
  * @param {{ qloo: import('../lib/qloo.js').QlooClient }} ctx
  */
 export async function resolveTaste(body, { qloo }) {
-  const mentions = arr(body?.mentions, 'mentions', { min: 1, max: 6 }).map((m, i) => {
-    if (typeof m !== 'string' || !m.trim() || m.length > 80) throw new InputError(`mentions[${i}] must be 1-80 characters`);
-    return m.trim();
-  });
+  const mentions = mentionList(body?.mentions, 'mentions', 1, 6);
+  const companionMentions = body?.companion_mentions === undefined || body?.companion_mentions === null
+    ? [] : mentionList(body.companion_mentions, 'companion_mentions', 0, MAX_COMPANION_MENTIONS);
 
   /** @type {import('../lib/upstream.js').CallRecord[]} */
   const calls = [];
@@ -79,15 +92,28 @@ export async function resolveTaste(body, { qloo }) {
     return null;
   };
 
-  const results = await Promise.all(mentions.map(resolveOne));
+  const [results, companionResults] = await Promise.all([
+    Promise.all(mentions.map(resolveOne)),
+    Promise.all(companionMentions.map(resolveOne)),
+  ]);
   const resolved = results.filter(Boolean);
   const unresolved = mentions.filter((_, i) => !results[i]);
 
+  /** @type {Record<string, unknown>} */
+  const companion = {};
+  if (companionMentions.length) {
+    const companionResolved = companionResults.filter(Boolean).map((r) => ({ ...r, who: 'companion' }));
+    companion.companion_resolved = companionResolved;
+    companion.companion_unresolved = companionMentions.filter((_, i) => !companionResults[i]);
+    companion.companion_echo_line = spokenList(companionResolved.map((r) => r.name));
+  }
+
   return {
-    status: resolved.length ? 'ok' : 'empty',
+    status: resolved.length || companion.companion_resolved?.length ? 'ok' : 'empty',
     resolved,
     unresolved,
     echo_line: spokenList(resolved.map((r) => r.name)),
+    ...companion,
     calls,
   };
 }

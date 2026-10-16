@@ -12,7 +12,7 @@ const FREE_TEXT = new Set(['query', 'filter.query']);
 const MAX_FREE_TEXT = 80;
 
 /** Params whose values must be lists of entity ids. */
-const ENTITY_LIST = /^(signal\.interests\.entities|filter\.exclude\.entities|[ab]\.signal\.interests\.entities|entity_ids)$/;
+const ENTITY_LIST = /^(signal\.interests\.entities|filter\.exclude\.entities|filter\.results\.entities|filter\.entities|[ab]\.signal\.interests\.entities|entity_ids)$/;
 /** Params whose values must be lists of tag URNs. */
 const TAG_LIST = /^(signal\.interests\.tags|filter\.tags|filter\.exclude\.tags|filter\.tag\.types|filter\.parents\.types)$/;
 

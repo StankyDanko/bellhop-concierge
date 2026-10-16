@@ -24,6 +24,10 @@ Each persona is one Markdown file:
   short sentences, one question per turn. A worked example in a prompt outweighs any rule
   written next to it, so the sample lines are the most important text in the file.
 
+- **`## Example call checks`** (not compiled): one line per example call, `- <title>: n, n, n`,
+  giving how many named things the caller has said after each of their turns. A test uses it
+  to hold every example call to the stop rule (see `compiler/README.md`).
+
 Slots allowed inside a persona: `{{property_name}}` and `{{handoff_name}}`.
 
 ## Adding one
