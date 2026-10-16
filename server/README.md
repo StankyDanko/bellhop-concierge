@@ -362,7 +362,8 @@ calls never fall through to the shortlist fixture.
 "People who love X also love Y" across categories: music taste to films, a director to
 books, and so on. `target` is one of `artist`, `movie`, `book`, `podcast`, `place`,
 `tv_show`. A `place` target also needs `lat` and `lng` (and takes `radius_miles`). The
-guest's own inputs are never returned as recommendations.
+guest's own inputs are never returned as recommendations. Each result carries a `pick_token`
+signed over its name alone, so `compose_itinerary` can tell it from one the model made up.
 
 ```json
 // request
@@ -374,7 +375,7 @@ guest's own inputs are never returned as recommendations.
     "type": "movie", "year": 2013, "affinity": 0.9, "why": "Fans of Sturgill Simpson love it",
     "why_trace": { "basis": "explainability", "drivers": [
       { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "score": 0.86 } ] },
-    "source": "Qloo" } ],
+    "source": "Qloo", "pick_token": "..." } ],
   "meta": { "upstream": [ { "service": "qloo", "endpoint": "/v2/insights", "via": "mock", "ms": 1 } ] } }
 ```
 
@@ -429,6 +430,7 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 | `picks[].requested` | boolean, optional | true only if the guest asked for this event by name; kept only on an event whose `pick_token` verifies, and it makes that event the last pick a long text drops |
 | (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
 | (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
+| (response) `tokens_dropped` | number | picks that sent a `pick_token` no tool issued for that pick (checked on every pick, including a name-only `cross_domain` result); the token is dropped and the pick is still sent by name |
 | `guest.party_size` | number | used in the header |
 | `guest.when` | `tonight` or `weekend` | used in the header, except that a plan with a verified event that is not tonight says `Your plan` instead of `Tonight` |
 | `intro` | string, optional | replaces the default header |
@@ -475,7 +477,7 @@ Rules:
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
   "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
   "char_count": 271, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
-  "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "meta": { "upstream": [] } }
+  "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "tokens_dropped": 0, "meta": { "upstream": [] } }
 ```
 
 This tool composes the text only. Sending it is a separate step that must confirm delivery

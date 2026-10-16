@@ -117,7 +117,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     cross_domain: {
-      description: 'Picks in another category that fit the same taste, such as a film for a music fan. Call it after resolve_taste.',
+      description: 'Picks in another category that fit the same taste, such as a film for a music fan, each with the reason it fits and a pick_token. Call it after resolve_taste. To text one, copy its pick_token exactly; never make one up from an id.',
       timeout: 15,
       body: {
         type: 'object',

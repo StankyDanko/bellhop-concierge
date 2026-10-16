@@ -8,6 +8,10 @@
 // built, and favors_dropped and when_dropped count how many did. A free-text detail from the
 // model is not used at all: an event's time in the text is always the tool's when_label.
 //
+// Every pick_token is checked, including one on a name-only pick (a cross_domain result has
+// no favors or when_label). A token that does not verify, such as one the model built from an
+// entity id, is dropped and counted in tokens_dropped; the pick itself still goes out by name.
+//
 // requested (true when the guest asked for an event by name) only changes which pick a long
 // text drops last. It is kept on a verified event and nowhere else, so the model cannot use it
 // to pin a place.
@@ -26,12 +30,16 @@ import { arr, oneOf, optNum } from '../lib/validate.js';
 export function honorClaims(picks, secret) {
   let favorsDropped = 0;
   let whenDropped = 0;
+  let tokensDropped = 0;
   const kept = picks.map((p) => {
-    const { pick_token: _token, favors, when_label: whenLabel, detail: _detail, requested, ...rest } = p ?? {};
+    const { pick_token: token, favors, when_label: whenLabel, detail: _detail, requested, ...rest } = p ?? {};
     const hasFavors = favors !== undefined && favors !== null;
     const hasWhen = typeof whenLabel === 'string' && whenLabel !== '';
+    const hasToken = token !== undefined && token !== null && token !== '';
+    const verified = hasToken && verifyPick(secret, p);
+    if (hasToken && !verified) tokensDropped += 1;
     if (!hasFavors && !hasWhen) return rest;
-    if (verifyPick(secret, p)) {
+    if (verified) {
       // requested only orders the truncation, and only a verified event may carry it.
       const event = hasWhen ? { detail: whenLabel, when_label: whenLabel, ...(requested === true ? { requested: true } : {}) } : {};
       return { ...rest, ...(hasFavors ? { favors } : {}), ...event };
@@ -40,7 +48,7 @@ export function honorClaims(picks, secret) {
     if (hasWhen) whenDropped += 1;
     return rest;
   });
-  return { picks: kept, favorsDropped, whenDropped };
+  return { picks: kept, favorsDropped, whenDropped, tokensDropped };
 }
 
 /** True when a verified event in the plan is not tonight, so a "Tonight" header would be false. */
@@ -49,7 +57,7 @@ const hasLaterEvent = (picks) => picks.some((p) => typeof p.when_label === 'stri
 /** @param {any} body @param {{ toolSecret?: string }} [ctx] */
 export async function composeItinerary(body, ctx = {}) {
   const raw = arr(body?.picks, 'picks', { min: 1, max: 5 });
-  const { picks, favorsDropped, whenDropped } = honorClaims(raw, ctx.toolSecret);
+  const { picks, favorsDropped, whenDropped, tokensDropped } = honorClaims(raw, ctx.toolSecret);
   const g = body?.guest ?? {};
   const guest = {
     party_size: optNum(g.party_size, 'guest.party_size', { min: 1, max: 30 }),
@@ -60,5 +68,6 @@ export async function composeItinerary(body, ctx = {}) {
     intro = `Your plan${Number.isInteger(guest.party_size) ? ` for ${guest.party_size}` : ''}:`;
   }
   const plain = picks.map(({ when_label: _w, ...p }) => p);
-  return { status: 'ok', ...compose({ picks: plain, guest, intro }), favors_dropped: favorsDropped, when_dropped: whenDropped, calls: [] };
+  return { status: 'ok', ...compose({ picks: plain, guest, intro }), favors_dropped: favorsDropped, when_dropped: whenDropped,
+    tokens_dropped: tokensDropped, calls: [] };
 }

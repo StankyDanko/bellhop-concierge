@@ -5,6 +5,7 @@
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { buildWhy } from '../lib/why.js';
 import { InputError } from '../lib/errors.js';
+import { signPick } from '../lib/pick-token.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
 import { locationParams, shapePlace, signalParams } from './places.js';
 
@@ -12,9 +13,9 @@ export const TARGETS = /** @type {const} */ (['artist', 'movie', 'book', 'podcas
 
 /**
  * @param {any} body
- * @param {{ qloo: import('../lib/qloo.js').QlooClient }} ctx
+ * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string }} ctx
  */
-export async function crossDomain(body, { qloo }) {
+export async function crossDomain(body, { qloo, toolSecret }) {
   const taste = tasteSignals(body?.taste);
   const target = oneOf(body?.target, 'target', TARGETS);
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
@@ -39,5 +40,8 @@ export async function crossDomain(body, { qloo }) {
       why: why.why, why_trace: { basis: why.basis, drivers: why.drivers }, source: 'Qloo' };
   });
 
-  return { status: results.length ? 'ok' : 'empty', target, results, calls: [call] };
+  // pick_token signs each result's name (a result has no favors or when_label), so a pick the
+  // agent passes on to compose_itinerary carries a token this tool issued, not one it made up.
+  const signed = toolSecret ? results.map((r) => ({ ...r, pick_token: signPick(toolSecret, { name: r.name }) })) : results;
+  return { status: signed.length ? 'ok' : 'empty', target, results: signed, calls: [call] };
 }
