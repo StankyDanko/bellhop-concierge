@@ -21,11 +21,17 @@ export const TRUNCATION_ORDER = [
   'trim_why_32',     // 2. each why to <= 32 chars, at a word boundary
   'trim_why_20',     // 3. each why to <= 20 chars
   'drop_last_pick',  // 4. lowest-ranked picks, one at a time (at least one stays)
+  'drop_marker',     // 4b. the " (both)" marker, only when one is present. It is also tried
+                     //     before each pick drop, but only when dropping it alone is enough,
+                     //     so a marker never costs a pick and is never cut for nothing.
   'drop_why',        // 5. whys on the remaining pick(s)
   'drop_detail',     // 6. time/venue detail
   'trim_name',       // 7. the remaining pick's name
   'drop_link',       // 8. the remaining pick's link (a cut link is a broken link)
 ];
+
+/** Appended to the name of a pick that scored for both the guest and their plus-one. */
+export const BOTH_MARKER = ' (both)';
 
 const GSM_BASIC = '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡'
   + 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
@@ -83,6 +89,7 @@ function trimWords(text, max) {
  * @property {string} [why]
  * @property {string} [url]
  * @property {string} [detail]   e.g. "Fri 8pm @ The Lyric"
+ * @property {'guest'|'companion'|'both'|null} [favors]  from recommend_nearby; 'both' adds BOTH_MARKER
  */
 
 /**
@@ -101,7 +108,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
     if (!name) throw new InputError(`picks[${i}].name is required`);
     const url = p.url ? httpsOnly(p.url) : null;
     if (p.url && !url) rejected.push(String(p.url).slice(0, 80));
-    return { name, why: toGsm(p.why ?? ''), detail: toGsm(p.detail ?? ''), url };
+    return { name, why: toGsm(p.why ?? ''), detail: toGsm(p.detail ?? ''), url, both: p.favors === 'both' };
   });
 
   const when = guest.when === 'weekend' ? 'This weekend' : 'Tonight';
@@ -111,6 +118,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   const render = () => {
     const lines = items.map((it, i) => {
       let line = `${items.length > 1 ? `${i + 1}. ` : ''}${it.name}`;
+      if (it.both) line += BOTH_MARKER;
       if (it.detail) line += ` ${it.detail}`;
       if (it.why) line += ` - ${it.why}`;
       if (it.url) line += ` ${it.url}`;
@@ -132,11 +140,20 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   step('drop_header', () => { header = ''; });
   step('trim_why_32', () => { items = items.map((it) => ({ ...it, why: trimWords(it.why, 32) })); });
   step('trim_why_20', () => { items = items.map((it) => ({ ...it, why: trimWords(it.why, 20) })); });
+  const markerChars = () => items.filter((it) => it.both).length * BOTH_MARKER.length;
+  const dropMarkers = () => { items = items.map((it) => ({ ...it, both: false })); };
   while (body.length > MAX_CHARS && items.length > 1) {
+    if (markerChars() && body.length - markerChars() <= MAX_CHARS) {
+      dropMarkers();
+      applied.push('drop_marker');
+      body = render();
+      break;
+    }
     items = items.slice(0, -1);
     applied.push('drop_last_pick');
     body = render();
   }
+  if (markerChars()) step('drop_marker', dropMarkers);
   step('drop_why', () => { items = items.map((it) => ({ ...it, why: '' })); });
   step('drop_detail', () => { items = items.map((it) => ({ ...it, detail: '' })); });
   step('trim_name', () => {

@@ -225,6 +225,90 @@ specific inputs; the drivers are those inputs, strongest first. When Qloo ranked
 without attributing it, the basis is `affinity` and the reason says only "Strong match for
 your overall taste". The server never invents an attribution.
 
+### Companion scoring
+
+A couple on a weekend away is the most common caller, so the concierge asks one optional
+question when the guest is clearly not alone: "And one thing your plus-one loves?" The answer
+counts toward the stop rule (two named things from the guest plus one from the plus-one is
+three, and the game stops). This section is how the tools score each pick per person.
+
+> **Shape unverified until the live key arrives.** The param that restricts insights results
+> to a list of ids is sent as `filter.results.entities`, the spelling in Qloo's Deep Dive
+> docs. Another public entry describes the same move as `filter.entities`. The PII guard
+> accepts both (as entity-id lists only), and `npm run probe:qloo` tries both side by side in
+> its "companion scoring" probe. If the live API wants the other spelling, change
+> `PER_PERSON_FILTER` in `tools/recommend-nearby.js`. The scale of `query.affinity` on a
+> filtered call, and so the thresholds below, are also unverified.
+
+**Inputs.**
+
+| Tool | Field | Notes |
+|---|---|---|
+| `resolve_taste` | `companion_mentions`, 0-2 strings | what the plus-one loves, in the guest's words. A parallel list, so the agent never tags items one by one. Response adds `companion_resolved` (each item `who: "companion"`), `companion_unresolved`, `companion_echo_line`. Absent for a guest who is alone. |
+| `recommend_nearby` | `companion_taste`, `{id, name}[]`, 1-8 | `companion_resolved`, passed back as is. Absent, `null`, or `[]` means no plus-one. |
+| `compose_itinerary` | `picks[].favors` | copied from `recommend_nearby`; `both` adds a ` (both)` marker after the name |
+
+**Qloo calls.** With a `companion_taste`, `recommend_nearby` makes at most three insights
+calls, never more, and each goes through the shared upstream cache:
+
+1. **Shortlist.** The usual place query, with `signal.interests.entities` and
+   `signal.interests.tags` holding BOTH people's signals (de-duplicated, guest first). Combined
+   signals, not guest only, so a place can make the shortlist because the plus-one would love
+   it. Guest-only signals would let the plus-one veto a pick but never surface one, and "that
+   one is for your plus-one" would almost never be true.
+2. **Guest fit.** `GET /v2/insights` with `filter.type=urn:entity:place`, the guest's signals
+   only, `filter.results.entities=<shortlist ids>`, `take=<shortlist size>`. No location
+   params: the ids already pin the places.
+3. **Plus-one fit.** The same call with the plus-one's signals only.
+
+Calls 2 and 3 run in parallel. If either fails upstream, the places still go out without
+`favors`, and `companion.note` says scoring was unavailable. A refused parameter is never
+swallowed.
+
+**Per pick.** Each place gains `fit: { guest, companion }` (the two affinities), `favors`, and
+`favors_line`, the sentence the agent says after the reason:
+
+| `favors` | Rule (`lib/why.js`) | `favors_line` |
+|---|---|---|
+| `both` | both affinities at least 0.5 and within 0.15 of each other | This one you both will like. |
+| `guest` | otherwise, the guest's is higher (ties go to the guest) | That one leans your way. |
+| `companion` | otherwise, the plus-one's is higher | That one is for your plus-one. |
+
+The lines never name the plus-one or guess who they are to the guest.
+
+**At least one pick for both.** When none of the top `take` picks is `both` and a lower
+shortlist entry is, that entry replaces the last pick (only when `take` is two or more, so the
+top pick never moves). `companion.promoted_shared_pick` names it.
+
+```json
+// request (after resolve_taste with companion_mentions: ["Kacey Musgraves"])
+{ "taste": [ { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson" },
+             { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food" } ],
+  "companion_taste": [ { "id": "fx-artist-kacey-musgraves", "name": "Kacey Musgraves" } ],
+  "lat": 32.079, "lng": -81.095, "take": 3 }
+
+// response (abridged, mock fixtures)
+{ "places": [
+    { "name": "Lemongrass Lantern", "favors": "guest", "fit": { "guest": 0.92, "companion": 0.48 },
+      "favors_line": "That one leans your way." },
+    { "name": "The Low Lantern Listening Room", "favors": "both", "fit": { "guest": 0.8, "companion": 0.83 },
+      "favors_line": "This one you both will like." },
+    { "name": "Pastel Diner & Pie", "favors": "companion", "fit": { "guest": 0.55, "companion": 0.88 },
+      "favors_line": "That one is for your plus-one." } ],
+  "companion": { "scored": true, "shared_pick": true, "promoted_shared_pick": null },
+  "meta": { "upstream": [ { "endpoint": "/v2/insights" }, { "endpoint": "/v2/insights" }, { "endpoint": "/v2/insights" } ] } }
+```
+
+**The text message.** The ` (both)` marker is 7 characters and the 320 limit still holds. It
+gives way after `drop_last_pick` in `TRUNCATION_ORDER`, and it is also tried before each pick
+drop when dropping it alone is enough, so a marker never costs a pick and is never cut for
+nothing. With no marker present the truncation steps are exactly as before.
+
+**Mock mode.** `fixtures/qloo.insights.companion.json` holds hand-made cases (never a recorded
+response) for the scoring calls. The fixture transport reads any `qloo.insights.*.json`
+overlay before the base file, and a match value of `*` means "param present", so the scoring
+calls never fall through to the shortlist fixture.
+
 ### `cross_domain`
 
 "People who love X also love Y" across categories: music taste to films, a director to

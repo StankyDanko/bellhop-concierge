@@ -73,6 +73,11 @@ function serverToolSpecs(property, { propertyId, persona }) {
             description: 'One to six things the guest named, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson.',
             items: s('One thing the guest named, for example Sturgill Simpson'),
           },
+          companion_mentions: {
+            type: 'array',
+            description: "Optional. The one thing the guest's plus-one loves, in the guest's words, at most two. Leave out for a guest who is alone. Never put these in mentions.",
+            items: s('One thing the plus-one loves, for example Kacey Musgraves'),
+          },
         },
       },
     },
@@ -84,6 +89,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
         required: ['taste', 'lat', 'lng'],
         properties: {
           taste: TASTE,
+          companion_taste: { ...TASTE, description: 'Optional. The companion_resolved items exactly as resolve_taste returned them, one to eight. Only when the guest has a plus-one.' },
           lat: LAT,
           lng: LNG,
           radius_miles: n('How far to look, in miles. Default three. Use one for walking.'),
@@ -152,6 +158,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 why: s('The why field from the tool result'),
                 url: s('The url field from the tool result, if there was one'),
                 detail: s('For an event, its when_label, for example Fri 8pm'),
+                favors: s('The favors field from recommend_nearby, if there was one', { enum: ['guest', 'companion', 'both'] }),
               },
             },
           },

@@ -1,0 +1,36 @@
+{
+  "_note": "Synthetic fixtures, hand-written. Not Qloo response data and never a recorded live response. They answer the per-person scoring calls recommend_nearby makes when a guest has a plus-one: GET /v2/insights with one person's signal.interests.* and filter.results.entities set to the shortlist. A match value of * means the param only has to be present. Affinity numbers are invented to exercise every favors outcome; the live scale is UNVERIFIED until the key arrives.",
+  "cases": [
+    {
+      "match": { "filter.type": "urn:entity:place", "filter.results.entities": "*", "signal.interests.entities": "fx-artist-kacey-musgraves" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.48 } },
+        { "name": "The Low Lantern Listening Room", "entity_id": "fx-place-low-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.83 } },
+        { "name": "Pastel Diner & Pie", "entity_id": "fx-place-pastel-diner", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.88 } },
+        { "name": "Riverbend Smokehouse", "entity_id": "fx-place-riverbend-smokehouse", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.81 } }
+      ] } }
+    },
+    {
+      "match": { "filter.type": "urn:entity:place", "filter.results.entities": "*", "signal.interests.tags": "urn:tag:genre:place:bar:jazz" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.4 } },
+        { "name": "The Low Lantern Listening Room", "entity_id": "fx-place-low-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.93 } },
+        { "name": "Pastel Diner & Pie", "entity_id": "fx-place-pastel-diner", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.35 } },
+        { "name": "Riverbend Smokehouse", "entity_id": "fx-place-riverbend-smokehouse", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.52 } }
+      ] } }
+    },
+    {
+      "match": { "filter.type": "urn:entity:place", "filter.results.entities": "*", "signal.interests.entities": "fx-artist-sturgill-simpson" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.92 } },
+        { "name": "The Low Lantern Listening Room", "entity_id": "fx-place-low-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.8 } },
+        { "name": "Pastel Diner & Pie", "entity_id": "fx-place-pastel-diner", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.55 } },
+        { "name": "Riverbend Smokehouse", "entity_id": "fx-place-riverbend-smokehouse", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.86 } }
+      ] } }
+    },
+    {
+      "match": { "filter.type": "urn:entity:place", "filter.results.entities": "*" },
+      "response": { "success": true, "results": { "entities": [] } }
+    }
+  ]
+}

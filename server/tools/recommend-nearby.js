@@ -4,11 +4,74 @@
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
 import { locationParams, shapePlace, signalParams } from './places.js';
+import { classifyFavors, FAVORS_LINES } from '../lib/why.js';
+import { UpstreamError } from '../lib/errors.js';
 
 /** Average in-town driving speed used to turn "max 15 minutes" into a radius. */
 export const MILES_PER_MINUTE = 0.4;
 /** Tag names that rule a place out when the party has kids. */
 const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|speakeasy|wine bar|tavern)s?\b/i;
+
+// ---------------------------------------------------------------------------
+// Companion scoring (the plus-one beat). See "Companion scoring" in server/README.md.
+//
+// With a companion_taste, the shortlist comes from ONE insights call on both people's
+// signals combined, so a place can surface because either person would love it. Then
+// exactly two more insights calls score that shortlist once per person: each sends one
+// person's signals and restricts results to the shortlist ids. Never more than two.
+// ---------------------------------------------------------------------------
+
+/**
+ * The insights param that restricts results to given entity ids. Documented spelling in
+ * the Qloo Deep Dive; SHAPE UNVERIFIED until the live key arrives (the probe script
+ * tries this and the bare `filter.entities` spelling side by side).
+ */
+export const PER_PERSON_FILTER = 'filter.results.entities';
+
+/** Optional companion taste: absent, null, or [] all mean "no plus-one". */
+function companionSignals(v) {
+  if (v === undefined || v === null || (Array.isArray(v) && v.length === 0)) return null;
+  return tasteSignals(v, 'companion_taste');
+}
+
+/** Guest + companion signals, de-duplicated, guest first. */
+function mergeTaste(a, b) {
+  const seen = new Set();
+  const signals = [...a.signals, ...b.signals].filter((s) => (seen.has(s.id) ? false : seen.add(s.id)));
+  const isTag = (id) => id.startsWith('urn:tag:');
+  return { signals, entityIds: signals.filter((s) => !isTag(s.id)).map((s) => s.id), tagIds: signals.filter((s) => isTag(s.id)).map((s) => s.id) };
+}
+
+/**
+ * Score the shortlist per person and pick `take` of them, keeping at least one pick for
+ * both when the shortlist has one.
+ * @param {import('../lib/qloo.js').QlooClient} qloo
+ * @param {import('../lib/qloo.js').QlooEntity[]} candidates  shortlist, in combined-affinity order
+ */
+async function scoreForTwo(qloo, candidates, guest, companion, take) {
+  const ids = candidates.map((e) => e.entity_id).filter(Boolean);
+  const scoreFor = async (person) => {
+    const { entities, call } = await qloo.insights({
+      'filter.type': ENTITY_TYPES.place,
+      ...signalParams(person),
+      [PER_PERSON_FILTER]: ids.join(','),
+      take: String(ids.length),
+    });
+    return { fit: new Map(entities.map((e) => [e.entity_id, e.affinity])), call };
+  };
+  const [g, c] = await Promise.all([scoreFor(guest), scoreFor(companion)]);
+  const scored = candidates.map((e) => {
+    const fit = { guest: g.fit.get(e.entity_id) ?? null, companion: c.fit.get(e.entity_id) ?? null };
+    return { e, fit, favors: classifyFavors(fit.guest, fit.companion) };
+  });
+  const chosen = scored.slice(0, take);
+  let promoted = null;
+  if (take >= 2 && !chosen.some((s) => s.favors === 'both')) {
+    const shared = scored.slice(take).find((s) => s.favors === 'both');
+    if (shared) { chosen[chosen.length - 1] = shared; promoted = shared.e.name; }
+  }
+  return { chosen, promoted, calls: [g.call, c.call] };
+}
 
 /**
  * @param {any} body
@@ -16,6 +79,8 @@ const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|spe
  */
 export async function recommendNearby(body, { qloo }) {
   const taste = tasteSignals(body?.taste);
+  const companion = companionSignals(body?.companion_taste);
+  const signalsIn = companion ? mergeTaste(taste, companion) : taste;
   const origin = latLng(body);
   const c = body?.constraints ?? {};
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
@@ -31,7 +96,7 @@ export async function recommendNearby(body, { qloo }) {
   /** @type {Record<string,string>} */
   const params = {
     'filter.type': ENTITY_TYPES.place,
-    ...signalParams(taste),
+    ...signalParams(signalsIn),
     ...locationParams(origin.lat, origin.lng, radius),
     sort_by: 'affinity',
     take: String(Math.min(20, take * 3)), // headroom for the kids filter
@@ -42,17 +107,42 @@ export async function recommendNearby(body, { qloo }) {
   const { entities, call } = await qloo.insights(params);
 
   let filteredOut = 0;
-  const places = entities.filter((e) => {
+  const candidates = entities.filter((e) => {
     if (kids && e.tags.some((t) => ADULTS_ONLY.test(t.name))) { filteredOut += 1; return false; }
     return true;
-  }).slice(0, take).map((e) => shapePlace(e, taste.signals, origin));
+  });
+
+  // Companion scoring: two extra calls at most, and only with a plus-one and a shortlist.
+  // If a scoring call fails upstream, the places still go out, just without favors.
+  // Anything else (a refused param, a bug) is not swallowed.
+  let two = null;
+  let companionNote;
+  if (companion && candidates.length) {
+    try {
+      two = await scoreForTwo(qloo, candidates, taste, companion, take);
+    } catch (err) {
+      if (!(err instanceof UpstreamError)) throw err;
+      companionNote = `scoring unavailable: ${err.code}`;
+    }
+  }
+  const places = two
+    ? two.chosen.map(({ e, fit, favors }) => ({ ...shapePlace(e, signalsIn.signals, origin), favors, fit,
+      favors_line: favors ? FAVORS_LINES[favors] : null }))
+    : candidates.slice(0, take).map((e) => shapePlace(e, signalsIn.signals, origin));
+  const companionSummary = companion ? {
+    scored: Boolean(two),
+    shared_pick: places.some((p) => p.favors === 'both'),
+    promoted_shared_pick: two?.promoted ?? null,
+    ...(companionNote ? { note: companionNote } : {}),
+  } : undefined;
 
   return {
     status: places.length ? 'ok' : 'empty',
     places,
     applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut },
+    companion: companionSummary,
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
-    calls: [call],
+    calls: [call, ...(two?.calls ?? [])],
   };
 }

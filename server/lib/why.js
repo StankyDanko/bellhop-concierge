@@ -82,3 +82,37 @@ export function buildWhy(entity, signals) {
     basis: 'explainability',
   };
 }
+
+// ---------------------------------------------------------------------------
+// Who a pick favors, when the guest has a plus-one.
+//
+// recommend_nearby scores each candidate twice more, once per person (see the
+// "Companion scoring" section of server/README.md). These helpers turn the two
+// per-person affinities into one of three outcomes and the plain line the agent says.
+// ---------------------------------------------------------------------------
+
+/** Both affinities at least this high, and this close, counts as a pick for both. */
+export const BOTH_FLOOR = 0.5;
+export const BOTH_MARGIN = 0.15;
+
+/** The spoken-ready line for each outcome. Plain words, no names, no guess about who the plus-one is. */
+export const FAVORS_LINES = Object.freeze({
+  guest: 'That one leans your way.',
+  companion: 'That one is for your plus-one.',
+  both: 'This one you both will like.',
+});
+
+/**
+ * @param {number|null|undefined} guest      the guest's own affinity for the pick
+ * @param {number|null|undefined} companion  the plus-one's affinity for the pick
+ * @returns {'guest'|'companion'|'both'|null}  null when neither person was scored
+ */
+export function classifyFavors(guest, companion) {
+  const g = typeof guest === 'number' ? guest : null;
+  const c = typeof companion === 'number' ? companion : null;
+  if (g === null && c === null) return null;
+  if (g === null) return 'companion';
+  if (c === null) return 'guest';
+  if (Math.min(g, c) >= BOTH_FLOOR && Math.abs(g - c) <= BOTH_MARGIN) return 'both';
+  return c > g ? 'companion' : 'guest';
+}

@@ -48,7 +48,10 @@ written so you can read it), 2 means the config was invalid.
    coordinates and timezone are compile-time constants, so the model
    never types them. `send_sms` posts to the tool server's own `/tools/send_sms` route and binds
    `to` to `system__caller_id`: the model cannot address a
-   text to anyone but the caller.
+   text to anyone but the caller. The plus-one inputs (`companion_mentions` on `resolve_taste`,
+   `companion_taste` on `recommend_nearby`, and a pick's `favors` on `compose_itinerary`) are
+   optional and never required, so a call from a guest who is alone compiles and runs exactly as
+   before. See "Companion scoring" in `server/README.md`.
 5. **Set the platform.** The settings below go on every agent, whatever the host chose.
 6. **Lint.** Everything the model reads (prompt, first message, every tool and parameter
    description) is checked. Errors: em or en dashes, the forbidden two-letter word or its long
