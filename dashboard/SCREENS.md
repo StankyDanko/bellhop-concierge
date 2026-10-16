@@ -146,9 +146,10 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 
 ---
 
-## 4b. Privacy and Terms (`/privacy`, `/terms`) **MUST**
+## 4b. Privacy and Terms (`/privacy`, `/terms`, alias `/sms-terms`) **MUST**
 
-- **Purpose:** the two pages a carrier's toll-free review and a careful judge both expect. Plain English, short, and true to the code. Linked from the footer beside "Source", and served on a direct load (`APP_ROUTES`, checked by the smoke test).
+- **Purpose:** the two pages a carrier's toll-free review and a careful judge both expect. Plain English, short, and true to the code. Linked from the footer beside "Source".
+- **One source of words:** `src/legal-content.js`. The React pages render it in-app; `scripts/build-legal.mjs` renders it after vite into `dist/privacy.html` and `dist/terms.html`, whole documents with the house tokens inlined and no scripts. A direct load (`/privacy`, `/terms`, `/sms-terms`) gets that file (`STATIC_PAGES` in `server/api/static.js`), so a reader with no JavaScript still reads the policy. The smoke test checks all three for the SMS sentence.
 - **Privacy, top to bottom:** when you call (automated and recorded, said first; the demo inn is fictional); what a call sends to Qloo (ids, tags, coordinates, filters; never a name, number, or room); what we keep (a keyed hash of the caller's number, the tastes and their ids, pick counts, the request record; no names, transcripts, or message bodies); the text message (offered, one per call, only to the calling number, at most three per number an hour, STOP) and, set apart, "Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing."; the innkeeper dashboard (aggregates only, dark under five calls); questions (the SouthernSky site). Effective date under the title.
 - **Terms:** the bridge sentence as the lead; what this is (a hackathon demo, the twenty-calls-a-day test line, no warranty); about the picks (third-party data, hours go stale); text messages (program, consent, frequency, STOP, rates); the code (AGPL-3.0, source link); questions.
 - **Footer, every page:** "Source", "Privacy", "Terms" as 48px links, and once, in small type: "Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC."

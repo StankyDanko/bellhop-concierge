@@ -14,8 +14,18 @@ const TYPES = {
   '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json',
 };
 
-/** Client-side routes that render the app shell. */
-export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/privacy\/?$/, /^\/terms\/?$/, /^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
+/**
+ * Pages served as whole HTML documents, built from dashboard/src/legal-content.js by
+ * dashboard/scripts/build-legal.mjs, so a reader that runs no JavaScript still gets the
+ * policy. Checked before the app shell. `/sms-terms` is the name a carrier review asks for.
+ */
+export const STATIC_PAGES = [
+  { re: /^\/privacy\/?$/, file: 'privacy.html' },
+  { re: /^\/(sms-)?terms\/?$/, file: 'terms.html' },
+];
+
+/** Client-side routes that render the app shell (the legal pages too, if their files are missing). */
+export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/privacy\/?$/, /^\/(sms-)?terms\/?$/,/^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -39,6 +49,8 @@ export function serveDashboard(app, { distDir = DEFAULT_DIST } = {}) {
 
   app.get('*', async (c, next) => {
     const path = decodeURIComponent(new URL(c.req.url).pathname);
+    const legal = STATIC_PAGES.find((p) => p.re.test(path));
+    if (legal && existsSync(join(root, legal.file))) return send(c, join(root, legal.file), 'no-cache');
     if (APP_ROUTES.some((re) => re.test(path))) {
       const index = join(root, 'index.html');
       if (!existsSync(index)) {
