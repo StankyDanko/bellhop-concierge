@@ -1,10 +1,23 @@
 // events_nearby: what is actually happening tonight or this weekend (Ticketmaster).
 //
 // Each event comes back with two labels built only from Ticketmaster's own fields:
-//   when_label  short, for the text: "Tonight 8pm" only when the event is on tonight in the
-//               property's timezone, otherwise the weekday, "Fri 8pm", or "Sat" with no time
-//   say         one spoken-ready line: "Friday at eight, The Lyric Annex, Hollow Pines String Band."
+//   when_label  short, for the text: "Tonight 8pm", "Today 2pm", or the weekday, "Fri 8pm",
+//               or "Sat" with no time
+//   say         one spoken-ready line that always opens with its own day word:
+//               "Tonight at eight, The Lyric Annex, Hollow Pines String Band." The agent never
+//               has to add a day, so it never has to guess one.
 // Neither says anything about taste or fit: Ticketmaster does not, so neither does this tool.
+//
+// What "tonight" means, in the property's timezone, against the time of the call:
+//   An evening runs from 4pm on a calendar day to 4am the next morning. Tonight is the
+//   evening of the call's calendar day, even when the call comes in after midnight: at 00:16
+//   on Friday the guest's "tonight" is Friday evening. An event is tonight when it starts in
+//   that evening, or, for a call between midnight and 4am, later in those same small hours.
+//   Any other event on the call's date (a daytime show) is "Today"; anything else is its
+//   weekday. A date with no time is "Today" or the weekday, never "Tonight".
+// The "tonight" fetch window runs from now to the end of that same evening (4am), so every
+// show this tool calls Tonight is inside the window it fetched for tonight.
+//
 // Each event is also signed with a pick_token over its name and when_label (lib/pick-token.js),
 // so compose_itinerary can tell this tool's when_label from one the model wrote.
 
@@ -15,8 +28,10 @@ import { latLng, num, oneOf } from '../lib/validate.js';
 
 export const CLASSIFICATIONS = /** @type {const} */ (['music', 'sports', 'arts & theatre', 'film', 'family', 'comedy']);
 
-/** "Tonight" covers the evening until this local hour the next morning, as timeWindow does. */
-const NIGHT_ENDS_HOUR = 3;
+/** An evening starts at this local hour... */
+const EVENING_STARTS_HOUR = 16;
+/** ...and runs until this local hour the next morning. */
+const NIGHT_ENDS_HOUR = 4;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
@@ -43,10 +58,36 @@ function localClock(d, tz) {
 }
 /** Weekday index (0 Sunday) of a "YYYY-MM-DD" calendar date. */
 const weekdayOf = (ymd) => new Date(`${ymd}T12:00:00Z`).getUTCDay();
-/** The calendar date one day earlier. */
-const dayBefore = (ymd) => new Date(Date.parse(`${ymd}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-/** The evening a local date and hour belong to: early-morning hours count as the night before. */
-const nightOf = (ymd, hour) => (hour < NIGHT_ENDS_HOUR ? dayBefore(ymd) : ymd);
+/** The calendar date `n` days later (negative for earlier). */
+const addDays = (ymd, n) => new Date(Date.parse(`${ymd}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+/**
+ * The calendar date whose evening a local date and hour belong to, or null for daytime:
+ * 4pm to midnight is that day's evening, midnight to 4am is the evening before.
+ */
+function eveningOf(ymd, hour) {
+  if (hour >= EVENING_STARTS_HOUR) return ymd;
+  if (hour < NIGHT_ENDS_HOUR) return addDays(ymd, -1);
+  return null;
+}
+
+/** The UTC instant of a local wall-clock hour on a calendar date in a zone. */
+function zonedInstant(ymd, hour, tz) {
+  const wall = Date.parse(`${ymd}T${String(hour).padStart(2, '0')}:00:00Z`);
+  /** Offset of the zone at an instant, in ms: local wall time read as UTC, minus the instant. */
+  const offset = (t) => {
+    const d = new Date(t);
+    const { hour: h, minute: m } = localClock(d, tz);
+    return Date.parse(`${localDate(d, tz)}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`) - t;
+  };
+  // Twice, so a clock change between the guess and the answer uses the offset at the answer.
+  const first = wall - offset(wall);
+  return new Date(wall - offset(first));
+}
+
+/** End of tonight for a call at `now`: 4am the morning after the call's calendar day. */
+export function tonightEnds(now, tz) {
+  return zonedInstant(addDays(localDate(now, tz), 1), NIGHT_ENDS_HOUR, tz);
+}
 
 /** 1 to 59 as words: 7 -> "seven", 45 -> "forty five". */
 function words(n) {
@@ -74,8 +115,8 @@ const shortTime = (hour, minute) => `${hour % 12 === 0 ? 12 : hour % 12}${minute
  * @returns {{ when_label: string|null, say_when: string|null, tonight: boolean }}
  */
 export function eventWhen(event, now, tz) {
-  const nowClock = localClock(now, tz);
-  const tonightKey = nightOf(localDate(now, tz), nowClock.hour);
+  const callDay = localDate(now, tz);
+  const smallHours = localClock(now, tz).hour < NIGHT_ENDS_HOUR;
   /** @type {{ ymd: string, hour: number, minute: number } | { ymd: string, hour: null, minute: null } | null} */
   let at = null;
   const instant = event.start && !DATE_ONLY.test(event.start) ? new Date(event.start) : null;
@@ -90,14 +131,16 @@ export function eventWhen(event, now, tz) {
   const day = DAYS[weekdayOf(at.ymd)];
   if (at.hour === null) {
     // A date with no time: "today" at most, never "tonight", since the time is not known.
-    const today = at.ymd === localDate(now, tz);
+    const today = at.ymd === callDay;
     return { when_label: today ? 'Today' : day.slice(0, 3), say_when: today ? 'Today' : day, tonight: false };
   }
-  const tonight = nightOf(at.ymd, at.hour) === tonightKey;
-  const label = tonight ? 'Tonight' : day.slice(0, 3);
+  const tonight = eveningOf(at.ymd, at.hour) === callDay
+    || (smallHours && at.ymd === callDay && at.hour < NIGHT_ENDS_HOUR);
+  const today = !tonight && at.ymd === callDay;
+  const [label, said] = tonight ? ['Tonight', 'Tonight'] : today ? ['Today', 'Today'] : [day.slice(0, 3), day];
   return {
     when_label: `${label} ${shortTime(at.hour, at.minute)}`,
-    say_when: `${tonight ? 'Tonight' : day} at ${spokenTime(at.hour, at.minute)}`,
+    say_when: `${said} at ${spokenTime(at.hour, at.minute)}`,
     tonight,
   };
 }
@@ -126,7 +169,7 @@ export async function eventsNearby(body, { ticketmaster, timezone, now = () => n
   }
 
   const at = now();
-  const win = timeWindow(when, { now: at, timezone: tz });
+  const win = when === 'tonight' ? { start: at, end: tonightEnds(at, tz) } : timeWindow(when, { now: at, timezone: tz });
   const { events, call } = await ticketmaster.events({
     lat, lng, radiusMiles, start: tmDate(win.start), end: tmDate(win.end), classification, size: take,
   });

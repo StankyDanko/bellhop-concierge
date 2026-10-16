@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { callTool, makeApp, PROPERTY, SECRET } from './helpers.js';
-import { eventsNearby, eventWhen, sayLine, spokenTime } from '../tools/events-nearby.js';
+import { eventsNearby, eventWhen, sayLine, spokenTime, tonightEnds } from '../tools/events-nearby.js';
 import { normalizeEvents } from '../lib/ticketmaster.js';
 import { verifyPick } from '../lib/pick-token.js';
 
@@ -35,13 +35,73 @@ test('the regression: a Friday show called on Thursday night is Friday, not toni
 
 test('tonight only when the show is on tonight in the property timezone', () => {
   assert.deepEqual(eventWhen(FRI_8PM_SHOW, FRI_2PM, NY), { when_label: 'Tonight 8pm', say_when: 'Tonight at eight', tonight: true });
-  // A 1am show belongs to the night before, the same way the "tonight" window runs to 3am.
+  // A 1am show belongs to the evening before, the same way the "tonight" window runs to 4am.
   const late = { start: '2026-10-17T05:00:00Z' }; // Saturday 1am New York
   assert.equal(eventWhen(late, at('2026-10-17T01:00:00Z'), NY).when_label, 'Tonight 1am'); // asked Fri 9pm
   // The same show asked about on Thursday is a Saturday show.
   assert.equal(eventWhen(late, THU_NIGHT, NY).when_label, 'Sat 1am');
   // A different timezone moves the day.
   assert.equal(eventWhen(FRI_8PM_SHOW, at('2026-10-17T02:00:00Z'), 'America/Los_Angeles').when_label, 'Tonight 5pm');
+});
+
+// The rule: tonight is the evening (4pm to 4am) of the call's calendar day, in the property's
+// timezone, even for a call after midnight; a same-day daytime event is Today; else the weekday.
+const FRI_0016 = at('2026-10-16T04:16:00Z'); // Friday 00:16 in New York
+const FRI_6PM = at('2026-10-16T22:00:00Z');
+const FRI_10AM = at('2026-10-16T14:00:00Z');
+const FRI_11PM = at('2026-10-17T03:00:00Z');
+const FRI_2PM_SHOW = { start: '2026-10-16T18:00:00Z', local_date: '2026-10-16', local_time: '14:00:00' };
+const SAT_0030_SHOW = { start: '2026-10-17T04:30:00Z', local_date: '2026-10-17', local_time: '00:30:00' };
+
+test('the round five regression: at 00:16 Friday, a Friday 8pm show is tonight, and say says so', () => {
+  assert.deepEqual(eventWhen(FRI_8PM_SHOW, FRI_0016, NY), { when_label: 'Tonight 8pm', say_when: 'Tonight at eight', tonight: true });
+  assert.equal(sayLine({ name: 'Hollow Pines String Band', venue: 'The Lyric Annex' }, eventWhen(FRI_8PM_SHOW, FRI_0016, NY).say_when),
+    'Tonight at eight, The Lyric Annex, Hollow Pines String Band.');
+});
+
+test('tonight: a 6pm Friday call and a Friday 8pm show', () => {
+  assert.deepEqual(eventWhen(FRI_8PM_SHOW, FRI_6PM, NY), { when_label: 'Tonight 8pm', say_when: 'Tonight at eight', tonight: true });
+});
+
+test('today: a 10am Friday call and a Friday 2pm show is today, not tonight', () => {
+  assert.deepEqual(eventWhen(FRI_2PM_SHOW, FRI_10AM, NY),
+    { when_label: 'Today 2pm', say_when: 'Today at two in the afternoon', tonight: false });
+  // The same daytime show at 00:16 Friday is also today: the guest's day is Friday.
+  assert.equal(eventWhen(FRI_2PM_SHOW, FRI_0016, NY).when_label, 'Today 2pm');
+});
+
+test('weekday: a Thursday call and a Friday show is Friday', () => {
+  const thuAfternoon = at('2026-10-15T19:00:00Z'); // Thursday 3pm
+  assert.deepEqual(eventWhen(FRI_8PM_SHOW, thuAfternoon, NY), { when_label: 'Fri 8pm', say_when: 'Friday at eight', tonight: false });
+  assert.equal(eventWhen(FRI_2PM_SHOW, thuAfternoon, NY).say_when, 'Friday at two in the afternoon');
+});
+
+test('tonight across midnight: a 12:30am Saturday show during an 11pm Friday call', () => {
+  assert.deepEqual(eventWhen(SAT_0030_SHOW, FRI_11PM, NY),
+    { when_label: 'Tonight 12:30am', say_when: 'Tonight at twelve thirty in the morning', tonight: true });
+  // During the small hours themselves, a show later in those hours is still tonight.
+  assert.equal(eventWhen(SAT_0030_SHOW, at('2026-10-17T04:05:00Z'), NY).when_label, 'Tonight 12:30am'); // Sat 00:05
+});
+
+test('every say line opens with the same day word as its when_label', () => {
+  const calls = [FRI_0016, FRI_10AM, FRI_2PM, FRI_6PM, FRI_11PM, THU_NIGHT];
+  const shows = [FRI_8PM_SHOW, FRI_2PM_SHOW, SAT_0030_SHOW, { start: '2026-10-17', local_date: '2026-10-17', local_time: null }];
+  for (const now of calls) {
+    for (const show of shows) {
+      const w = eventWhen(show, now, NY);
+      const said = w.say_when.split(' ')[0];
+      assert.match(said, /^(Tonight|Today|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)$/, `${show.start} @ ${now.toISOString()}`);
+      assert.equal(w.when_label.split(' ')[0], ['Tonight', 'Today'].includes(said) ? said : said.slice(0, 3));
+    }
+  }
+});
+
+test('the tonight fetch window ends where the evening of the call day ends', () => {
+  assert.equal(tonightEnds(FRI_0016, NY).toISOString(), '2026-10-17T08:00:00.000Z'); // Sat 4am, not Fri 3am
+  assert.equal(tonightEnds(FRI_11PM, NY).toISOString(), '2026-10-17T08:00:00.000Z');
+  assert.equal(tonightEnds(at('2026-10-17T04:05:00Z'), NY).toISOString(), '2026-10-18T08:00:00.000Z'); // Sat 00:05 -> Sun 4am
+  // Across the November clock change: Saturday Oct 31 evening ends Sunday 4am EST (09:00Z).
+  assert.equal(tonightEnds(at('2026-10-31T22:00:00Z'), NY).toISOString(), '2026-11-01T09:00:00.000Z');
 });
 
 test('a date with no time is the weekday, or today, never tonight', () => {
