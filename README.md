@@ -101,7 +101,9 @@ weekend. The details, request and response shapes included, are in
 4. **The Qloo shapes are a careful reading of the docs, not yet a live response.** The client
    was written before a key existed. `npm run probe:qloo` prints every shape side by side the
    day one arrives, and the places most likely to need a fix are listed in `server/README.md`.
-5. **Demographics describe people who share these tastes nearby,** not this inn's guests.
+5. **Demographics describe people who share these tastes nearby,** not this inn's guests. The
+   callers' fingerprint is a small, self-selected sample, which is why every panel shows its
+   call count and stays dark under five.
 6. **Hackathon keys are switched off after the event.** Cache-only mode keeps a seeded demo
    answering the questions it was asked while the key was live, and nothing new.
 
