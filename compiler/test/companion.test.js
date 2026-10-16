@@ -21,6 +21,9 @@ for (const persona of ['harper', 'maybelle']) {
     for (const line of ['that one leans your way', 'that one is for your plus-one', 'this one you both will like']) {
       assert.ok(p.includes(line), line);
     }
+    // What the guest attributes to someone else goes to companion_mentions, with a worked line.
+    assert.match(p, /Anything the guest says another person loves, like my wife loves Thai, he's into jazz, or she wants tacos, goes in companion_mentions, never in mentions\./);
+    assert.match(p, /is mentions Sturgill Simpson, companion_mentions Thai food\./);
     // Never assumes a romantic relationship.
     assert.doesNotMatch(p, /your partner/i);
   });

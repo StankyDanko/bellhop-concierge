@@ -78,12 +78,12 @@ function serverToolSpecs(property, { propertyId, persona }) {
         properties: {
           mentions: {
             type: 'array',
-            description: 'One to six things the guest named, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson.',
+            description: 'One to six things the guest likes for themselves, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson. Never something the guest said another person loves.',
             items: s('One thing the guest named, for example Sturgill Simpson'),
           },
           companion_mentions: {
             type: 'array',
-            description: "Optional. The one thing the guest's plus-one loves, in the guest's words, at most two. Leave out for a guest who is alone. Never put these in mentions.",
+            description: "Optional. What the guest says another person with them loves, in the guest's words, at most two. My wife loves Thai becomes Thai food here. Leave out for a guest who is alone. Never put these in mentions.",
             items: s('One thing the plus-one loves, for example Kacey Musgraves'),
           },
         },
