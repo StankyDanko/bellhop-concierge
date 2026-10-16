@@ -132,7 +132,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion.',
       timeout: 12,
       body: {
         type: 'object',
