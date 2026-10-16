@@ -402,12 +402,23 @@ Live events from the Ticketmaster Discovery API.
               "end": "2026-10-16T07:00:00.000Z", "timezone": "America/New_York" },
   "events": [ { "id": "fx-evt-1", "name": "Hollow Pines String Band", "venue": "The Lyric Annex",
     "start": "2026-10-17T00:00:00Z", "url": "https://example.com/events/hollow-pines",
-    "category": "Music", "source": "Ticketmaster", "when_label": "Fri 8pm" } ],
+    "local_date": "2026-10-16", "local_time": "20:00:00", "category": "Music", "source": "Ticketmaster",
+    "when_label": "Tonight 8pm", "tonight": true, "say": "Tonight at eight, The Lyric Annex, Hollow Pines String Band.",
+    "pick_token": "..." } ],
   "meta": { "upstream": [ { "service": "ticketmaster", "endpoint": "/events.json", "via": "mock", "ms": 0 } ] } }
 ```
 
 Event links that are not https come back as `url: null`. (The mock fixture returns the
 same events whatever the window; the live API filters by it.)
+
+Every field below is built from Ticketmaster's own fields and the property's timezone, nothing else:
+
+| Field | Notes |
+|---|---|
+| `when_label` | for the text: `Tonight 8pm` only when the event falls on tonight (the evening until 3 am) in the property's timezone, otherwise the weekday, `Fri 8pm`. A date with no time is `Sat`, or `Today`, never `Tonight` |
+| `tonight` | boolean, the same test |
+| `say` | one spoken-ready line: day and time in words, venue, name. `Friday at seven thirty, The Lyric Annex, Hollow Pines String Band.` It says nothing about taste or fit, because Ticketmaster does not |
+| `pick_token` | HMAC over the name and `when_label` (`lib/pick-token.js`); `compose_itinerary` prints an event's `when_label` only when it verifies |
 
 ### `compose_itinerary`
 
@@ -415,10 +426,11 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 
 | Field | Type | Notes |
 |---|---|---|
-| `picks` | 1-5 of `{ name, why?, url?, detail?, favors?, pick_token? }` | in rank order, copied as the tools returned them; `detail` is a short label such as `when_label` |
+| `picks` | 1-5 of `{ name, why?, url?, when_label?, favors?, pick_token? }` | in rank order, copied as the tools returned them |
 | (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
+| (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
 | `guest.party_size` | number | used in the header |
-| `guest.when` | `tonight` or `weekend` | used in the header |
+| `guest.when` | `tonight` or `weekend` | used in the header, except that a plan with a verified event that is not tonight says `Your plan` instead of `Tonight` |
 | `intro` | string, optional | replaces the default header |
 
 Rules:
@@ -449,15 +461,15 @@ Rules:
 { "picks": [
     { "name": "Lemongrass Lantern", "why": "Fans of Thai food and Sturgill Simpson love it",
       "url": "https://example.com/lemongrass-lantern" },
-    { "name": "Hollow Pines String Band", "detail": "Fri 8pm", "why": "Live string band",
+    { "name": "Hollow Pines String Band", "when_label": "Tonight 8pm", "pick_token": "<from events_nearby>",
       "url": "https://example.com/events/hollow-pines" } ],
   "guest": { "party_size": 2, "when": "tonight" } }
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Fri 8pm - Live string band https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 286, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
-  "truncation": [], "rejected_links": [], "meta": { "upstream": [] } }
+  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+  "char_count": 271, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "meta": { "upstream": [] } }
 ```
 
 This tool composes the text only. Sending it is a separate step that must confirm delivery

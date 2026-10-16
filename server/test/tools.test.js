@@ -127,7 +127,9 @@ test('events_nearby: normalized Ticketmaster events in the right window', async 
   assert.equal(json.events[0].name, 'Hollow Pines String Band');
   assert.equal(json.events[0].venue, 'The Lyric Annex');
   assert.equal(json.events[0].source, 'Ticketmaster');
-  assert.equal(json.events[0].when_label, 'Fri 8pm');
+  // FIXED_NOW is Friday 2pm in New York, so the Friday 8pm show is tonight.
+  assert.equal(json.events[0].when_label, 'Tonight 8pm');
+  assert.equal(json.events[0].say, 'Tonight at eight, The Lyric Annex, Hollow Pines String Band.');
   assert.equal(json.events[2].url, null, 'non-https event links are dropped');
   // Friday 2pm New York -> tonight ends 3am Saturday local (07:00Z).
   assert.equal(json.window.end, '2026-10-17T07:00:00.000Z');
@@ -143,7 +145,7 @@ test('compose_itinerary: picks from the other tools become one compliant text', 
   const events = (await callTool(app, 'events_nearby', { ...PROPERTY, when: 'tonight' })).json.events;
   const picks = [
     ...recs.map((p) => ({ name: p.name, why: p.why, url: p.url })),
-    { name: events[0].name, detail: events[0].when_label, why: 'Live string band', url: events[0].url },
+    { name: events[0].name, when_label: events[0].when_label, url: events[0].url, pick_token: events[0].pick_token },
   ];
   const { status, json } = await callTool(app, 'compose_itinerary', { picks, guest: { party_size: 2, when: 'tonight' } });
   assert.equal(status, 200);

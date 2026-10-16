@@ -132,7 +132,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend, with a short time label for each.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token.',
       timeout: 12,
       body: {
         type: 'object',
@@ -165,7 +165,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 name: s('The name exactly as a tool returned it'),
                 why: s('The why field from the tool result'),
                 url: s('The url field from the tool result, if there was one'),
-                detail: s('For an event, its when_label, for example Fri 8pm'),
+                when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
                 favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
                 pick_token: s('The pick_token field from the tool result, copied exactly'),
               },
