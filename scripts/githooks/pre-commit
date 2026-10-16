@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# pre-commit: keep private things private and keep the copy honest.
+# Enable once per clone with: npm run hooks
+set -uo pipefail
+
+fail() { printf 'pre-commit: %s\n' "$1" >&2; exit 1; }
+
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+[ "${#staged[@]}" -eq 0 ] && exit 0
+
+# 1. Paths that never belong in this repo.
+for f in "${staged[@]}"; do
+  case "$f" in
+    gates/*|*/gates/*)                      fail "$f is a visual gate artifact. Those stay local." ;;
+    server/.env|server/.env.*|.env|.env.*)  fail "$f holds credentials. It never gets committed." ;;
+    *.sqlite|*.sqlite-*)                    fail "$f is a database file. Data stays on the server." ;;
+  esac
+  # Anything the ignore rules (.gitignore or the local exclude file) cover was force-added.
+  if git check-ignore -q --no-index -- "$f"; then
+    fail "$f is covered by the ignore rules, so it stays local. Unstage it."
+  fi
+done
+
+# Optional local denylist: one regex per line, outside the tree.
+denylist="$(git rev-parse --git-common-dir)/info/commit-denylist"
+deny_hit() {   # stdin = text; prints the first matching line number
+  [ -f "$denylist" ] || return 1
+  grep -n -i -E -f <(grep -v -E '^[[:space:]]*(#|$)' "$denylist") | head -1 | grep .
+}
+
+# 2. Copy rules, on the words a judge, an innkeeper, or a guest reads.
+in_copy_scope() {
+  case "$1" in
+    dashboard/src/*|server/tools/*|server/api/*|template/*|personas/*|compiler/tools.js) return 0 ;;
+    */*) return 1 ;;
+    *.md) return 0 ;;
+  esac
+  return 1
+}
+EMDASH=$'\xe2\x80\x94'
+for f in "${staged[@]}"; do
+  in_copy_scope "$f" || continue
+  body=$(git show ":$f" 2>/dev/null) || continue
+  hit=$(printf '%s\n' "$body" | grep -n -F -- "$EMDASH" | head -1)
+  [ -n "$hit" ] && fail "$f:${hit%%:*} has an em dash. Use a period, a comma, or a colon."
+  case "$f" in
+    CONTRIBUTING.md|dashboard/SCREENS.md) continue ;;   # these two state the rules themselves
+  esac
+  hit=$(printf '%s\n' "$body" | grep -n -P '\bAI\b|(?i:artificial intelligence)' | head -1)
+  [ -n "$hit" ] && fail "$f:${hit%%:*} says \"AI\". Say \"intelligent software\", \"the concierge\", or \"the agent\"."
+  hit=$(printf '%s\n' "$body" | deny_hit)
+  [ -n "$hit" ] && fail "$f:${hit%%:*} matches the local denylist. Reword it."
+done
+
+# 3. Leak grep, on every line this commit adds.
+added=$(git diff --cached -U0 --no-color --diff-filter=ACMR -- . ':(exclude)package-lock.json' \
+  | awk '/^\+\+\+ /{file=substr($0,7); next} /^\+/{print file ":" substr($0,2)}')
+
+leak() {   # $1 = what it looks like, $2 = perl regex, $3 = optional allow regex
+  local hits
+  hits=$(printf '%s\n' "$added" | grep -P -- "$2")
+  [ -n "${3:-}" ] && hits=$(printf '%s\n' "$hits" | grep -v -P -- "$3")
+  hits=$(printf '%s\n' "$hits" | sed '/^$/d' | head -1)
+  [ -n "$hits" ] && fail "this looks like $1, in ${hits%%:*}. Take it out, or use a placeholder."
+  return 0
+}
+
+Q="[\"']"
+leak "a private key"              '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+leak "a cloud or API key"         '\b(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,}|(sk|pk|rk)_(live|test)_[A-Za-z0-9]{16,}|sk_[0-9a-f]{40,}|AIza[0-9A-Za-z_-]{30,})'
+leak "an account or key id"       '\b(AC|SK)[0-9a-f]{32}\b'
+leak "a real X-Api-Key value"     "(?i)x-api-key${Q}?\\s*[:=]\\s*${Q}?[A-Za-z0-9_-]{16,}" '(?i)(your|example|placeholder|change-?me|xxxx|<)'
+leak "a secret written in the clear" "(?i)\\b(api_?key|secret|token|password|auth_?token)${Q}?\\s*[:=]\\s*${Q}[A-Za-z0-9/+_-]{24,}${Q}" '(?i)(change-?me|example|placeholder|test|fake|dummy|local-dev|xxxx)'
+leak "a server address"           '\b(?!(?:10|127|0)\.)(?!192\.168\.)(?!172\.(?:1[6-9]|2\d|3[01])\.)(?!169\.254\.)(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b'
+leak "a login on a server"        '\b[a-z_][a-z0-9_-]*@(?:\d{1,3}\.){3}\d{1,3}\b'
+leak "a home directory path"      '(/home/[a-z_][a-z0-9_-]*|/Users/[A-Za-z][A-Za-z0-9_-]*)/'
+leak "a phone number"             '(\+1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(\d{3}\)\s?\d{3}[\s.-]\d{4})' '706\D{0,3}810\D?9262|555\D?01\d\d'
+leak "an email address"           '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' '@(example\.(com|org|net)|users\.noreply\.github\.com)\b'
+
+# 4. Code changed? Then the tests run. (Build and smoke are on you; see CONTRIBUTING.md.)
+if printf '%s\n' "${staged[@]}" | grep -q -E '\.(js|jsx|mjs|json)$'; then
+  npm test --silent >/dev/null 2>&1 || fail "npm test failed. Run it, fix it, then commit."
+fi
+
+echo "pre-commit: clean. Nothing private, nothing off-voice. Lay the brick."

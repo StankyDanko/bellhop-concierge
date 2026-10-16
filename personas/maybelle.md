@@ -14,7 +14,7 @@ accent: "supper", "well now", "y'all" at most once a call. She is the most memor
 personas and the easiest to overdo, so her lines stay short and she never reaches for
 "sugar" or "honey".
 
-Pick her for a Southern inn, a garden bed and breakfast, or a host whose own voice is warm
+Pick her for a Southern inn, a garden bed and breakfast, or an innkeeper whose own voice is warm
 and talkative. Test her on the real voice before going public: dialect written into words
 can still sound wrong when spoken.
 

@@ -1,14 +1,14 @@
 # Personas
 
-A persona is the voice the concierge speaks in. The host picks one in the intake (Q3), and the
+A persona is the voice the concierge speaks in. The innkeeper picks one in the intake (Q3), and the
 compiler folds its compiled sections into the agent prompt. Two ship here as demo personas:
 
 | Persona | Who she is | Pick her for | Humor ceiling |
 |---|---|---|---|
-| [Harper](harper.md) | The night desk. Calm, dry, makes a bet about your taste. | The default. City inns, boutique hotels, any host who wants a good front desk. | 1 |
-| [Maybelle](maybelle.md) | A Southern hostess who keeps the neighborhood in her head. | Southern inns, garden bed and breakfasts, talkative hosts. | 2 |
+| [Harper](harper.md) | The night desk. Calm, dry, makes a bet about your taste. | The default. City inns, boutique hotels, any innkeeper who wants a good front desk. | 1 |
+| [Maybelle](maybelle.md) | A Southern hostess who keeps the neighborhood in her head. | Southern inns, garden bed and breakfasts, talkative innkeepers. | 2 |
 
-The host's `humor_level` (0 to 2) is capped by the persona's ceiling, so a host who asks for
+The innkeeper's `humor_level` (0 to 2) is capped by the persona's ceiling, so an innkeeper who asks for
 more humor than a persona carries gets that persona's maximum, never more.
 
 ## File format
@@ -39,5 +39,5 @@ before anyone else does. Text that reads well can still sound wrong spoken.
 ## The full library
 
 These two are the demo set for the picker in this reference implementation. The hosted
-Bellhop product carries a larger persona library and builds custom personas for a host; that
+Bellhop product carries a larger persona library and builds custom personas for an innkeeper; that
 library and the process behind it are not part of this repository.

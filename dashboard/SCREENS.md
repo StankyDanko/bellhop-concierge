@@ -14,7 +14,7 @@ Global shell (all screens): 390 = single column, 16px gutters, bottom tab bar (4
 | `/` | 1. Demo landing | **MUST** |
 | `/build` | 2. Builder (Q0 to ring-back) | **MUST** (typed path); voice **SHOULD** |
 | `/p/:id` | 3a. Property home + sessions | **SHOULD** |
-| `/p/:id/insights` | 3b. Area insights | **MUST** at least one live panel (Qloo on the host side is part of the 25% score) |
+| `/p/:id/insights` | 3b. Area insights | **MUST** at least one live panel (Qloo on the innkeeper side is part of the 25% score) |
 | `/p/:id/settings` | 4. Settings | **COULD** (read-only version SHOULD) |
 
 If time runs out, cut in this order: Settings write paths, Compare panel, "what to stock" suggestions, voice interview (keep typed), heatmap map tiles (keep ranked list), sessions detail view, theme toggle. Never cut: the number, the LiveBadge truth check, WhyChip, Preview call (browser fallback acceptable), locked-guardrail list, the 5-session gate, SampleBadge.
@@ -92,7 +92,7 @@ A single page with a stepper, not separate routes. Steps: **Autofill, Interview,
 
 ### 2.6 Publish **MUST**
 - **Primary action:** "Publish concierge".
-- Screen: summary of the ConfigCard (read-only, with a "changes since preview" diff chip), TrustLadder (default Test; host can choose Suggest or Live after the preview), a single confirm sheet ("Publish The Alder House? ..."), success state: LiveBadge flips and the PhoneNumberCard for THEIR number appears with "Put this on your room card" and a **Copy number** and **Print a room card** (COULD) action.
+- Screen: summary of the ConfigCard (read-only, with a "changes since preview" diff chip), TrustLadder (default Test; innkeeper can choose Suggest or Live after the preview), a single confirm sheet ("Publish The Alder House? ..."), success state: LiveBadge flips and the PhoneNumberCard for THEIR number appears with "Put this on your room card" and a **Copy number** and **Print a room card** (COULD) action.
 - 390: single column, Publish button pinned in the thumb zone; 1440: summary left, ladder and publish right.
 - Failure: "We couldn't publish. Nothing changed and your answers are saved." Retry.
 
@@ -115,7 +115,7 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 - Panels: Demographics, Heatmap, Compare, then "What to stock or partner with" (suggestion cards derived from the insights, each phrased as an observation plus an action: "Guests who named live music lean 25 to 34 (+0.13 vs area). Try a record player and a local-band flyer." Each suggestion carries its Qloo source chip and is labeled `A SUGGESTION, NOT A FORECAST`; we do not claim revenue or review lift).
 - 390: panels stack; Heatmap shows a map card at 4:3 (aspect-ratio reserved) with the ranked "Hottest 3 areas" list below as the accessible, scrollable equivalent; Compare shows the three biggest differences as sentences first.
 - 1440: Heatmap left (7 cols) with Demographics right (5 cols); Compare full width; suggestions as a 3-up card row.
-- States (all from DESIGN-LANGUAGE 5.13), shown for every panel: loading skeleton; **fewer-than-5-sessions gate** (the panel never partially renders; the host sees the count "2 of 5"); empty; skipped; degraded (amber, last good data with AS OF); error. SampleBadge on the demo property's seeded data. The page header shows one summary chip, e.g. "1 of 3 panels delayed".
+- States (all from DESIGN-LANGUAGE 5.13), shown for every panel: loading skeleton; **fewer-than-5-sessions gate** (the panel never partially renders; the innkeeper sees the count "2 of 5"); empty; skipped; degraded (amber, last good data with AS OF); error. SampleBadge on the demo property's seeded data. The page header shows one summary chip, e.g. "1 of 3 panels delayed".
 - Interaction: radius control (1, 2, 5 mi segmented), interests selector chips (from the sessions' resolved taste, aggregate), "Refresh" with `AS OF` timestamp. No guest-level drill-down exists, by design.
 - Cut: Compare (COULD), suggestions (SHOULD, cheap: text templates over panel data), radius control (COULD), map tiles (use a cell grid with a legend if tiles are not ready).
 
@@ -137,7 +137,7 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 ## 4. Settings (`/p/:id/settings`) **COULD (read-only SHOULD)**
 
 - **Primary action:** "Save changes" (appears only when dirty; sticky in the thumb zone at 390).
-- Sections as cards: **Numbers** (the property number with copy and "Put on a room card" actions; test numbers list; the host's handoff phone with confirm-by-text), **Trust level** (TrustLadder, same component as the builder), **Handoff** (who gets the call, hours reachable as a simple day/time editor, triggers: safety, damage, complaint, refund, cancellation are locked ON and shown as locked rows; adjustable: "also hand off when guests ask for a person"), **Concierge** (persona, humor, avoid-topics, links back to the builder steps), **Pause the line** (destructive-tint button at the bottom, outside the thumb zone, with confirm: "Pause the line? Callers will hear that the front desk is closed and your handoff number.").
+- Sections as cards: **Numbers** (the property number with copy and "Put on a room card" actions; test numbers list; the innkeeper's handoff phone with confirm-by-text), **Trust level** (TrustLadder, same component as the builder), **Handoff** (who gets the call, hours reachable as a simple day/time editor, triggers: safety, damage, complaint, refund, cancellation are locked ON and shown as locked rows; adjustable: "also hand off when guests ask for a person"), **Concierge** (persona, humor, avoid-topics, links back to the builder steps), **Pause the line** (destructive-tint button at the bottom, outside the thumb zone, with confirm: "Pause the line? Callers will hear that the front desk is closed and your handoff number.").
 - 390: stacked cards, section jump list at top (horizontal chips, scrollable inside its own container); 1440: left sub-nav (Numbers, Trust, Handoff, Concierge) with the cards to the right.
 - States: unsaved changes (bar with "Save changes" and "Discard"), save success (quiet toast), validation errors inline ("US numbers need ten digits"), a phone number change requires confirmation text (state: "Sent a code to +1 (555) 013-4477").
 - Cut: hours editor (use a default 9 to 5 with an edit link), every write path (ship read-only with "Edit in builder" links), Pause (keep: it is the safety valve and cheap).

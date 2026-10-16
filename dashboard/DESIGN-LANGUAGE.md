@@ -138,7 +138,7 @@ The builder's right-hand artifact: a titled list of fields grouped into 5 cells 
   - `TYPED` (keyboard glyph).
   - `FROM SITE` (link glyph): the URL and what was read.
   - `DEFAULT` (dashed outline): we filled it; "Change me" is the only call to action.
-  - `CONFIRMED` (check glyph): host tapped confirm on an exact string (phone, wifi, times). Exact strings are never `SPOKEN`-final; STT is not trusted for them [R8 5.4].
+  - `CONFIRMED` (check glyph): innkeeper tapped confirm on an exact string (phone, wifi, times). Exact strings are never `SPOKEN`-final; STT is not trusted for them [R8 5.4].
   Distinct by glyph and label, not color [ST7].
 - **Row states.** Empty: dashed `--color-field-border`, placeholder written as the question ("Where do guests park?"). Filling (voice just landed): a 280ms background fade from `--color-accent-tint` to transparent (state change the user caused [M3]). Unconfirmed exact string: amber dot + "Tap to confirm". Edited by hand: badge flips to `TYPED`. Conflict (voice overwrote a typed value): the typed value wins; the spoken one appears as a one-line "Use what I said instead?" undo chip.
 - **Secret fields** (wifi, access codes): masked, a lock-eye toggle, labeled `NEVER SPOKEN ALOUD`; delivered by text to the booking phone only (R8 locked rule).
@@ -180,7 +180,7 @@ Moving up needs a confirm sheet; moving to Live is disabled until one Preview ca
 
 ### 5.9 PreviewCall and RingBack (a flow with states)
 Presented as a bottom sheet on phone, a centered dialog on desktop (`--z-modal`, scrim, focus trap, Esc closes unless a call is mid-ring).
-- **Setup**: scripted guest chosen from 2 radio cards ("Couple arriving late, likes live music and natural wine" / "Family of four, kids, rainy day"), the host's phone field (`type=tel`, `inputmode=tel`, `autocomplete=tel`, E.164 normalize on blur), a consent line: "We'll call this number once, for this test, and delete it afterwards." The only privacy promise that appears is one the server actually performs (verify before ship).
+- **Setup**: scripted guest chosen from 2 radio cards ("Couple arriving late, likes live music and natural wine" / "Family of four, kids, rainy day"), the innkeeper's phone field (`type=tel`, `inputmode=tel`, `autocomplete=tel`, E.164 normalize on blur), a consent line: "We'll call this number once, for this test, and delete it afterwards." The only privacy promise that appears is one the server actually performs (verify before ship).
 - **Ringing**: big phone glyph with ring pulse (transform/opacity), text "Calling +1 (555) 013-4477", Cancel button. Timeout at 45 s.
 - **On the call**: LiveBadge variant `On a call`, an elapsed timer (mono, tabular), live captions if available, an End button (destructive tint, outside the thumb-zone primary spot).
 - **Done**: "Here's what your guest got." Shows the SMS itinerary preview (5.11) and the picks with their why chips; actions "Call again" / "Publish".
@@ -274,7 +274,7 @@ Pattern: *what happened, in human words. What is safe. What to do next (one acti
 | Preview first | "Make one preview call first. Then you can go live." |
 | Publish confirm | "Publish The Alder House? Guests who call this number will reach your concierge. You can pause it any time." Buttons: "Publish concierge" / "Not yet" |
 | Pause | "Pause the line? Callers will hear that the front desk is closed and your handoff number." |
-| Qloo down | "Qloo didn't answer this time. The concierge still takes calls, and falls back to the host's own picks." |
+| Qloo down | "Qloo didn't answer this time. The concierge still takes calls, and falls back to the innkeeper's own picks." |
 | Server error | "Something broke on our side. Nothing you entered was lost." |
 | Success toast | "Saved." / "Published. The line is answering." |
 | Locked-rule why | one clause, causal: "Because...", never "For security reasons" |
