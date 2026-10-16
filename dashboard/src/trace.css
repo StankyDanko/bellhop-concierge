@@ -1,0 +1,85 @@
+/* Qloo call trace + counterfactual (components/QlooTrace.jsx). Semantic tokens only.
+   Kept out of styles.css on purpose; imported by the component. */
+
+.session-trace { margin-top: var(--space-2); min-width: 0; }
+.trace-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--touch-min); padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-taste); border-radius: var(--r-control);
+  background: transparent; color: var(--color-taste-text); cursor: pointer;
+  font-size: var(--text-sm); font-weight: 500;
+}
+.trace-toggle svg { width: 1rem; height: 1rem; flex: none; transition: transform var(--dur-fast) var(--ease-out); }
+.trace-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+@media (hover: hover) and (pointer: fine) { .trace-toggle:hover { background: var(--color-taste-tint); } }
+.trace-body { margin-top: var(--space-3); display: grid; gap: var(--space-3); min-width: 0; }
+.trace-empty { font-size: var(--text-sm); }
+
+/* One markup, two layouts: stacked cards in a narrow container, aligned columns in a wide one. */
+.trace-wrap { container-type: inline-size; min-width: 0; }
+.trace-head { display: none; }
+.trace-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.trace-row {
+  display: grid; gap: var(--space-2); min-width: 0;
+  padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--r-control);
+  background: var(--color-surface);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.trace-row > .trace-params, .trace-row > .trace-facts { grid-column: 1 / -1; }
+.trace-n { color: var(--color-text-dim); font-size: var(--text-sm); }
+.trace-req { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.trace-endpoint { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text); overflow-wrap: anywhere; }
+.trace-params {
+  list-style: none; padding: var(--space-2); margin: 0; min-width: 0;
+  font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.5;
+  background: var(--color-surface-2); border-radius: var(--r-control); color: var(--color-text-dim);
+}
+.trace-params li { overflow-wrap: anywhere; }
+.trace-params .k { color: var(--color-text-dim); }
+.trace-params .v { color: var(--color-text); }
+.trace-facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-dim); }
+
+@container (min-width: 44rem) {
+  .trace-head, .trace-row { grid-template-columns: 2rem minmax(10rem, 0.9fr) minmax(0, 1.6fr) minmax(9rem, 0.8fr); }
+  .trace-head {
+    display: grid; gap: var(--space-2); padding: 0 var(--space-3) var(--space-1);
+    font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--color-text-dim); font-weight: 500;
+  }
+  .trace-list { gap: 0; }
+  .trace-row { border-radius: 0; border-width: 0 0 1px; background: transparent; padding: var(--space-2) var(--space-3); align-items: start; }
+  .trace-row > .trace-params, .trace-row > .trace-facts { grid-column: auto; }
+  .trace-req { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+  .trace-facts { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+}
+
+/* Counterfactual */
+.cf { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--r-control); background: var(--color-surface-2); min-width: 0; }
+.cf-pair { display: grid; gap: var(--space-2); margin: 0; }
+.cf-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); min-width: 0; }
+.cf-row dt, .cf-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.cf-row strong { font-weight: 600; }
+.cf-why { color: var(--color-taste-text); }
+.cf-say { font-size: var(--text-sm); color: var(--color-text); border-left: 3px solid var(--color-taste); padding-left: var(--space-3); }
+@media (min-width: 768px) {
+  .cf-row { grid-template-columns: 11rem minmax(0, 1fr); align-items: baseline; }
+}
+
+/* Sample call card on the Calls section */
+.trace-sample { margin-top: var(--space-4); min-width: 0; }
+.trace-sample .session-trace { margin-top: var(--space-3); }
+
+/* Session table: the expansion row */
+.session-table td.trace-cell { padding: 0 var(--space-2) var(--space-3); background: var(--color-surface); }
+.session-table td.trace-cell .session-trace { margin-top: 0; }
+
+/* Landing: the request behind the pick */
+.request-behind { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border); display: grid; gap: var(--space-2); min-width: 0; }
+.request-code {
+  margin: 0; padding: var(--space-3); border-radius: var(--r-control); background: var(--color-surface-2);
+  font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.6; color: var(--color-text);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%;
+}
+.trace-facts-line { margin: 0; }
+
+/* The Calls card stack styles every nested li; reset the trace's own list items. */
+.session-cards .trace-params li { padding: 0; border: 0; border-radius: 0; background: none; }

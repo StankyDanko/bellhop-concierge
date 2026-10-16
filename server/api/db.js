@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 export const DEFAULT_DB_PATH = fileURLToPath(new URL('../data/concierge.sqlite', import.meta.url));
 export const DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/demo-inn.json', import.meta.url));
 export const DEMO_PROPERTY_ID = 'demo';
+export const SAMPLE_SESSION_PATH = fileURLToPath(new URL('../fixtures/sample-session.json', import.meta.url));
 
 const PROPERTIES_SCHEMA = `
   CREATE TABLE IF NOT EXISTS properties (
@@ -47,4 +48,23 @@ export function seedDemo(db, now = () => new Date()) {
 /** @param {import('better-sqlite3').Database} db */
 export function hasSessionsTable(db) {
   return Boolean(db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sessions'`).get());
+}
+
+let sampleSession;
+/**
+ * The hand-made sample call shown on every property page until real calls exist, so the
+ * Qloo call trace is visible on day one. Built from mock fixtures, never from a Qloo response.
+ * Returns null if the file is missing or broken (the page simply shows no sample).
+ */
+export function loadSampleSession() {
+  if (sampleSession === undefined) {
+    try {
+      const raw = JSON.parse(readFileSync(SAMPLE_SESSION_PATH, 'utf8'));
+      const { _note, ...session } = raw;
+      sampleSession = { ...session, sample: true };
+    } catch {
+      sampleSession = null;
+    }
+  }
+  return sampleSession;
 }

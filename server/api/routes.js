@@ -21,7 +21,9 @@ import { composeItinerary } from '../tools/compose-itinerary.js';
 import { eventsNearby } from '../tools/events-nearby.js';
 import { recommendNearby } from '../tools/recommend-nearby.js';
 import { resolveTaste } from '../tools/resolve-taste.js';
-import { DEMO_PROPERTY_ID, hasSessionsTable } from './db.js';
+import { readTrace } from '../lib/sessions.js';
+import { withTrace } from '../lib/upstream.js';
+import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleSession } from './db.js';
 import { LOCKED_RULES, OWNER_TOGGLES } from './guardrails.js';
 
 export const ADMIN_HEADER = 'X-Admin-Token';
@@ -87,13 +89,22 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
   const sessionCount = (propertyId) => (sessionsAvailable()
     ? sdb.prepare('SELECT COUNT(*) AS n FROM sessions WHERE property_id = ?').get(propertyId).n : 0);
 
-  /** Aggregate rows only. caller_hash is never selected. */
+  /** The Qloo call trace filed under a session. Read defensively: older databases have none. */
+  const traceOf = (sessionId) => {
+    try { return readTrace(sdb, sessionId); } catch { return { trace: [], counterfactual: null }; }
+  };
+
+  /**
+   * Aggregate rows only. caller_hash is never selected, and the session id (the platform's
+   * conversation id) is used to join the trace but never returned.
+   */
   const listSessions = (propertyId, limit = 50) => {
     if (!sessionsAvailable()) return [];
-    return sdb.prepare(`SELECT started_at, persona, entities_json, picks_count, events_count, sms_sent
+    return sdb.prepare(`SELECT id, started_at, persona, entities_json, picks_count, events_count, sms_sent
                         FROM sessions WHERE property_id = ? ORDER BY started_at DESC LIMIT ?`)
       .all(propertyId, limit)
       .map((r) => ({
+        ...traceOf(r.id),
         started_at: r.started_at,
         persona: r.persona,
         entities: entityNames(r.entities_json),
@@ -255,6 +266,9 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
       total,
       gate: { min: SESSION_GATE, count: total, open: total >= SESSION_GATE },
       sessions: listSessions(id),
+      // A hand-made example call (server/fixtures/sample-session.json) so the trace view is
+      // visible before the first real call. Always labeled sample; never counted above.
+      sample_session: loadSampleSession(),
     });
   });
 
@@ -368,10 +382,17 @@ async function personaCards() {
 const upstreamSummary = (calls) => (calls ?? []).map((k) => ({ service: k.service, endpoint: k.endpoint, via: k.via }));
 
 async function samplePicks(ctx, lat, lng) {
-  const taste = await resolveTaste({ mentions: [...SAMPLE_MENTIONS] }, ctx);
+  const { result: taste, trace: tasteTrace } = await withTrace('resolve_taste', () => resolveTaste({ mentions: [...SAMPLE_MENTIONS] }, ctx));
   if (!taste.resolved.length) return { mentions: [...SAMPLE_MENTIONS], places: [], upstream: upstreamSummary(taste.calls), as_of: new Date().toISOString() };
-  const rec = await recommendNearby({ taste: taste.resolved.map(({ id, name }) => ({ id, name })), lat, lng, radius_miles: 3, take: 2 }, ctx);
+  const { result: rec, trace: recTrace } = await withTrace('recommend_nearby',
+    () => recommendNearby({ taste: taste.resolved.map(({ id, name }) => ({ id, name })), lat, lng, radius_miles: 3, take: 2 }, ctx));
+  const trace = [...tasteTrace, ...recTrace].map((e, i) => ({ ...e, n: i + 1 }));
   return {
+    // The exact Qloo request behind the picks (the taste-signaled insights call), and what
+    // the same request returns with no taste signal.
+    request: recTrace.find((e) => e.source === 'qloo' && Object.keys(e.params).some((k) => k.startsWith('signal.'))) ?? null,
+    counterfactual: rec.counterfactual ?? null,
+    trace,
     mentions: [...SAMPLE_MENTIONS],
     echo_line: taste.echo_line,
     places: rec.places,

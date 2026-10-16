@@ -5,6 +5,8 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { requireSecret } from './lib/auth.js';
+import { sessionIdFrom } from './lib/sessions.js';
+import { withTrace } from './lib/upstream.js';
 import { InputError, PiiViolation, UpstreamError } from './lib/errors.js';
 import { areaInsights } from './tools/area-insights.js';
 import { composeItinerary } from './tools/compose-itinerary.js';
@@ -72,9 +74,10 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
         return c.json({ ok: false, status: 'error', error: { code: 'invalid_json' } }, 400);
       }
       try {
-        const { calls, ...result } = await handler(body, ctx);
+        const { result: { calls, ...result }, trace } = await withTrace(name, () => handler(body, ctx));
         logger({ svc: 'tool', tool: name, status: result.status, ms: Date.now() - started });
-        return c.json({ ok: true, tool: name, ...result, meta: { upstream: calls, ms: Date.now() - started } });
+        persistTrace(sessions, sessionIdFrom(body), name, trace, result.counterfactual, logger);
+        return c.json({ ok: true, tool: name, ...result, trace, meta: { upstream: calls, ms: Date.now() - started } });
       } catch (err) {
         return c.json(...toErrorResponse(name, err, logger));
       }
@@ -87,6 +90,16 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
 
   app.notFound((c) => c.json({ ok: false, status: 'error', error: { code: 'not_found' } }, 404));
   return app;
+}
+
+/** Store a tool's call trace under its session id. Best effort: never fails the tool call. */
+function persistTrace(sessions, sessionId, tool, trace, counterfactual, logger) {
+  if (!sessionId || typeof sessions?.writeTrace !== 'function') return;
+  try {
+    sessions.writeTrace(sessionId, tool, trace, counterfactual ?? null);
+  } catch (err) {
+    logger({ svc: 'tool', tool, error: 'trace_write_failed', detail: String(err?.message ?? err) });
+  }
 }
 
 /** @returns {[Record<string, unknown>, 400|422|500|502]} */

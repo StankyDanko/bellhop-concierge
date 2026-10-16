@@ -128,6 +128,28 @@ Every success response has `ok: true`, the tool's `status` (`ok`, `empty`, or `d
 the tool's own fields, and `meta.upstream`: one record per upstream call with its service,
 endpoint, and whether it was answered `live`, from `cache`, or from `mock` fixtures.
 
+Every success response also has `trace`: one entry per Qloo or Ticketmaster request the tool
+made, in the order sent. It is what the dashboard's "Qloo calls (n)" view shows.
+
+| Trace field | Notes |
+|---|---|
+| `n` | order within the tool call (renumbered across the whole call on the dashboard) |
+| `tool` | the tool that made the request |
+| `source` | `qloo` or `ticketmaster` (the SMS provider is never traced) |
+| `endpoint` | for example `/v2/insights` |
+| `params` | exactly what was sent, after the PII guard; credential-shaped keys are dropped, and the Qloo key is a header, so it is never here |
+| `mode` | `mock` or `live` |
+| `cache` | `hit` or `miss` |
+| `ms`, `results` | time taken and how many items came back |
+| `error` | present only when the request failed (for example `upstream_error`) |
+
+Every tool except `send_sms` takes `session_id`, bound by the compiler to the platform's
+`system__conversation_id` (the same binding `log_session` uses). When it is present, the
+server files the tool's trace under it in the `session_traces` table, and `log_session`
+links the row by recording `trace_count`. An unfilled `{{system__conversation_id}}` stores
+nothing. A trace never holds a caller number, caller hash, name, or message body, and the
+dashboard API uses the conversation id only as a join key; it never returns it.
+
 Errors are never reported as success:
 
 | HTTP | `error.code` | When |
@@ -219,6 +241,25 @@ Qloo request: `GET /v2/insights` with `filter.type=urn:entity:place`,
 ```
 
 `url` is the place's website when it is https, otherwise an https map search link.
+
+**The counterfactual.** After the taste call, `recommend_nearby` makes one more cached
+`GET /v2/insights` with the same `filter.type`, `filter.location`, radius, price and rating
+filters, and `take=5`, but no `signal.*` and no `sort_by`, so Qloo ranks by general
+popularity. The kids filter applies to both. The response gains:
+
+```json
+"counterfactual": {
+  "without_qloo_taste": { "name": "Harborside Burger Hall", "reason": "most popular place nearby" },
+  "with_qloo": { "name": "Lemongrass Lantern", "why": "Fans of Thai food and Sturgill Simpson love it" },
+  "same": false,
+  "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Thai food and Sturgill Simpson go there." }
+```
+
+When both calls agree, `same` is true and `say` reads "Your tastes agree with the crowd on
+this one: X is both the most popular place nearby and your best match." If the extra call
+fails, `counterfactual` is `null` and the picks are unaffected. It is never put in the SMS
+body. In mock mode the unsignaled call answers from `fixtures/qloo.insights.unsignaled.json`
+(hand-made, not Qloo data).
 
 **The why trace.** `why_trace.basis` is `explainability` when Qloo attributed the result to
 specific inputs; the drivers are those inputs, strongest first. When Qloo ranked a result
@@ -389,8 +430,11 @@ The agent's last call on every guest call: one anonymous row for the host dashbo
 | `picks_count`, `events_count`, `sms_sent` | model | |
 
 Table: `sessions(id, property_id, persona, started_at, caller_hash, entities_json, picks_count,
-events_count, sms_sent, created_at)` in `SESSIONS_PATH`. No names, numbers, transcripts, or
-message bodies are stored.
+events_count, sms_sent, created_at, trace_count)` in `SESSIONS_PATH`. No names, numbers, transcripts, or
+message bodies are stored. `trace_count` is added to older databases on open (guarded
+`ALTER TABLE`). Traces live in `session_traces(seq, session_id, tool, trace_json,
+counterfactual_json, created_at)`, at most 40 rows per session. The response adds
+`trace_calls`, the number of upstream requests linked to this call.
 
 ## How Qloo is load-bearing
 
@@ -409,6 +453,10 @@ in the server log, one JSON line per call (endpoint and parameters, never the ke
 | 6 | Heatmap | `GET /v2/insights` `filter.type=urn:heatmap` | `area_insights` | where around the property a taste runs hottest |
 | 7 | Demographics | `GET /v2/insights` `filter.type=urn:demographics` | `area_insights` | which age and gender groups lean toward the guests' tastes |
 | 8 | Audience compare | `GET /v2/analysis/compare` `a.signal.*`, `b.signal.*` | `area_insights` | how two guest segments differ |
+| 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
+
+Each call's requests are visible on the property dashboard (`/property/:id`, Calls, "Qloo
+calls (n)") and the landing page shows the exact request behind its sample pick.
 
 Ticketmaster adds what a taste graph does not hold: what is on tonight.
 

@@ -1,6 +1,7 @@
 // The single choke point for outbound calls: cache -> transport -> retries -> log.
 // Qloo and Ticketmaster clients both go through here.
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { cacheKey } from './cache.js';
 import { UpstreamError } from './errors.js';
 import { redactParams } from './log.js';
@@ -23,6 +24,76 @@ import { redactParams } from './log.js';
  * @property {'live'|'cache'|'mock'} via
  * @property {number} ms
  */
+
+/**
+ * @typedef {object} TraceEntry  One upstream request, as shown on the dashboard's call trace.
+ * @property {number} n                         order within the tool call (1-based)
+ * @property {string} tool                      the agent tool that made it
+ * @property {string} source                    'qloo' | 'ticketmaster'
+ * @property {string} endpoint
+ * @property {Record<string,string>} params     exactly what was sent, minus any credential-shaped key
+ * @property {'mock'|'live'} mode
+ * @property {'hit'|'miss'} cache
+ * @property {number} ms
+ * @property {number} results                   how many items came back
+ * @property {string} [error]                   error code when the request failed
+ */
+
+// ---------------------------------------------------------------------------
+// Call trace: every upstream request made while a tool runs is recorded here.
+// AsyncLocalStorage scopes the list to one tool invocation, so concurrent calls
+// never mix and no tool has to thread a trace argument through.
+// ---------------------------------------------------------------------------
+
+const traceStore = new AsyncLocalStorage();
+/** Only taste and event lookups are traced; anything else (an SMS provider) never is. */
+export const TRACE_SOURCES = Object.freeze(['qloo', 'ticketmaster']);
+const CREDENTIAL_PARAM = /^(api[_-]?key|apikey|x-api-key|key|token|secret|auth|authorization)$/i;
+
+/**
+ * Run fn with a fresh trace; resolves to { result, trace }. On failure the error
+ * carries the partial trace as err.trace.
+ * @template T @param {string} tool @param {() => Promise<T>} fn
+ * @returns {Promise<{ result: T, trace: TraceEntry[] }>}
+ */
+export async function withTrace(tool, fn) {
+  const trace = [];
+  try {
+    const result = await traceStore.run({ tool, trace }, fn);
+    return { result, trace };
+  } catch (err) {
+    if (err && typeof err === 'object') err.trace = trace;
+    throw err;
+  }
+}
+
+/** The params as they appear in a trace: credential-shaped keys are dropped, not masked. */
+export function traceParams(params) {
+  /** @type {Record<string,string>} */
+  const out = {};
+  for (const [k, v] of Object.entries(params)) if (!CREDENTIAL_PARAM.test(k)) out[k] = String(v);
+  return out;
+}
+
+/** How many items an upstream body carried, across the Qloo and Ticketmaster envelopes. */
+export function countResults(body) {
+  const r = body?.results;
+  const candidates = [r, r?.entities, r?.tags, r?.heatmap, r?.demographics, r?.comparison, r?.items, body?._embedded?.events];
+  for (const c of candidates) if (Array.isArray(c)) return c.length;
+  if (r && typeof r === 'object') return Object.keys(r).length ? 1 : 0;
+  return 0;
+}
+
+/** Open a trace entry at request start (so n follows issue order) if a trace is active. */
+function openTraceEntry(service, endpoint, params, mock) {
+  const ctx = traceStore.getStore();
+  if (!ctx || !TRACE_SOURCES.includes(service)) return null;
+  /** @type {TraceEntry} */
+  const entry = { n: ctx.trace.length + 1, tool: ctx.tool, source: service, endpoint, params: traceParams(params),
+    mode: mock ? 'mock' : 'live', cache: 'miss', ms: 0, results: 0 };
+  ctx.trace.push(entry);
+  return entry;
+}
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
@@ -47,15 +118,19 @@ export async function callUpstream(opts, endpoint, params) {
   const started = Date.now();
   const logBase = { svc: service, endpoint, params: redactParams(params) };
   const key = cacheKey(service, endpoint, params);
+  const entry = openTraceEntry(service, endpoint, params, mock);
+  const close = (fields) => { if (entry) Object.assign(entry, { ms: Date.now() - started }, fields); };
 
   if (!mock && cache) {
     const cached = cache.get(key);
     if (cached !== undefined) {
       logger({ ...logBase, via: 'cache', ms: Date.now() - started });
+      close({ cache: 'hit', results: countResults(cached) });
       return { body: cached, call: { service, endpoint, via: 'cache', ms: Date.now() - started } };
     }
     if (cache.only) {
       logger({ ...logBase, via: 'cache', miss: true });
+      close({ error: 'cache_miss' });
       throw new UpstreamError(`${service} cache-only mode and nothing cached for this request`, { service, code: 'cache_miss' });
     }
   }
@@ -69,12 +144,14 @@ export async function callUpstream(opts, endpoint, params) {
       logger({ ...logBase, via, status, attempt, ms: Date.now() - started });
       if (status >= 200 && status < 300) {
         if (!mock && cache) cache.put(key, service, endpoint, body);
+        close({ results: countResults(body) });
         return { body, call: { service, endpoint, via, ms: Date.now() - started } };
       }
       throw errorFor(service, status, body);
     } catch (err) {
       const retryable = err instanceof UpstreamError && err.retryable;
       if (!retryable || attempt > retries) {
+        close({ error: err?.code ?? 'error' });
         if (!(err instanceof UpstreamError) || err.status === undefined) {
           logger({ ...logBase, via, attempt, error: err?.code ?? err?.message, ms: Date.now() - started });
         }

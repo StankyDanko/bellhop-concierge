@@ -26,6 +26,73 @@ export const SESSIONS_SCHEMA = `
   CREATE INDEX IF NOT EXISTS sessions_property_started ON sessions (property_id, started_at);
 `;
 
+// Call trace: one row per tool invocation, keyed by the platform's conversation id (the same
+// id log_session writes as sessions.id). Each row holds the upstream requests that tool made
+// (endpoint, the pii-guarded params, mock/live, cache, ms, result count) and, for
+// recommend_nearby, the counterfactual. Never a caller number, caller hash, name, or SMS body:
+// only tools that call Qloo or Ticketmaster produce entries, and those params pass the PII guard.
+export const TRACES_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS session_traces (
+    seq                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id          TEXT NOT NULL,
+    tool                TEXT NOT NULL,
+    trace_json          TEXT NOT NULL,
+    counterfactual_json TEXT,
+    created_at          TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS session_traces_session ON session_traces (session_id, seq);
+`;
+/** Rows kept per session; a runaway agent loop cannot grow the table without bound. */
+export const MAX_TRACE_ROWS_PER_SESSION = 40;
+
+const SESSION_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+/**
+ * The session id a tool call carries, or null. An unfilled platform variable arrives empty
+ * or as its own {{name}}; both mean "no session" (same rule as log_session).
+ * @param {any} body
+ */
+export function sessionIdFrom(body) {
+  const v = body?.session_id;
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  if (!t || /^\{\{.*\}\}$/.test(t) || !SESSION_ID.test(t)) return null;
+  return t;
+}
+
+/** Add a column if an older database lacks it (existing DBs keep working). */
+function addColumnIfMissing(db, table, column, type) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+
+/** @param {import('better-sqlite3').Database} db */
+export function hasTracesTable(db) {
+  return Boolean(db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'session_traces'`).get());
+}
+
+/**
+ * Read one session's trace, numbered in call order across tools, plus the last
+ * counterfactual. Works on any handle to the sessions database (the dashboard reads it).
+ * @param {import('better-sqlite3').Database} db @param {string} sessionId
+ * @returns {{ trace: Array<Record<string, unknown>>, counterfactual: object|null }}
+ */
+export function readTrace(db, sessionId) {
+  if (!sessionId || !hasTracesTable(db)) return { trace: [], counterfactual: null };
+  const rows = db.prepare('SELECT tool, trace_json, counterfactual_json FROM session_traces WHERE session_id = ? ORDER BY seq').all(sessionId);
+  const trace = [];
+  let counterfactual = null;
+  for (const r of rows) {
+    let entries = [];
+    try { entries = JSON.parse(r.trace_json); } catch { entries = []; }
+    for (const e of Array.isArray(entries) ? entries : []) trace.push({ ...e, n: trace.length + 1, tool: r.tool });
+    if (r.counterfactual_json) {
+      try { counterfactual = JSON.parse(r.counterfactual_json); } catch { /* keep the previous one */ }
+    }
+  }
+  return { trace, counterfactual };
+}
+
 /** @param {string} callerId @param {string} key */
 export function hashCaller(callerId, key) {
   if (!key) throw new Error('hashCaller needs a key');
@@ -56,15 +123,22 @@ export class SessionStore {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(SESSIONS_SCHEMA);
+    this.db.exec(TRACES_SCHEMA);
+    addColumnIfMissing(this.db, 'sessions', 'trace_count', 'INTEGER');
     // Upsert: an agent that calls log_session twice for one call updates its row.
     // created_at keeps the first write's time.
     this.upsert = this.db.prepare(`
-      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at)
-      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at)
+      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, trace_count)
+      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at, @trace_count)
       ON CONFLICT(id) DO UPDATE SET
         property_id = excluded.property_id, persona = excluded.persona, started_at = excluded.started_at,
         caller_hash = excluded.caller_hash, entities_json = excluded.entities_json, picks_count = excluded.picks_count,
-        events_count = excluded.events_count, sms_sent = excluded.sms_sent
+        events_count = excluded.events_count, sms_sent = excluded.sms_sent, trace_count = excluded.trace_count
+    `);
+    this.insertTrace = this.db.prepare(`
+      INSERT INTO session_traces (session_id, tool, trace_json, counterfactual_json, created_at)
+      SELECT @session_id, @tool, @trace_json, @counterfactual_json, @created_at
+      WHERE (SELECT COUNT(*) FROM session_traces WHERE session_id = @session_id) < ${MAX_TRACE_ROWS_PER_SESSION}
     `);
   }
 
@@ -84,9 +158,35 @@ export class SessionStore {
       events_count: s.events_count,
       sms_sent: s.sms_sent ? 1 : 0,
       created_at: this.now().toISOString(),
+      // Links the row to its call trace: how many upstream requests were recorded under this id.
+      trace_count: readTrace(this.db, s.id).trace.length,
     };
     this.upsert.run(row);
     return row;
+  }
+
+  /**
+   * Record the upstream trace of one tool invocation under a session id.
+   * @param {string} sessionId @param {string} tool
+   * @param {Array<object>} trace  entries from withTrace() (server/lib/upstream.js)
+   * @param {object|null} [counterfactual]
+   * @returns {boolean} whether a row was written
+   */
+  writeTrace(sessionId, tool, trace, counterfactual = null) {
+    if (!sessionId || (!trace?.length && !counterfactual)) return false;
+    const info = this.insertTrace.run({
+      session_id: sessionId,
+      tool,
+      trace_json: JSON.stringify(trace ?? []),
+      counterfactual_json: counterfactual ? JSON.stringify(counterfactual) : null,
+      created_at: this.now().toISOString(),
+    });
+    return info.changes > 0;
+  }
+
+  /** @param {string} sessionId */
+  trace(sessionId) {
+    return readTrace(this.db, sessionId);
   }
 
   /** @param {string} id */

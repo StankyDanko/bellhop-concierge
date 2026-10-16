@@ -1,10 +1,40 @@
 // `/property/:id`: sessions (aggregate only), the text a guest gets, area insights with
 // every degraded and gated state, and suggestions derived from the insights.
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
+import { Counterfactual, SampleSessionCard, SessionTrace, TraceTable } from '../components/QlooTrace.jsx';
+
+/** One Calls table row plus its expandable Qloo trace row. */
+function SessionTableRow({ s }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const n = s.trace?.length ?? 0;
+  return (
+    <Fragment>
+      <tr>
+        <td className="tnum">{clock(s.started_at)}</td>
+        <td>{s.persona ?? ''}</td>
+        <td>{s.entities.join(', ')}</td>
+        <td className="n">{s.picks_count}</td>
+        <td className="n">{s.events_count}</td>
+        <td>{s.sms_sent ? 'Yes' : 'No'}</td>
+        <td>
+          <button type="button" className="trace-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+            <span>Qloo calls (<span className="num">{n}</span>)</span><Icon name="chev" />
+          </button>
+        </td>
+      </tr>
+      <tr id={id} hidden={!open}>
+        <td colSpan={7} className="trace-cell">
+          <div className="trace-body"><TraceTable trace={s.trace} /><Counterfactual cf={s.counterfactual} /></div>
+        </td>
+      </tr>
+    </Fragment>
+  );
+}
 
 function useApi(path) {
   const [s, setS] = useState({ state: 'loading' });
@@ -273,27 +303,20 @@ export default function Property({ id, health }) {
                         <span className={`chip ${s.sms_sent ? 'chip-success' : ''}`}>{s.sms_sent ? 'Itinerary sent' : 'No text needed'}</span>
                       </p>
                       <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>{s.entities.join(', ') || 'No tastes named'}</p>
+                      <SessionTrace trace={s.trace} counterfactual={s.counterfactual} />
                     </li>
                   ))}
                 </ul>
                 <table className="session-table">
                   <caption className="visually-hidden">Recent calls, newest first</caption>
-                  <thead><tr><th scope="col">Time</th><th scope="col">Voice</th><th scope="col">Tastes named</th><th scope="col">Picks</th><th scope="col">Events</th><th scope="col">Texted</th></tr></thead>
+                  <thead><tr><th scope="col">Time</th><th scope="col">Voice</th><th scope="col">Tastes named</th><th scope="col">Picks</th><th scope="col">Events</th><th scope="col">Texted</th><th scope="col">Qloo trace</th></tr></thead>
                   <tbody>
-                    {list.map((s) => (
-                      <tr key={`${s.started_at}-${s.persona}`}>
-                        <td className="tnum">{clock(s.started_at)}</td>
-                        <td>{s.persona ?? ''}</td>
-                        <td>{s.entities.join(', ')}</td>
-                        <td className="n">{s.picks_count}</td>
-                        <td className="n">{s.events_count}</td>
-                        <td>{s.sms_sent ? 'Yes' : 'No'}</td>
-                      </tr>
-                    ))}
+                    {list.map((s) => <SessionTableRow key={`${s.started_at}-${s.persona}`} s={s} />)}
                   </tbody>
                 </table>
               </div>
             )}
+            {(list.length === 0 || isDemo) && <SampleSessionCard session={sessions.data?.sample_session} />}
           </>
         )}
       </section>

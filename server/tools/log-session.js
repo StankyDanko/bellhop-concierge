@@ -43,9 +43,10 @@ export async function logSession(body, { sessions, now = () => new Date() }) {
   const t = now();
   const started_at = new Date(t.getTime() - (duration ?? 0) * 1000).toISOString();
 
-  sessions.write({
+  const row = sessions.write({
     id, property_id, persona, started_at, caller_id, entities,
     picks_count: Math.round(picks_count), events_count: Math.round(events_count), sms_sent: flag(body?.sms_sent),
   });
-  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, calls: [] };
+  // trace_calls: how many Qloo and Ticketmaster requests this call made, linked by session_id.
+  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, trace_calls: row.trace_count ?? 0, calls: [] };
 }
