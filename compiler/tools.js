@@ -31,6 +31,14 @@ export const CALLER_ID_VAR = 'system__caller_id';
 export const CONVERSATION_ID_VAR = 'system__conversation_id';
 export const CALL_DURATION_VAR = 'system__call_duration_secs';
 export const SESSION_TOOL_NAME = 'log_session';
+/** Every tool carries the conversation id so the server can file its Qloo call trace under the call. */
+export const SESSION_ID_BINDING = Object.freeze({ type: 'string', dynamic_variable: CONVERSATION_ID_VAR });
+/**
+ * Add the session_id binding to a tool body (the same shape log_session has always used).
+ * send_sms is the one exception: it makes no traced call, and its body stays exactly { to, body }.
+ */
+const withSessionId = (name, body) => (name === SMS_TOOL_NAME ? body
+  : { ...body, properties: { session_id: { ...SESSION_ID_BINDING }, ...body.properties } });
 
 const s = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const n = (description) => ({ type: 'number', description });
@@ -243,7 +251,7 @@ export function serverToolConfigs({ property, propertyId = 'property', persona =
         method: 'POST',
         content_type: 'application/json',
         request_headers: { [SECRET_HEADER]: { secret_id: secretId } },
-        request_body_schema: specs[name].body,
+        request_body_schema: withSessionId(name, specs[name].body),
       },
     },
   }));

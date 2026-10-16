@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, formatPhone, LiveBadge, PickCard, SampleBadge, telHref, Toast, ViaChip } from '../components/ui.jsx';
+import { RequestBehind } from '../components/QlooTrace.jsx';
 
 /** The eight Qloo capabilities the tool server calls (server/README.md, "How Qloo is load-bearing"). */
 const CAPABILITIES = [
@@ -111,6 +112,7 @@ export default function Landing({ health }) {
             {pick.state === 'ok' && pick.data.places.slice(0, 2).map((p, i) => <PickCard key={p.entity_id ?? p.name} place={p} defaultOpen={i === 0} />)}
           </div>
           <p className="micro" style={{ marginTop: 'var(--space-3)' }}>The real response shape from this server's recommend_nearby tool.</p>
+          {pick.state === 'ok' && pick.data.places.length > 0 && <RequestBehind request={pick.data.request} counterfactual={pick.data.counterfactual} />}
         </aside>
       </section>
 

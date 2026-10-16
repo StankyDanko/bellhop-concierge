@@ -1,0 +1,30 @@
+{
+  "_note": "Synthetic fixture, hand-written. Not Qloo response data. Answers a place /v2/insights request that carries NO taste signal (the counterfactual in recommend_nearby: same location, type, and radius, ranked by general popularity). Places are fictional and sit around the demo property at 32.0790,-81.0950. Popularity values are invented for the demo. Entities that also appear in qloo.insights.json reuse their ids so the overlap case is honest.",
+  "cases": [
+    {
+      "match": { "filter.type": "urn:entity:place" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Harborside Burger Hall", "entity_id": "fx-place-harborside-burger-hall", "type": "urn:entity", "subtype": "urn:entity:place",
+          "popularity": 0.97,
+          "location": { "lat": 32.0802, "lon": -81.0931 },
+          "properties": { "address": "8 Pretend Wharf", "price_level": 2, "business_rating": 4.3, "website": "https://example.com/harborside-burger-hall" },
+          "tags": [ { "tag_id": "urn:tag:genre:place:restaurant:american", "name": "American", "type": "urn:tag:genre:place:restaurant" } ] },
+        { "name": "Pastel Diner & Pie", "entity_id": "fx-place-pastel-diner", "type": "urn:entity", "subtype": "urn:entity:place",
+          "popularity": 0.94,
+          "location": { "lat": 32.0746, "lon": -81.0899 },
+          "properties": { "address": "9 Sample Sq", "price_level": 1, "business_rating": 4.4, "website": "http://example.com/pastel-diner" },
+          "tags": [ { "tag_id": "urn:tag:genre:place:restaurant:diner", "name": "Diner", "type": "urn:tag:genre:place:restaurant" } ] },
+        { "name": "Square Street Taproom", "entity_id": "fx-place-square-street-taproom", "type": "urn:entity", "subtype": "urn:entity:place",
+          "popularity": 0.92,
+          "location": { "lat": 32.0768, "lon": -81.0962 },
+          "properties": { "address": "61 Made-Up Ave", "price_level": 2, "business_rating": 4.2 },
+          "tags": [ { "tag_id": "urn:tag:category:place:brewery", "name": "Brewery", "type": "urn:tag:category:place" } ] },
+        { "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern", "type": "urn:entity", "subtype": "urn:entity:place",
+          "popularity": 0.71,
+          "location": { "lat": 32.0772, "lon": -81.0921 },
+          "properties": { "address": "112 Fictional Ln", "price_level": 2, "business_rating": 4.6, "website": "https://example.com/lemongrass-lantern" },
+          "tags": [ { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "type": "urn:tag:genre:place:restaurant" } ] }
+      ] } }
+    }
+  ]
+}

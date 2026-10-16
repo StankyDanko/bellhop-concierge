@@ -37,6 +37,26 @@ const FIXTURE_FILES = {
   [ENDPOINTS.compare]: 'qloo.compare',
 };
 
+/** Mock only: a place insights request with no taste signal (the counterfactual) answers from its own file. */
+const UNSIGNALED_PLACES_FIXTURE = 'qloo.insights.unsignaled';
+
+/** True when a request carries no taste signal at all (pure popularity ranking). */
+export const isUnsignaled = (params) => !Object.keys(params).some((k) => k.startsWith('signal.'));
+
+/**
+ * Fixture transport for mock mode. Unsignaled place insights get their own hand-made
+ * fixture file, so the counterfactual has something honest to show without touching
+ * the signaled cases.
+ */
+function mockTransport() {
+  const dir = new URL('../fixtures/', import.meta.url);
+  const main = fixtureTransport({ service: 'qloo', dir, files: FIXTURE_FILES });
+  const unsignaled = fixtureTransport({ service: 'qloo', dir, files: { [ENDPOINTS.insights]: UNSIGNALED_PLACES_FIXTURE } });
+  return (endpoint, params) => (endpoint === ENDPOINTS.insights && params['filter.type'] === ENTITY_TYPES.place && isUnsignaled(params)
+    ? unsignaled(endpoint, params)
+    : main(endpoint, params));
+}
+
 /** 'urn:entity:artist' -> 'artist'. Unknown shapes pass through. */
 export function shortType(urn) {
   if (typeof urn !== 'string') return 'unknown';
@@ -139,7 +159,7 @@ export function createQlooClient({ config, cache, logger, transport }) {
     throw new Error('QLOO_API_KEY is required unless QLOO_MOCK=1 or CACHE_ONLY=1');
   }
   const t = transport ?? (config.mock
-    ? fixtureTransport({ service: 'qloo', dir: new URL('../fixtures/', import.meta.url), files: FIXTURE_FILES })
+    ? mockTransport()
     : httpTransport({ service: 'qloo', baseUrl: config.baseUrl, headers: { 'X-Api-Key': config.apiKey }, timeoutMs: config.timeoutMs }));
 
   const upstream = { service: 'qloo', transport: t, cache, logger, mock: config.mock, retries: config.retries };
@@ -181,6 +201,20 @@ export function createQlooClient({ config, cache, logger, transport }) {
     async insights(params) {
       const { body, call } = await get(ENDPOINTS.insights, { 'feature.explainability': 'true', ...params });
       return { entities: entitiesOf(body).map(normalizeEntity), body, call };
+    },
+
+    /**
+     * The counterfactual: the same place query with every taste signal removed, so Qloo
+     * ranks by general popularity in the area. Cached like any other insights call.
+     * @param {Record<string,string>} params  the signaled request, in Qloo spelling
+     */
+    async popularNearby(params) {
+      /** @type {Record<string,string>} */
+      const p = {};
+      for (const [k, v] of Object.entries(params)) if (!k.startsWith('signal.') && k !== 'sort_by' && k !== 'take') p[k] = v;
+      p.take = '5';
+      const { body, call } = await get(ENDPOINTS.insights, p);
+      return { entities: entitiesOf(body).map(normalizeEntity), call };
     },
 
     /** Raw insights call for non-entity outputs (heatmap, demographics). */

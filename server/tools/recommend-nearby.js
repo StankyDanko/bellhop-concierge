@@ -4,6 +4,7 @@
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
 import { locationParams, shapePlace, signalParams } from './places.js';
+import { popularityCounterfactual } from './counterfactual.js';
 
 /** Average in-town driving speed used to turn "max 15 minutes" into a radius. */
 export const MILES_PER_MINUTE = 0.4;
@@ -47,12 +48,17 @@ export async function recommendNearby(body, { qloo }) {
     return true;
   }).slice(0, take).map((e) => shapePlace(e, taste.signals, origin));
 
+  // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----
+  const cf = await popularityCounterfactual(qloo, params, places, (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name))));
+  // ---- end counterfactual ----
+
   return {
     status: places.length ? 'ok' : 'empty',
     places,
     applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut },
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
-    calls: [call],
+    counterfactual: cf.counterfactual,
+    calls: [call, ...(cf.call ? [cf.call] : [])],
   };
 }
