@@ -5,7 +5,8 @@ import Builder from './pages/Builder.jsx';
 import Landing from './pages/Landing.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Property from './pages/Property.jsx';
-import Terms, { BRIDGE } from './pages/Terms.jsx';
+import Terms from './pages/Terms.jsx';
+import { FOOTER, PRIVACY, REPO_URL, TERMS } from './legal-content.js';
 import { useHealth } from './components/ui.jsx';
 import { Link, matchBrief, usePath } from './router.jsx';
 
@@ -36,7 +37,7 @@ export default function App() {
   else if (propMatch) page = <Property id={propMatch[1]} health={health} />;
   else if (briefId) page = <Brief id={briefId} health={health} />;
   else if (/^\/privacy\/?$/.test(path)) page = <Privacy />;
-  else if (/^\/terms\/?$/.test(path)) page = <Terms repo={repo} />;
+  else if (/^\/(sms-)?terms\/?$/.test(path)) page = <Terms />;
   else page = (
     <div className="container stack">
       <h1>That page isn't here.</h1>
@@ -46,7 +47,7 @@ export default function App() {
 
   useEffect(() => {
     if (briefId) return; // the brief titles itself with the inn name (the saved PDF's file name)
-    const titles = { '/': 'Bellhop Concierge', '/build': 'Build your concierge, Bellhop Concierge', '/privacy': 'Privacy, Bellhop Concierge', '/terms': 'Terms, Bellhop Concierge' };
+    const titles = { '/': 'Bellhop Concierge', '/build': 'Build your concierge, Bellhop Concierge', [PRIVACY.path]: PRIVACY.docTitle, [TERMS.path]: TERMS.docTitle, '/sms-terms': TERMS.docTitle };
     document.title = propMatch ? 'Property dashboard, Bellhop Concierge' : titles[path.replace(/\/$/, '') || '/'] ?? 'Bellhop Concierge';
   }, [path, propMatch, briefId]);
 
@@ -69,14 +70,14 @@ export default function App() {
       <main id="main" tabIndex={-1}>{page}</main>
       <footer className="footer">
         <div className="container">
-          <p>Bellhop Concierge, an edition of Bellhop by SouthernSky. AGPL-3.0.</p>
+          <p>{FOOTER.edition}</p>
           <nav className="footer-links" aria-label="Site">
-            {repo && <a href={repo} rel="noopener">Source</a>}
+            <a href={repo ?? REPO_URL} rel="noopener">Source</a>
             <Link to="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</Link>
             <Link to="/terms" aria-current={path === '/terms' ? 'page' : undefined}>Terms</Link>
           </nav>
-          <p>Picks from the Qloo taste graph and Ticketmaster.</p>
-          <p className="footer-bridge">{BRIDGE}</p>
+          <p>{FOOTER.sources}</p>
+          <p className="footer-bridge">{FOOTER.bridge}</p>
         </div>
       </footer>
     </div>
