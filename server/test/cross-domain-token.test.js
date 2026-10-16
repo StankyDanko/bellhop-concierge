@@ -69,13 +69,13 @@ test('odd tokens never crash: numbers, objects, empty strings, and no secret', (
   assert.equal(none.tokensDropped, 1, 'no secret verifies nothing');
 });
 
-test('a forged favors on a cross_domain pick is still dropped', async () => {
+test('a forged favors on a cross_domain pick is dropped once, as a favors drop', async () => {
   const { app } = makeApp();
   const [movie] = await movies(app);
   const { json } = await callTool(app, 'compose_itinerary', {
     picks: [{ name: movie.name, favors: 'both', pick_token: movie.pick_token }],
   });
   assert.equal(json.favors_dropped, 1);
-  assert.equal(json.tokens_dropped, 1);
+  assert.equal(json.tokens_dropped, 0, 'the token is real for the name; only the favors was forged');
   assert.ok(!json.body.includes('(both)'));
 });
