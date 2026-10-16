@@ -57,6 +57,7 @@ from mock fixtures), and the dashboard shows the request behind each pick.
 | The unsignaled counterfactual | the same place call with no taste signals at all | "Without your tastes, the top pick would be X. With them, it's Y." Proof that the taste graph changed the answer. Dashboard only, never in the text | mock fixtures until the key arrives |
 | Heatmap | insights, `filter.type=urn:heatmap` | where around the inn a taste runs hottest | mock fixtures until the key arrives |
 | Demographics | insights, `filter.type=urn:demographics` | which age and gender groups lean toward these tastes in the area | mock fixtures until the key arrives |
+| Guest taste fingerprint | the ids every caller resolved, aggregated behind a five-call floor, sent as `signal.interests.entities` and `signal.interests.tags` to the heatmap, demographics, and compare calls | the panels describe the people who call this number, not the town, with the sample size shown | mock fixtures until the key arrives |
 | Audience compare | `GET /v2/analysis/compare` | how two groups of tastes differ | mock fixtures until the key arrives |
 
 Ticketmaster's Discovery API adds what a taste graph doesn't hold: what's on tonight and this

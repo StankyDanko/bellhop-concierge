@@ -73,7 +73,7 @@ function addColumnIfMissing(db, table, column, type) {
  * probes use the other prefixes. Test calls are stored (so a run can be inspected) but never
  * counted, listed, or folded into the fingerprint.
  */
-export const TEST_SESSION_PREFIXES = Object.freeze(['test-', 'e2e-', 'laneE-']);
+export const TEST_SESSION_PREFIXES = Object.freeze(['test-', 'e2e-', 'probe-']);
 
 /** @param {string} id */
 export const isTestSessionId = (id) => typeof id === 'string' && TEST_SESSION_PREFIXES.some((p) => id.startsWith(p));
