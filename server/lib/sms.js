@@ -20,20 +20,21 @@ export const FOOTER = 'Picks from Qloo taste graph + Ticketmaster. Reply STOP to
  * The order content gives way when the message is over budget. Each step runs only while the
  * body is still over 320 and stops the moment it fits. The aim is to keep every pick the
  * guest heard: words go before links, links before markers, and a whole pick goes last.
+ * A link stays whole or goes whole, never shortened, so every body passes send_sms.
  */
 export const TRUNCATION_ORDER = [
   'drop_header',     // 1. the "Tonight for 2:" line
   'drop_last_why',   // 2. lower picks' reasons, lowest-ranked first, each one whole. Never the
                      //    top pick's here. Reasons are never trimmed.
-  'drop_scheme',     // 3. "https://" off every link; the phone still opens the rest
-  'drop_last_link',  // 4. lower picks' links, lowest-ranked first. Never the top pick's here.
-  'drop_marker',     // 5. the " (both)" markers
-  'drop_last_pick',  // 6. whole picks, lowest-ranked first, skipping an event the guest asked
+  'drop_last_link',  // 3. lower picks' links, lowest-ranked first, each one whole. Never the
+                     //    top pick's here.
+  'drop_marker',     // 4. the " (both)" markers
+  'drop_last_pick',  // 5. whole picks, lowest-ranked first, skipping an event the guest asked
                      //    for by name (requested), which goes last. At least one pick stays.
-  'drop_why',        // 7. the remaining pick's whole reason
-  'drop_detail',     // 8. time/venue detail
-  'trim_name',       // 9. the remaining pick's name
-  'drop_link',       // 10. the remaining pick's link (a cut link is a broken link)
+  'drop_why',        // 6. the remaining pick's whole reason
+  'drop_detail',     // 7. time/venue detail
+  'trim_name',       // 8. the remaining pick's name
+  'drop_link',       // 9. the remaining pick's link (a cut link is a broken link)
 ];
 
 /** Appended to the name of a pick that scored for both the guest and their plus-one. */
@@ -156,9 +157,6 @@ export function composeItinerary({ picks, guest = {}, intro }) {
     }
   };
   eachLower('drop_last_why', (it) => it.why, (it) => ({ ...it, why: '' }));
-  if (items.some((it) => it.url?.startsWith('https://'))) {
-    step('drop_scheme', () => { items = items.map((it) => (it.url ? { ...it, url: it.url.replace(/^https:\/\//, '') } : it)); });
-  }
   eachLower('drop_last_link', (it) => it.url, (it) => ({ ...it, url: null }));
   if (items.some((it) => it.both)) step('drop_marker', () => { items = items.map((it) => ({ ...it, both: false })); });
   while (body.length > MAX_CHARS && items.length > 1) {

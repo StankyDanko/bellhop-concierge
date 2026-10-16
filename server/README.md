@@ -446,15 +446,15 @@ Rules:
   1. `drop_header`
   2. `drop_last_why`: lower picks' reasons, lowest-ranked first, each one whole, never the top
      pick's
-  3. `drop_scheme`: `https://` comes off every link; the rest still opens on a phone
-  4. `drop_last_link`: lower picks' links, lowest-ranked first, never the top pick's
-  5. `drop_marker`: the ` (both)` markers
-  6. `drop_last_pick`: whole picks, lowest-ranked first, skipping an event flagged
+  3. `drop_last_link`: lower picks' links, lowest-ranked first, each one whole, never the
+     top pick's (a link is never shortened, so every composed body passes `send_sms`)
+  4. `drop_marker`: the ` (both)` markers
+  5. `drop_last_pick`: whole picks, lowest-ranked first, skipping an event flagged
      `requested`, which goes last; at least one pick stays
-  7. `drop_why`: the remaining pick's whole reason
-  8. `drop_detail`
-  9. `trim_name`
-  10. `drop_link`: last, because a shortened link is a broken link
+  6. `drop_why`: the remaining pick's whole reason
+  7. `drop_detail`
+  8. `trim_name`
+  9. `drop_link`: last, because a shortened link is a broken link
 
   Each step runs only while the text is still over 320, so every pick the guest heard stays
   as long as its words and links can make room.
