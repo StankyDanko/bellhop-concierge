@@ -171,7 +171,7 @@ export function PickCard({ place, defaultOpen }) {
 // ---- SmsPreview ---------------------------------------------------------------------------
 
 const TRUNC_WORDS = {
-  drop_header: 'header dropped', trim_why_32: 'reasons trimmed', trim_why_20: 'reasons trimmed short', drop_last_pick: 'last pick dropped',
+  drop_header: 'header dropped', drop_last_why: 'last reason dropped', trim_why_32: 'reasons trimmed', trim_why_20: 'reasons trimmed short', drop_last_pick: 'last pick dropped',
   drop_why: 'reasons dropped', drop_detail: 'times dropped', trim_name: 'names trimmed', drop_link: 'links dropped',
 };
 

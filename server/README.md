@@ -424,13 +424,17 @@ Rules:
 - When the full message is too long, content gives way in this order, and the response
   lists each step taken in `truncation`:
   1. `drop_header`
-  2. `trim_why_32`: each why to 32 characters at a word boundary
-  3. `trim_why_20`
-  4. `drop_last_pick`: lowest-ranked picks, one at a time; at least one stays
-  5. `drop_why`
-  6. `drop_detail`
-  7. `trim_name`
-  8. `drop_link`: last, because a shortened link is a broken link
+  2. `drop_last_why`: the whole reason of the lowest-ranked pick that has one, never the top
+     pick's, and only when dropping that one reason is enough to fit. It is tried before each
+     pick drop.
+  3. `drop_last_pick`: lowest-ranked picks, one at a time; at least one stays
+  4. `drop_why`: the remaining pick's whole reason
+  5. `drop_detail`
+  6. `trim_name`
+  7. `drop_link`: last, because a shortened link is a broken link
+
+  A reason is never trimmed. It is either in the text whole or not at all, because a cut
+  reason ("Strong match for") reads as a broken sentence and can change its meaning.
 
 ```json
 // request

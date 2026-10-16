@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { composeItinerary, FOOTER, MAX_CHARS, segmentCount, toGsm, httpsOnly } from '../lib/sms.js';
+import { composeItinerary, FOOTER, MAX_CHARS, segmentCount, toGsm, httpsOnly, TRUNCATION_ORDER } from '../lib/sms.js';
 
 const pick = (n, extra = {}) => ({
   name: `Place Number ${n}`,
@@ -38,23 +38,60 @@ test('footer counts toward the limit', () => {
 test('truncation follows the documented order', () => {
   const picks = Array.from({ length: 5 }, (_, i) => pick(i + 1));
   const r = composeItinerary({ picks, guest: { when: 'tonight' } });
-  // Header goes first, then whys are trimmed, and only then picks are dropped.
-  const order = ['drop_header', 'trim_why_32', 'trim_why_20', 'drop_last_pick'];
+  // Header goes first, then lower picks go, and the steps applied appear in documented order.
+  assert.equal(r.truncation[0], 'drop_header');
+  assert.ok(r.truncation.includes('drop_last_pick'));
   const seen = r.truncation.filter((s, i) => r.truncation.indexOf(s) === i);
-  assert.deepEqual(seen.slice(0, order.length), order);
+  const ranks = seen.map((s) => TRUNCATION_ORDER.indexOf(s));
+  assert.ok(ranks.every((x) => x >= 0), seen.join(','));
   assert.ok(r.picks_included < 5 && r.picks_included >= 1);
-  // Whys survive (trimmed) on the picks that remain.
-  assert.match(r.body, /1\. Place Number 1 - Fans of/);
+  // The top pick keeps its whole reason.
+  assert.match(r.body, /1\. Place Number 1 - Fans of Sturgill Simpson and Wes Anderson love it /);
 });
 
-test('trimmed whys cut at word boundaries', () => {
-  const picks = Array.from({ length: 3 }, (_, i) => pick(i + 1));
-  const r = composeItinerary({ picks });
-  for (const line of r.body.split('\n').filter((l) => / - /.test(l))) {
-    const why = line.split(' - ')[1].replace(/ https:\/\/\S+$/, '');
-    assert.ok(why.length <= 32, why);
-    assert.ok(!/\s$/.test(why));
+/** Every reason in the body, whole: the text between " - " and the link or line end. */
+const whysIn = (body) => body.split('\n').filter((l) => / - /.test(l)).map((l) => l.split(' - ')[1].replace(/ https:\/\/\S+$/, ''));
+
+test('a reason is never cut mid-phrase: each one is whole or absent', () => {
+  const reasons = ['Fans of Sturgill Simpson and Wes Anderson love it', 'Strong match for your overall taste', 'Fans of Thai food love it'];
+  for (let n = 1; n <= 5; n++) {
+    for (const extra of [{}, { detail: 'Fri 8pm' }, { favors: 'both' }]) {
+      const picks = Array.from({ length: n }, (_, i) => ({ ...pick(i + 1), why: reasons[i % 3], ...extra }));
+      const r = composeItinerary({ picks, guest: { party_size: 2, when: 'tonight' } });
+      assert.ok(r.char_count <= MAX_CHARS);
+      for (const why of whysIn(r.body)) assert.ok(reasons.includes(why), `n=${n}: cut reason "${why}"`);
+      assert.ok(!r.truncation.some((s) => s.startsWith('trim_why')), 'no trim step for reasons exists');
+    }
   }
+});
+
+test('the regression: "Strong match for your overall taste" is never sent as "Strong match for"', () => {
+  // The shape of the text that went out cut: two picks, generic second reason, both links.
+  const picks = [
+    { name: 'Lemongrass Lantern', why: 'Fans of Thai food love it', url: 'https://example.com/lemongrass-lantern' },
+    { name: 'The Low Lantern Listening Room', why: 'Strong match for your overall taste', url: 'https://example.com/low-lantern' },
+    { name: 'Pastel Diner & Pie', why: 'Strong match for your overall taste', url: 'https://example.com/pastel-diner-and-pie' },
+  ];
+  const r = composeItinerary({ picks, guest: { party_size: 2, when: 'tonight' } });
+  assert.ok(r.char_count <= MAX_CHARS);
+  assert.doesNotMatch(r.body, /Strong match for(?! your overall taste)/);
+  assert.doesNotMatch(r.body, /Fans of Thai food(?! love it)/);
+  assert.match(r.body, /1\. Lemongrass Lantern - Fans of Thai food love it /);
+});
+
+test('a lower reason goes whole only when that alone fits; otherwise the lower pick goes', () => {
+  // Two picks just over budget: dropping the second reason is enough, both picks stay.
+  const base = composeItinerary({ picks: [{ name: 'A', why: 'Fans of Thai food love it' }, { name: 'B', why: 'Fans of Thai food love it' }], intro: '' });
+  const pad = 'x'.repeat(MAX_CHARS - base.char_count + 5);
+  const r = composeItinerary({ picks: [{ name: `A${pad}`, why: 'Fans of Thai food love it' }, { name: 'B', why: 'Fans of Thai food love it' }], intro: '' });
+  assert.equal(r.truncation.at(-1), 'drop_last_why');
+  assert.equal(r.picks_included, 2);
+  assert.match(r.body, /- Fans of Thai food love it\n2\. B\n/);
+  // Far over budget: the reason alone is not enough, so the pick goes and the top reason stays whole.
+  const big = 'y'.repeat(MAX_CHARS - base.char_count + 60);
+  const r2 = composeItinerary({ picks: [{ name: `A${big}`, why: 'Fans of Thai food love it' }, { name: 'B', why: 'Fans of Thai food love it' }], intro: '' });
+  assert.ok(!r2.truncation.includes('drop_last_why'));
+  assert.ok(r2.truncation.includes('drop_last_pick'));
 });
 
 test('a single huge pick drops whys, detail, trims name, and keeps a valid body', () => {
