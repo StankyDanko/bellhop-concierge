@@ -23,7 +23,7 @@ for (const persona of ['harper', 'maybelle']) {
     const p = prompt(compile(demo(), { ...OPTS, persona }));
     assert.match(p, /The text carries the names, and a reason where it fits/);
     // The spoken plan still gives a reason for every pick; only the text's promise changed.
-    assert.doesNotMatch(p, /text the full plan, with a reason for each|each with the reason it fits you|a reason for every one/);
-    assert.match(p, /offer to text the full plan: the names, and a reason where it fits\./);
+    assert.doesNotMatch(p, /text the picks you hold, with a reason for each|each with the reason it fits you|a reason for every one/);
+    assert.match(p, /offer to text the picks you hold: the names, and a reason where it fits\./);
   });
 }

@@ -136,7 +136,7 @@ test('trust level sets call limits and the text offer', () => {
     assert.equal(r.agent.platform_settings.call_limits.daily_limit, TRUST_LIMITS[level].daily_limit);
     assert.equal(r.agent.platform_settings.call_limits.bursting_enabled, false);
     if (level === 'suggest') assert.match(prompt(r), /only if the guest asks for it/);
-    else assert.match(prompt(r), /offer to text the full plan/);
+    else assert.match(prompt(r), /offer to text the picks you hold/);
   }
   assert.equal(LOCKED_SETTINGS.max_tokens, 250);
 });
