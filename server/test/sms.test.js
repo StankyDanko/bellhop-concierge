@@ -38,7 +38,7 @@ test('footer counts toward the limit', () => {
 test('truncation follows the documented order', () => {
   const picks = Array.from({ length: 5 }, (_, i) => pick(i + 1));
   const r = composeItinerary({ picks, guest: { when: 'tonight' } });
-  // Header goes first, then lower reasons, then the link scheme, and every step applied
+  // Header goes first, then lower reasons, then lower links, and every step applied
   // appears in documented order. Five picks that fit once their words are gone all stay.
   assert.equal(r.truncation[0], 'drop_header');
   const ranks = r.truncation.map((s) => TRUNCATION_ORDER.indexOf(s));
