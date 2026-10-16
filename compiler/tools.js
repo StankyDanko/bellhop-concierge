@@ -70,7 +70,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
   const LNG = { type: 'number', constant_value: property.lng };
   return {
     resolve_taste: {
-      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words.",
+      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words. A mention it returns in unresolved was not found: never say it back as a taste you are using and never count it as a named thing. Say you could not find it and ask once what it is most like.",
       timeout: 15,
       body: {
         type: 'object',
@@ -132,7 +132,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films.',
       timeout: 12,
       body: {
         type: 'object',
@@ -141,7 +141,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
           lat: LAT,
           lng: LNG,
           when: WHEN,
-          classification: s(`Optional kind of event, one of ${CLASSIFICATIONS.join(', ')}`, { enum: [...CLASSIFICATIONS] }),
+          classification: s(`The kind of event the guest asked for, one of ${CLASSIFICATIONS.join(', ')}. Set it whenever the guest named a kind, film for a movie, music for a band. Leave it out only when they want anything at all.`, { enum: [...CLASSIFICATIONS] }),
           take: n('How many events to return, one to five. Use three.'),
           timezone: { type: 'string', constant_value: property.timezone },
         },

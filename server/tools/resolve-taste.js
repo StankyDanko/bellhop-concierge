@@ -3,6 +3,12 @@
 // "Sturgill Simpson" resolves through /search to an artist entity. Category-shaped
 // mentions ("thai food", "jazz bars") resolve through /v2/tags to a taste tag,
 // because they describe a kind of thing rather than one thing.
+//
+// A name with a kind word after it ("Wes Anderson films", "Radiohead the band") is a name,
+// not a category. The trailing kind word is stripped and the name is searched on its own,
+// the way a guest means it. The kind word still counts: a match is kept only when its type
+// fits ("films" takes a movie or a person, "music" an artist or a person), so "jazz music"
+// cannot become a movie called Jazz. Anything that does not fit falls through to tags.
 
 import { arr } from '../lib/validate.js';
 import { InputError } from '../lib/errors.js';
@@ -10,6 +16,27 @@ import { InputError } from '../lib/errors.js';
 /** Words that mark a mention as a category (tag) rather than a named entity. */
 const CATEGORY_WORDS = /\b(food|cuisine|music|movies?|films?|restaurants?|bars?|places?|spots?|dining|vibes?|shows?|books?|podcasts?|style|scene)\b/i;
 const ENTITY_THRESHOLD = 0.6;
+
+/** Kind words a guest puts after a name, each with the entity types that name may be. */
+const TRAILING_KINDS = [
+  { re: /\s+(?:films?|movies?|pictures)$/i, types: ['movie', 'person', 'tv_show'] },
+  { re: /\s+(?:the\s+band|band|music|songs?|records?|albums?)$/i, types: ['artist', 'person'] },
+];
+
+/**
+ * "Wes Anderson films" -> { core: 'Wes Anderson', types: [...] }. Null when nothing trails
+ * the name, or when what is left is itself a category ("jazz bar music").
+ * @param {string} mention
+ */
+export function nameCore(mention) {
+  for (const { re, types } of TRAILING_KINDS) {
+    if (!re.test(mention)) continue;
+    const core = mention.replace(re, '').replace(/['’]s$/i, '').replace(/[\s,'’]+$/, '').trim();
+    if (!core || CATEGORY_WORDS.test(core)) return null;
+    return { core, types };
+  }
+  return null;
+}
 
 const tokens = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
@@ -60,6 +87,22 @@ export async function resolveTaste(body, { qloo }) {
   const calls = [];
 
   const resolveOne = async (mention) => {
+    const named = nameCore(mention);
+    if (named) {
+      const { entities, call } = await qloo.search({ query: named.core, take: 3 });
+      calls.push(call);
+      let hit = null;
+      for (const e of entities) {
+        if (!named.types.includes(e.type)) continue;
+        const score = similarity(named.core, e.name);
+        if (!hit || score > hit.score) hit = { e, score };
+      }
+      if (hit && hit.score >= ENTITY_THRESHOLD) {
+        return { mention, kind: 'entity', id: hit.e.entity_id, entity_id: hit.e.entity_id, tag_id: null,
+          name: hit.e.name, type: hit.e.type, confidence: round2(hit.score) };
+      }
+    }
+
     const looksLikeCategory = CATEGORY_WORDS.test(mention);
     let best = null;
 

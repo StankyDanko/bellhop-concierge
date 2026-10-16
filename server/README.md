@@ -388,7 +388,7 @@ Live events from the Ticketmaster Discovery API.
 | `lat`, `lng` | number | |
 | `radius_miles` | number, default 10 | 1-50 |
 | `when` | `tonight` (default) or `weekend` | tonight = now to 4 am after the call's calendar day (the end of its evening, below); weekend = Friday 5 pm (or now, if later) to Sunday 11 pm, in the property's timezone |
-| `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy` |
+| `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy`. Sent to Ticketmaster as `classificationName` (it matches a segment, genre, or subgenre; `segmentName` would miss comedy and family, which are genres), then applied again to what comes back, so a `film` request returns only film events. An event with no classification at all is kept |
 | `timezone` | optional IANA zone | defaults to `DEFAULT_TIMEZONE` |
 | `take` | number, default 5 | 1-10 |
 
@@ -443,9 +443,9 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 |---|---|---|
 | `picks` | 1-5 of `{ name, why?, url?, when_label?, favors?, pick_token? }` | in rank order, copied as the tools returned them |
 | `picks[].requested` | boolean, optional | true only if the guest asked for this event by name; kept only on an event whose `pick_token` verifies, and it makes that event the last pick a long text drops |
-| (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
+| (response) `favors_dropped` | number | picks whose `favors` was removed because no tool issued their `pick_token` for that name and value |
 | (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
-| (response) `tokens_dropped` | number | picks that sent a `pick_token` no tool issued for that pick (checked on every pick, including a name-only `cross_domain` result); the token is dropped and the pick is still sent by name |
+| (response) `tokens_dropped` | number | picks that sent a `pick_token` no tool issued for that pick (checked on every pick, including a name-only `cross_domain` result); the token is dropped and the pick is still sent by name. A real token carrying one forged `favors` or `when_label` is not counted here: that field is dropped and counted in its own counter |
 | `guest.party_size` | number | used in the header |
 | `guest.when` | `tonight` or `weekend` | used in the header, except that a plan with a verified event that is not tonight says `Your plan` instead of `Tonight` |
 | `intro` | string, optional | replaces the default header |
