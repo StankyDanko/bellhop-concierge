@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# commit-msg: every commit reads cold, is signed by its author, and carries nothing else.
+# Enable once per clone with: npm run hooks
+set -uo pipefail
+
+msg_file="$1"
+fail() { printf 'commit-msg: %s\n' "$1" >&2; exit 1; }
+
+# The message as git will store it: stop at the scissors line, drop comment lines.
+msg=$(awk '/^# -+ >8 -+$/{exit} !/^#/' "$msg_file")
+subject=$(printf '%s\n' "$msg" | sed '/^[[:space:]]*$/d' | head -1)
+
+[ -z "$subject" ] && fail "the message is empty. Say what changed."
+[ "${#subject}" -gt 72 ] && fail "the subject is ${#subject} characters. Keep it to 72 or fewer."
+
+EMDASH=$'\xe2\x80\x94'
+case "$msg" in *"$EMDASH"*) fail "the message has an em dash. Use a period, a comma, or a colon." ;; esac
+
+author_name=$(git config user.name)
+while IFS= read -r line; do
+  if printf '%s' "$line" | grep -q -i -E '^[[:space:]]*co-authored-by:'; then
+    fail "drop the Co-Authored-By line. The author signs the commit."
+  fi
+  if printf '%s' "$line" | grep -q -i -E '^[[:space:]]*signed-off-by:'; then
+    printf '%s' "$line" | grep -q -F "$author_name" \
+      || fail "a Signed-off-by line names someone other than the author ($author_name)."
+  fi
+  if printf '%s' "$line" | grep -q -i -E '^[^[:alnum:]]*generated with'; then
+    fail "drop the \"Generated with\" line. The work speaks for itself."
+  fi
+  if printf '%s' "$line" | grep -q -i -E 'co-authored-by|generated with'; then
+    fail "the message names a tool. Say what changed in the code, not what helped write it."
+  fi
+  # "lane" in lowercase, or "Lane B" style; a street like "Larkspur Lane" is fine.
+  if printf '%s' "$line" | grep -q -E '\blanes?\b|\bLanes? [A-Z0-9]\b|[Ss]ubagent'; then
+    fail "the message talks about how the work was split up. Say what changed instead."
+  fi
+done <<< "$msg"
+
+exit 0
