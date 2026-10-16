@@ -16,20 +16,24 @@ import { InputError } from './errors.js';
 export const MAX_CHARS = 320;
 export const FOOTER = 'Picks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.';
 
-/** The order content gives way when the message is over budget. */
+/**
+ * The order content gives way when the message is over budget. Each step runs only while the
+ * body is still over 320 and stops the moment it fits. The aim is to keep every pick the
+ * guest heard: words go before links, links before markers, and a whole pick goes last.
+ */
 export const TRUNCATION_ORDER = [
   'drop_header',     // 1. the "Tonight for 2:" line
-  'drop_last_why',   // 2. the whole reason of the lowest-ranked pick that has one (never the
-                     //    top pick's), tried before each pick drop and only when dropping that
-                     //    one reason alone is enough. Reasons are never trimmed.
-  'drop_last_pick',  // 3. lowest-ranked picks, one at a time (at least one stays)
-  'drop_marker',     // 3b. the " (both)" marker, only when one is present. It is also tried
-                     //     before each pick drop, but only when dropping it alone is enough,
-                     //     so a marker never costs a pick and is never cut for nothing.
-  'drop_why',        // 4. the remaining pick's whole reason
-  'drop_detail',     // 5. time/venue detail
-  'trim_name',       // 6. the remaining pick's name
-  'drop_link',       // 7. the remaining pick's link (a cut link is a broken link)
+  'drop_last_why',   // 2. lower picks' reasons, lowest-ranked first, each one whole. Never the
+                     //    top pick's here. Reasons are never trimmed.
+  'drop_scheme',     // 3. "https://" off every link; the phone still opens the rest
+  'drop_last_link',  // 4. lower picks' links, lowest-ranked first. Never the top pick's here.
+  'drop_marker',     // 5. the " (both)" markers
+  'drop_last_pick',  // 6. whole picks, lowest-ranked first, skipping an event the guest asked
+                     //    for by name (requested), which goes last. At least one pick stays.
+  'drop_why',        // 7. the remaining pick's whole reason
+  'drop_detail',     // 8. time/venue detail
+  'trim_name',       // 9. the remaining pick's name
+  'drop_link',       // 10. the remaining pick's link (a cut link is a broken link)
 ];
 
 /** Appended to the name of a pick that scored for both the guest and their plus-one. */
@@ -92,6 +96,7 @@ function trimWords(text, max) {
  * @property {string} [url]
  * @property {string} [detail]   e.g. "Fri 8pm @ The Lyric"
  * @property {'guest'|'companion'|'both'|null} [favors]  from recommend_nearby; 'both' adds BOTH_MARKER
+ * @property {boolean} [requested]  an event the guest asked for by name; the last pick dropped
  */
 
 /**
@@ -110,7 +115,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
     if (!name) throw new InputError(`picks[${i}].name is required`);
     const url = p.url ? httpsOnly(p.url) : null;
     if (p.url && !url) rejected.push(String(p.url).slice(0, 80));
-    return { name, why: toGsm(p.why ?? ''), detail: toGsm(p.detail ?? ''), url, both: p.favors === 'both' };
+    return { name, why: toGsm(p.why ?? ''), detail: toGsm(p.detail ?? ''), url, both: p.favors === 'both', requested: p.requested === true };
   });
 
   const when = guest.when === 'weekend' ? 'This weekend' : 'Tonight';
@@ -140,29 +145,30 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   };
 
   step('drop_header', () => { header = ''; });
-  const markerChars = () => items.filter((it) => it.both).length * BOTH_MARKER.length;
-  const dropMarkers = () => { items = items.map((it) => ({ ...it, both: false })); };
-  /** Index of the lowest-ranked pick, other than the top one, that still has a reason. */
-  const lastWhy = () => { for (let i = items.length - 1; i > 0; i--) if (items[i].why) return i; return -1; };
+
+  /** Apply `fn` to each lower pick that `has` the field, lowest-ranked first, while over budget. */
+  const eachLower = (name, has, fn) => {
+    for (let i = items.length - 1; i > 0 && body.length > MAX_CHARS; i--) {
+      if (!has(items[i])) continue;
+      items = items.map((it, j) => (j === i ? fn(it) : it));
+      applied.push(name);
+      body = render();
+    }
+  };
+  eachLower('drop_last_why', (it) => it.why, (it) => ({ ...it, why: '' }));
+  if (items.some((it) => it.url?.startsWith('https://'))) {
+    step('drop_scheme', () => { items = items.map((it) => (it.url ? { ...it, url: it.url.replace(/^https:\/\//, '') } : it)); });
+  }
+  eachLower('drop_last_link', (it) => it.url, (it) => ({ ...it, url: null }));
+  if (items.some((it) => it.both)) step('drop_marker', () => { items = items.map((it) => ({ ...it, both: false })); });
   while (body.length > MAX_CHARS && items.length > 1) {
-    if (markerChars() && body.length - markerChars() <= MAX_CHARS) {
-      dropMarkers();
-      applied.push('drop_marker');
-      body = render();
-      break;
-    }
-    const w = lastWhy();
-    if (w > 0 && body.length - ` - ${items[w].why}`.length <= MAX_CHARS) {
-      items = items.map((it, i) => (i === w ? { ...it, why: '' } : it));
-      applied.push('drop_last_why');
-      body = render();
-      break;
-    }
-    items = items.slice(0, -1);
+    // The lowest-ranked pick the guest did not ask for by name; a requested event goes last.
+    let drop = items.length - 1;
+    for (let i = items.length - 1; i >= 0; i--) if (!items[i].requested) { drop = i; break; }
+    items = items.filter((_, i) => i !== drop);
     applied.push('drop_last_pick');
     body = render();
   }
-  if (markerChars()) step('drop_marker', dropMarkers);
   step('drop_why', () => { items = items.map((it) => ({ ...it, why: '' })); });
   step('drop_detail', () => { items = items.map((it) => ({ ...it, detail: '' })); });
   step('trim_name', () => {

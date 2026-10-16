@@ -8,6 +8,10 @@
 // built, and favors_dropped and when_dropped count how many did. A free-text detail from the
 // model is not used at all: an event's time in the text is always the tool's when_label.
 //
+// requested (true when the guest asked for an event by name) only changes which pick a long
+// text drops last. It is kept on a verified event and nowhere else, so the model cannot use it
+// to pin a place.
+//
 // The header follows the events, never the request: "Tonight" only when every event in the
 // plan is tonight. A plan with a Friday show says "Your plan" and lets each line carry its day.
 
@@ -23,12 +27,14 @@ export function honorClaims(picks, secret) {
   let favorsDropped = 0;
   let whenDropped = 0;
   const kept = picks.map((p) => {
-    const { pick_token: _token, favors, when_label: whenLabel, detail: _detail, ...rest } = p ?? {};
+    const { pick_token: _token, favors, when_label: whenLabel, detail: _detail, requested, ...rest } = p ?? {};
     const hasFavors = favors !== undefined && favors !== null;
     const hasWhen = typeof whenLabel === 'string' && whenLabel !== '';
     if (!hasFavors && !hasWhen) return rest;
     if (verifyPick(secret, p)) {
-      return { ...rest, ...(hasFavors ? { favors } : {}), ...(hasWhen ? { detail: whenLabel, when_label: whenLabel } : {}) };
+      // requested only orders the truncation, and only a verified event may carry it.
+      const event = hasWhen ? { detail: whenLabel, when_label: whenLabel, ...(requested === true ? { requested: true } : {}) } : {};
+      return { ...rest, ...(hasFavors ? { favors } : {}), ...event };
     }
     if (hasFavors) favorsDropped += 1;
     if (hasWhen) whenDropped += 1;

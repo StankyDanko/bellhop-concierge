@@ -192,9 +192,10 @@ test('sms: the marker fits when there is room and costs nothing when absent', ()
 
 const longPick = (n, favors) => ({ name: `Place Number ${n}`, why: 'Fans of Sturgill Simpson and Wes Anderson love it', url: `https://example.com/p${n}`, favors });
 
-test('sms: drop_marker sits after drop_last_pick and before drop_why in the documented order', () => {
+test('sms: drop_marker sits after the link steps and before drop_last_pick in the documented order', () => {
   const at = (s) => TRUNCATION_ORDER.indexOf(s);
-  assert.ok(at('drop_marker') > at('drop_last_pick'));
+  assert.ok(at('drop_marker') > at('drop_last_link'));
+  assert.ok(at('drop_marker') < at('drop_last_pick'));
   assert.ok(at('drop_marker') < at('drop_why'));
 });
 
@@ -208,10 +209,11 @@ test('sms: a marker is never cut for nothing; dropping lower picks keeps it', ()
 
 test('sms: when the marker alone is the overflow, it goes before a pick does', () => {
   // Pad the first name until the two-pick text is over budget by fewer chars than the marker.
-  const base = composeItinerary({ picks: [{ name: 'A', url: 'https://example.com/a' }, { name: 'B', url: 'https://example.com/b' }], intro: '' });
+  // No links, so the link steps have nothing to give and the marker is next in line.
+  const base = composeItinerary({ picks: [{ name: 'A' }, { name: 'B' }], intro: '' });
   const pad = 'x'.repeat(MAX_CHARS - base.char_count - 3);
-  const r = composeItinerary({ picks: [{ name: `A${pad}`, url: 'https://example.com/a' }, { name: 'B', url: 'https://example.com/b', favors: 'both' }], intro: '' });
-  // Header and why steps are recorded (no-ops here), then the marker goes and both picks stay.
+  const r = composeItinerary({ picks: [{ name: `A${pad}` }, { name: 'B', favors: 'both' }], intro: '' });
+  // The header step is recorded (a no-op here), then the marker goes and both picks stay.
   assert.equal(r.truncation.at(-1), 'drop_marker');
   assert.equal(r.truncation.includes('drop_last_pick'), false);
   assert.equal(r.picks_included, 2);

@@ -38,19 +38,21 @@ test('footer counts toward the limit', () => {
 test('truncation follows the documented order', () => {
   const picks = Array.from({ length: 5 }, (_, i) => pick(i + 1));
   const r = composeItinerary({ picks, guest: { when: 'tonight' } });
-  // Header goes first, then lower picks go, and the steps applied appear in documented order.
+  // Header goes first, then lower reasons, then the link scheme, and every step applied
+  // appears in documented order. Five picks that fit once their words are gone all stay.
   assert.equal(r.truncation[0], 'drop_header');
-  assert.ok(r.truncation.includes('drop_last_pick'));
-  const seen = r.truncation.filter((s, i) => r.truncation.indexOf(s) === i);
-  const ranks = seen.map((s) => TRUNCATION_ORDER.indexOf(s));
-  assert.ok(ranks.every((x) => x >= 0), seen.join(','));
-  assert.ok(r.picks_included < 5 && r.picks_included >= 1);
+  const ranks = r.truncation.map((s) => TRUNCATION_ORDER.indexOf(s));
+  assert.ok(ranks.every((x) => x >= 0), r.truncation.join(','));
+  assert.ok(ranks.every((x, i) => i === 0 || x >= ranks[i - 1]), `out of order: ${r.truncation.join(',')}`);
+  assert.equal(r.truncation.includes('drop_last_pick'), false);
+  assert.equal(r.picks_included, 5);
+  assert.ok(r.char_count <= MAX_CHARS);
   // The top pick keeps its whole reason.
   assert.match(r.body, /1\. Place Number 1 - Fans of Sturgill Simpson and Wes Anderson love it /);
 });
 
-/** Every reason in the body, whole: the text between " - " and the link or line end. */
-const whysIn = (body) => body.split('\n').filter((l) => / - /.test(l)).map((l) => l.split(' - ')[1].replace(/ https:\/\/\S+$/, ''));
+/** Every reason in the body, whole: the text between " - " and the link (with or without its scheme) or line end. */
+const whysIn = (body) => body.split('\n').filter((l) => / - /.test(l)).map((l) => l.split(' - ')[1].replace(/ (https:\/\/)?[a-z0-9.-]+\.[a-z]{2,}\/\S*$/i, ''));
 
 test('a reason is never cut mid-phrase: each one is whole or absent', () => {
   const reasons = ['Fans of Sturgill Simpson and Wes Anderson love it', 'Strong match for your overall taste', 'Fans of Thai food love it'];
@@ -79,7 +81,7 @@ test('the regression: "Strong match for your overall taste" is never sent as "St
   assert.match(r.body, /1\. Lemongrass Lantern - Fans of Thai food love it /);
 });
 
-test('a lower reason goes whole only when that alone fits; otherwise the lower pick goes', () => {
+test('a lower reason goes whole before any pick; a pick goes only when that is not enough', () => {
   // Two picks just over budget: dropping the second reason is enough, both picks stay.
   const base = composeItinerary({ picks: [{ name: 'A', why: 'Fans of Thai food love it' }, { name: 'B', why: 'Fans of Thai food love it' }], intro: '' });
   const pad = 'x'.repeat(MAX_CHARS - base.char_count + 5);
@@ -87,11 +89,13 @@ test('a lower reason goes whole only when that alone fits; otherwise the lower p
   assert.equal(r.truncation.at(-1), 'drop_last_why');
   assert.equal(r.picks_included, 2);
   assert.match(r.body, /- Fans of Thai food love it\n2\. B\n/);
-  // Far over budget: the reason alone is not enough, so the pick goes and the top reason stays whole.
-  const big = 'y'.repeat(MAX_CHARS - base.char_count + 60);
+  // Far over budget: the lower reason goes first, it is not enough, so the pick goes, and the
+  // top reason stays whole.
+  const big = 'y'.repeat(MAX_CHARS - base.char_count + 30); // the reason frees 28, the pick 8 more
   const r2 = composeItinerary({ picks: [{ name: `A${big}`, why: 'Fans of Thai food love it' }, { name: 'B', why: 'Fans of Thai food love it' }], intro: '' });
-  assert.ok(!r2.truncation.includes('drop_last_why'));
-  assert.ok(r2.truncation.includes('drop_last_pick'));
+  assert.ok(r2.truncation.indexOf('drop_last_why') < r2.truncation.indexOf('drop_last_pick'), r2.truncation.join(','));
+  assert.equal(r2.picks_included, 1);
+  assert.match(r2.body, / - Fans of Thai food love it\n/);
 });
 
 test('a single huge pick drops whys, detail, trims name, and keeps a valid body', () => {

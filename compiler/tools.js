@@ -168,6 +168,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
                 favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
                 pick_token: s('The pick_token field from the tool result, copied exactly'),
+                requested: b('True only if the guest asked for this event by name'),
               },
             },
           },
