@@ -8,6 +8,7 @@ import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { RoomCard } from '../components/brief-room-card.jsx';
 import { formatPhone, SampleBadge } from '../components/ui.jsx';
+import { FingerprintSizeLine } from '../components/Fingerprint.jsx';
 // Fallback only, for when /api/guardrails cannot be reached: the same module the server
 // serves, so the printed list can never drift from the enforced one.
 import { LOCKED_RULES } from '../../../server/api/guardrails.js';
@@ -151,7 +152,7 @@ function AreaStrengths({ ins, inn }) {
     const items = [...cmp.items].sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 2);
     blocks.push(
       <div key="cmp">
-        <p className="brief-sub">{cmp.groups?.a ?? 'One favorite'} (+) vs. {cmp.groups?.b ?? 'another'} (-) fans</p>
+        <p className="brief-sub">{cmp.groups?.label ? `${cmp.groups.label}: (+) leans to your callers, (-) to the town` : `${cmp.groups?.a ?? 'One favorite'} (+) vs. ${cmp.groups?.b ?? 'another'} (-) fans`}</p>
         <ol className="brief-ranked">
           {items.map((it) => {
             const v = it.scores.difference ?? 0;
@@ -181,6 +182,7 @@ export default function Brief({ id, health }) {
   const prop = useApiOnce(`/properties/${id}`);
   const sessions = useApiOnce(`/properties/${id}/sessions`);
   const ins = useApiOnce(`/properties/${id}/insights?radius=2`);
+  const fp = useApiOnce(`/properties/${id}/fingerprint`);
   const rails = useApiOnce('/guardrails');
   const name = prop.data?.config?.property?.name;
 
@@ -207,7 +209,7 @@ export default function Brief({ id, health }) {
   const number = id === 'demo' ? health?.data?.demo_number ?? null : null;
   const locked = rails.state === 'ok' ? rails.data.locked : LOCKED_RULES;
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const ready = [sessions, ins, rails].every((s) => s.state !== 'loading') && health?.state !== 'checking';
+  const ready = [sessions, ins, rails, fp].every((s) => s.state !== 'loading') && health?.state !== 'checking';
   const sampleTastes = sessions.state === 'ok' && !sessions.data.gate.open;
 
   return (
@@ -243,6 +245,7 @@ export default function Brief({ id, health }) {
 
           <Section title="What guests asked for" aside={sampleTastes ? <SampleBadge /> : null}>
             <GuestTastes sessions={sessions} />
+            <FingerprintSizeLine fp={fp} />
           </Section>
 
           <Section title="What the area is strong in" className="brief-span2" aside={<Src>Qloo</Src>}>

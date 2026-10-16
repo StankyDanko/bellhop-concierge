@@ -65,6 +65,14 @@ try {
   } else {
     console.log(`SKIP ${briefPath} direct load: server/api/static.js APP_ROUTES has no brief pattern yet`);
   }
+  // The guest taste fingerprint: dark with no calls, a labeled sample on request.
+  const fp = await (await fetch(`${BASE}/api/properties/demo/fingerprint`)).json();
+  check(fp.ok === true && fp.basis === 'none' && fp.gate?.open === false, `/api/properties/demo/fingerprint is dark with no calls (basis ${fp.basis})`);
+  const fps = await (await fetch(`${BASE}/api/properties/demo/fingerprint?sample=1`)).json();
+  check(fps.basis === 'sample' && fps.sessions >= 8 && fps.entities?.length > 0, `sample fingerprint has ${fps.sessions} sample calls`);
+  const insS = await (await fetch(`${BASE}/api/properties/demo/insights?sample=1`)).json();
+  check(insS.basis === 'sample' && insS.heatmap?.basis === 'sample' && insS.sample_size === fps.sessions, `insights panels carry basis ${insS.basis} and sample_size ${insS.sample_size}`);
+  check(bundle.includes("Your callers' taste fingerprint"), 'bundle carries the fingerprint card');
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
 } finally {
