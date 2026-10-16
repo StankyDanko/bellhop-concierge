@@ -13,11 +13,11 @@ That points git at `scripts/githooks/`. Two hooks live there, and every commit p
 
 **pre-commit**
 
-- Refuses paths that never belong here: visual gate artifacts in `gates/`, local editor and
-  session folders, local working notes, `server/.env`, and `*.sqlite`.
+- Refuses paths that never belong here: anything the ignore rules cover that was force-added,
+  visual gate artifacts in `gates/`, `server/.env`, and `*.sqlite`.
 - Reads the words a judge, an innkeeper, or a guest sees (`dashboard/src`, `server/tools`,
   `server/api`, `template`, `personas`, `compiler/tools.js`, and the Markdown at the root)
-  and stops on an em dash, on "AI", or on the name of a tool or an assistant.
+  and stops on an em dash, on "AI", or on a word from the local denylist.
 - Reads every line the commit adds, looking for anything that looks like a key, a real
   `X-Api-Key` value, a server address, a login, a home directory, a phone number, or an email.
   The public demo number is allowed.
@@ -27,7 +27,8 @@ That points git at `scripts/githooks/`. Two hooks live there, and every commit p
 
 - Subject 72 characters or fewer, no em dash anywhere.
 - No `Co-Authored-By`, no `Generated with`, no `Signed-off-by` from anyone but the author.
-- No talk of tools or of how the work was split up. Say what changed.
+- Nothing from the local denylist (`.git/info/commit-denylist`, one regex per line, if you
+  keep one). Say what changed.
 
 When a hook stops you, it says why in one sentence. Fix the thing. Don't skip the hook.
 
