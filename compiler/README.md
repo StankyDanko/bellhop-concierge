@@ -65,6 +65,26 @@ list of `tool_config` bodies. The platform now attaches tools by id
 (`conversation_config.agent.prompt.tool_ids`; the inline `prompt.tools` field is deprecated), so
 deployment creates each tool first, then the agent with those ids.
 
+## Example calls and the stop rule
+
+A worked example in the prompt outweighs a rule written next to it, so an example call that
+breaks the stop rule teaches the agent to break it. `compiler/test/examples.test.js` parses
+every persona's `## Example calls (compiled)` section and fails the build if an example:
+
+- puts more than three concierge questions before the lookup line (the opener's band question
+  counts as the first),
+- asks any question after the caller has given three named things (the plus-one's count), or
+- ends on a question instead of the lookup line.
+
+The format it parses: examples are separated by a blank line, the first line is the title, and
+every other line is `Guest: "..."` or `<display_name>: "..."`. A concierge turn is a question
+when it contains a question mark. Named things cannot be read from the words reliably, so each
+persona carries a short `## Example call checks` section, which is never compiled into the
+prompt: one line per example, `- <title>: 1, 2, 3`, giving the running count of named things
+after each guest turn. The test checks that this list names every example in order with one
+count per guest turn, so an edited example cannot go unchecked. At least one example must be a
+couple whose last guest turn answers the plus-one question and brings the count to three.
+
 ## Locked vs toggleable
 
 | Locked: no config field reaches it | Owner toggle (config field) |
