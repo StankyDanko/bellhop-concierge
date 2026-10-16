@@ -12,3 +12,6 @@ snapshots/
 # Tool server: cached upstream responses (Qloo terms forbid committing response data)
 server/data/
 server/.env
+
+# visual gate screenshots/PDFs (never committed)
+gates/
