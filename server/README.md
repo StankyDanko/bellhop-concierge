@@ -686,7 +686,8 @@ are the places most likely to need a correction, all of them in one file each:
 - `lib/qloo.js` `normalizeEntity` and `tools/area-insights.js` `compact*`: property names for
   rating, price, website, heatmap cells, and the compare response.
 
-`npm run probe:qloo` prints exactly these shapes.
+`npm run probe:qloo` prints exactly these shapes. The full list of guesses, how each one is
+checked, and the key-day steps in order are in [`QLOO-NOTES.md`](../QLOO-NOTES.md).
 
 ## Tests
 

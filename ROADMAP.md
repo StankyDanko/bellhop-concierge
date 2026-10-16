@@ -36,6 +36,7 @@ All of it on October 15, 2026, in this order (`git log --reverse` has the detail
 ## After the key arrives
 
 First, `npm run probe:qloo` against the live host, and fix whatever shapes the docs got wrong.
+The checklist for that day is [QLOO-NOTES.md](QLOO-NOTES.md).
 Then, in rough order:
 
 - **Your callers vs your town.** `/v2/analysis/compare` with the fingerprint on one side and
