@@ -15,7 +15,7 @@ const TYPES = {
 };
 
 /** Client-side routes that render the app shell. */
-export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/property\/[a-z0-9-]{1,40}\/?$/];
+export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',

@@ -142,7 +142,8 @@ export default function Landing({ health }) {
           <p className="prose dim">Answer eleven short questions, pick a voice, and see exactly what your concierge will be told before anything goes live. The safety rules are on for every inn, and you can read every one of them.</p>
           <div className="row">
             <Link to="/build" className="btn btn-primary btn-lg">Build yours</Link>
-            <Link to="/property/demo" className="btn btn-secondary btn-lg">See the host dashboard</Link>
+            <Link to="/property/demo" className="btn btn-secondary btn-lg">See the innkeeper dashboard</Link>
+            <Link to="/property/demo/brief" className="btn btn-text">See the one-page innkeeper brief</Link>
           </div>
           {data?.tools && (
             <p className="micro mono">Tool server: Qloo {data.tools.qloo}, Ticketmaster {data.tools.ticketmaster}. Checked {new Date(data.checked_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</p>

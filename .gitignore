@@ -15,3 +15,4 @@ server/.env
 
 # visual gate screenshots/PDFs (never committed)
 gates/
+.idea/
