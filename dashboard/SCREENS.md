@@ -146,6 +146,17 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 
 ---
 
+## 4b. Privacy and Terms (`/privacy`, `/terms`) **MUST**
+
+- **Purpose:** the two pages a carrier's toll-free review and a careful judge both expect. Plain English, short, and true to the code. Linked from the footer beside "Source", and served on a direct load (`APP_ROUTES`, checked by the smoke test).
+- **Privacy, top to bottom:** when you call (automated and recorded, said first; the demo inn is fictional); what a call sends to Qloo (ids, tags, coordinates, filters; never a name, number, or room); what we keep (a keyed hash of the caller's number, the tastes and their ids, pick counts, the request record; no names, transcripts, or message bodies); the text message (offered, one per call, only to the calling number, at most three per number an hour, STOP) and, set apart, "Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing."; the innkeeper dashboard (aggregates only, dark under five calls); questions (the SouthernSky site). Effective date under the title.
+- **Terms:** the bridge sentence as the lead; what this is (a hackathon demo, the twenty-calls-a-day test line, no warranty); about the picks (third-party data, hours go stale); text messages (program, consent, frequency, STOP, rates); the code (AGPL-3.0, source link); questions.
+- **Footer, every page:** "Source", "Privacy", "Terms" as 48px links, and once, in small type: "Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC."
+- One reading column at `--prose-max` at every width; 390 keeps 16px gutters; no horizontal scroll; light and dark from theme tokens (`legal.css`).
+- **Never:** pricing, revenue, outcome claims, or an email address or phone number on either page.
+
+---
+
 ## 5. Shared fixtures needed before design is testable (small, do first)
 
 Seeded property (name, city covered by Qloo, lat/lng), a ConfigCard JSON with provenance per field, 2 personas with a sample line, 5 and 14 session aggregates (to show both the gate and the filled state), three `area_insights` payloads (ok, one section degraded, all skipped), one `recommend_nearby` response with `why_trace.basis` of `explainability` and one of `affinity`, and one `compose_itinerary` result with a non-empty `truncation`. Mock mode (`npm run mock`) already produces the response shapes; the session aggregates and ConfigCard JSON are the new pieces.
