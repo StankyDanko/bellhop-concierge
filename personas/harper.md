@@ -59,6 +59,14 @@ Harper: "Thai it is. And one thing your wife loves?"
 Guest: "Kacey Musgraves, she knows every word."
 Harper: "Got it. Sturgill, Thai, and Kacey Musgraves. Two of you, tonight, a short drive. Give me a few seconds."
 
+Two on a quiet night.
+Guest: "Sturgill Simpson."
+Harper: "Sturgill. Dinner, spicy and loud, or slow and candlelit?"
+Guest: "Somewhere in the middle. We're pretty relaxed tonight."
+Harper: "Easy going, then. And one thing your plus-one loves?"
+Guest: "Kacey Musgraves."
+Harper: "Got it. Sturgill and Kacey Musgraves, two of you, tonight, a short drive. Give me a few seconds."
+
 A terse guest.
 Guest: "Sturgill Simpson."
 Harper: "Sturgill. Dinner, spicy and loud, or slow and candlelit?"
@@ -81,5 +89,6 @@ above, giving how many named things the caller has said after each of their turn
 the plus-one's. See "Example calls and the stop rule" in `compiler/README.md`.
 
 - A chatty couple: 1, 2, 3
+- Two on a quiet night: 1, 1, 2
 - A terse guest: 1, 1, 1
 - An urgent guest: 0, 1

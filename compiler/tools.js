@@ -90,7 +90,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste.',
+      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. It returns no cuisine, hours, or parking, so never state them or guess them from a name.',
       timeout: 15,
       body: {
         type: 'object',
@@ -132,7 +132,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion.',
       timeout: 12,
       body: {
         type: 'object',
@@ -168,6 +168,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
                 favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
                 pick_token: s('The pick_token field from the tool result, copied exactly'),
+                requested: b('True only if the guest asked for this event by name'),
               },
             },
           },

@@ -349,9 +349,8 @@ top pick never moves). `companion.promoted_shared_pick` names it.
 ```
 
 **The text message.** The ` (both)` marker is 7 characters and the 320 limit still holds. It
-gives way after `drop_last_pick` in `TRUNCATION_ORDER`, and it is also tried before each pick
-drop when dropping it alone is enough, so a marker never costs a pick and is never cut for
-nothing. With no marker present the truncation steps are exactly as before.
+gives way after the reason and link steps and before `drop_last_pick` in `TRUNCATION_ORDER`,
+so a marker never costs a pick. With no marker present the step is skipped.
 
 **Mock mode.** `fixtures/qloo.insights.companion.json` holds hand-made cases (never a recorded
 response) for the scoring calls. The fixture transport reads any `qloo.insights.*.json`
@@ -427,6 +426,7 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 | Field | Type | Notes |
 |---|---|---|
 | `picks` | 1-5 of `{ name, why?, url?, when_label?, favors?, pick_token? }` | in rank order, copied as the tools returned them |
+| `picks[].requested` | boolean, optional | true only if the guest asked for this event by name; kept only on an event whose `pick_token` verifies, and it makes that event the last pick a long text drops |
 | (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
 | (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
 | `guest.party_size` | number | used in the header |
@@ -444,14 +444,20 @@ Rules:
 - When the full message is too long, content gives way in this order, and the response
   lists each step taken in `truncation`:
   1. `drop_header`
-  2. `drop_last_why`: the whole reason of the lowest-ranked pick that has one, never the top
-     pick's, and only when dropping that one reason is enough to fit. It is tried before each
-     pick drop.
-  3. `drop_last_pick`: lowest-ranked picks, one at a time; at least one stays
-  4. `drop_why`: the remaining pick's whole reason
-  5. `drop_detail`
-  6. `trim_name`
-  7. `drop_link`: last, because a shortened link is a broken link
+  2. `drop_last_why`: lower picks' reasons, lowest-ranked first, each one whole, never the top
+     pick's
+  3. `drop_scheme`: `https://` comes off every link; the rest still opens on a phone
+  4. `drop_last_link`: lower picks' links, lowest-ranked first, never the top pick's
+  5. `drop_marker`: the ` (both)` markers
+  6. `drop_last_pick`: whole picks, lowest-ranked first, skipping an event flagged
+     `requested`, which goes last; at least one pick stays
+  7. `drop_why`: the remaining pick's whole reason
+  8. `drop_detail`
+  9. `trim_name`
+  10. `drop_link`: last, because a shortened link is a broken link
+
+  Each step runs only while the text is still over 320, so every pick the guest heard stays
+  as long as its words and links can make room.
 
   A reason is never trimmed. It is either in the text whole or not at all, because a cut
   reason ("Strong match for") reads as a broken sentence and can change its meaning.
