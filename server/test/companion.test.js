@@ -77,7 +77,7 @@ test('recommend_nearby: a plus-one gets per-person fit and a favors line on ever
   assert.equal(json.places[2].favors_line, 'That one is for your plus-one.');
   assert.deepEqual(json.companion, { scored: true, shared_pick: true, promoted_shared_pick: null });
   // One shortlist call plus exactly two scoring calls.
-  assert.equal(json.meta.upstream.length, 3);
+  assert.equal(json.meta.upstream.length, 4); // taste + two scoring calls + the counterfactual
 });
 
 test('recommend_nearby: the param shape for per-person scoring', async () => {
@@ -90,8 +90,9 @@ test('recommend_nearby: the param shape for per-person scoring', async () => {
   };
   const { app } = makeApp({ qlooTransport: transport });
   await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY, JAZZ], ...PROPERTY });
-  assert.equal(seen.length, 3, 'never more than two extra calls');
-  const [primary, guest, companion] = seen;
+  // taste call + two per-person scoring calls + the unsignaled counterfactual call
+  assert.equal(seen.length, 4, 'never more than two extra scoring calls (plus the counterfactual)');
+  const [primary, guest, companion] = seen.filter((p) => Object.keys(p).some((k) => k.startsWith('signal.')));
   // The shortlist is drawn from both people's signals combined.
   assert.equal(primary['signal.interests.entities'], `${STURGILL.id},${KACEY.id}`);
   assert.equal(primary['signal.interests.tags'], `${THAI.id},${JAZZ.id}`);
@@ -127,7 +128,7 @@ test('recommend_nearby: solo guest and an empty companion_taste make one call an
   const { app } = makeApp();
   for (const extra of [{}, { companion_taste: [] }]) {
     const { json } = await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], ...PROPERTY, ...extra });
-    assert.equal(json.meta.upstream.length, 1);
+    assert.equal(json.meta.upstream.length, 2); // the taste call plus the counterfactual, no scoring calls
     assert.equal('companion' in json, false);
     assert.ok(json.places.every((p) => !('favors' in p)));
   }
@@ -165,9 +166,9 @@ test('recommend_nearby: in live mode a repeat call is served from the upstream c
   const body = { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY };
   const first = await recommendNearby(body, { qloo });
   const again = await recommendNearby(body, { qloo });
-  assert.deepEqual(first.calls.map((c) => c.via), ['live', 'live', 'live']);
-  assert.deepEqual(again.calls.map((c) => c.via), ['cache', 'cache', 'cache']);
-  assert.equal(upstreamHits, 3);
+  assert.deepEqual(first.calls.map((c) => c.via), ['live', 'live', 'live', 'live']);
+  assert.deepEqual(again.calls.map((c) => c.via), ['cache', 'cache', 'cache', 'cache']);
+  assert.equal(upstreamHits, 4);
 });
 
 test('compose_itinerary: the shared pick carries the (both) marker', async () => {

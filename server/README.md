@@ -258,7 +258,7 @@ popularity. The kids filter applies to both. The response gains:
 When both calls agree, `same` is true and `say` reads "Your tastes agree with the crowd on
 this one: X is both the most popular place nearby and your best match." If the extra call
 fails, `counterfactual` is `null` and the picks are unaffected. It is never put in the SMS
-body. In mock mode the unsignaled call answers from `fixtures/qloo.insights.unsignaled.json`
+body. In mock mode the unsignaled call answers from `fixtures/qloo.unsignaled-places.json`
 (hand-made, not Qloo data).
 
 **The why trace.** `why_trace.basis` is `explainability` when Qloo attributed the result to

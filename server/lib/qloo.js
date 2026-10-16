@@ -38,7 +38,7 @@ const FIXTURE_FILES = {
 };
 
 /** Mock only: a place insights request with no taste signal (the counterfactual) answers from its own file. */
-const UNSIGNALED_PLACES_FIXTURE = 'qloo.insights.unsignaled';
+const UNSIGNALED_PLACES_FIXTURE = 'qloo.unsignaled-places'; // NOT qloo.insights.* : that name pattern is an overlay of the signaled file
 
 /** True when a request carries no taste signal at all (pure popularity ranking). */
 export const isUnsignaled = (params) => !Object.keys(params).some((k) => k.startsWith('signal.'));
