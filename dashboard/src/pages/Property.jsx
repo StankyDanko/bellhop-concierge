@@ -242,6 +242,7 @@ export default function Property({ id, health }) {
         <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Draft'}</span>
         <span className="chip chip-mono">Trust: {cfg.trust_level}</span>
         {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
+        <Link to={`/property/${id}/brief`} className="btn btn-text">Print the innkeeper brief</Link>
       </header>
       <nav className="jump" aria-label="Sections">
         <a href="#calls">Calls</a><a href="#text">The text a guest gets</a><a href="#insights">Area insights</a><a href="#suggest">Suggestions</a>

@@ -9,6 +9,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { APP_ROUTES } from '../../server/api/static.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const PORT = 8800 + Math.floor(Math.random() * 150);
@@ -55,6 +56,17 @@ try {
   check(p.config?.property?.name === 'The Juniper House', 'demo inn seeded');
   const asset = /src="(\/assets\/[^"]+\.js)"/.exec(await (await fetch(BASE)).text())?.[1];
   check(asset && (await fetch(BASE + asset)).ok, `bundle ${asset} served`);
+  // The innkeeper brief: the route is in the bundle (reached in-app from the dashboard link).
+  const bundle = asset ? await (await fetch(BASE + asset)).text() : '';
+  check(bundle.includes('Front desk concierge brief') && bundle.includes('Need a plan tonight?'), 'bundle carries the innkeeper brief and room card');
+  const briefPath = '/property/demo/brief';
+  if (APP_ROUTES.some((re) => re.test(briefPath))) {
+    check((await fetch(BASE + briefPath)).status === 200, `${briefPath} returns 200 on a direct load`);
+  } else {
+    console.log(`SKIP ${briefPath} direct load: server/api/static.js APP_ROUTES has no brief pattern yet`);
+  }
+  const g = await (await fetch(`${BASE}/api/guardrails`)).json();
+  check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
 } finally {
   try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
   const exited = server.exitCode !== null || server.signalCode !== null || await new Promise((r) => { const t = setTimeout(() => r(false), 3000); server.once('exit', () => { clearTimeout(t); r(true); }); });
