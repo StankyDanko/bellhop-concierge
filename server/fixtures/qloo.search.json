@@ -34,6 +34,24 @@
       ] } }
     },
     {
+      "match": { "query": "radiohead" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Radiohead", "entity_id": "fx-artist-radiohead", "type": "urn:entity", "subtype": "urn:entity:artist" }
+      ] } }
+    },
+    {
+      "match": { "query": "coen brothers" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "The Coen Brothers", "entity_id": "fx-person-coen-brothers", "type": "urn:entity", "subtype": "urn:entity:person" }
+      ] } }
+    },
+    {
+      "match": { "query": "the coen brothers" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "The Coen Brothers", "entity_id": "fx-person-coen-brothers", "type": "urn:entity", "subtype": "urn:entity:person" }
+      ] } }
+    },
+    {
       "match": {},
       "response": { "success": true, "results": { "entities": [] } }
     }

@@ -70,7 +70,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
   const LNG = { type: 'number', constant_value: property.lng };
   return {
     resolve_taste: {
-      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words.",
+      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words. A mention it returns in unresolved was not found: never say it back as a taste you are using and never count it as a named thing. Say you could not find it and ask once what it is most like.",
       timeout: 15,
       body: {
         type: 'object',
