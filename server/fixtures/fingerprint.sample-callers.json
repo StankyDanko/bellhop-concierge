@@ -1,0 +1,13 @@
+{
+  "_note": "Hand-made SAMPLE callers for the guest taste fingerprint preview. Fictional calls, written by hand, never recorded: each lists only the taste ids its call would have sent to Qloo (the fx-* ids are the fake ids of the mock fixtures in this folder) and the taste names for display. No callers, numbers, or session ids. Together with sample-session.json this makes nine sample calls.",
+  "callers": [
+    { "tastes": [ { "id": "fx-artist-kacey-musgraves", "name": "Kacey Musgraves" }, { "id": "urn:tag:genre:place:bar:jazz", "name": "Jazz bars" } ] },
+    { "tastes": [ { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson" }, { "id": "urn:tag:genre:place:restaurant:barbecue", "name": "Barbecue" } ] },
+    { "tastes": [ { "id": "fx-person-wes-anderson", "name": "Wes Anderson" }, { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food" } ] },
+    { "tastes": [ { "id": "fx-movie-grand-budapest-hotel", "name": "The Grand Budapest Hotel" }, { "id": "urn:tag:genre:place:bar:jazz", "name": "Jazz bars" } ] },
+    { "tastes": [ { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson" }, { "id": "fx-artist-kacey-musgraves", "name": "Kacey Musgraves" } ] },
+    { "tastes": [ { "id": "fx-person-wes-anderson", "name": "Wes Anderson" }, { "id": "urn:tag:keyword:place:spicy", "name": "Spicy food" } ] },
+    { "tastes": [ { "id": "fx-artist-tyler-childers", "name": "Tyler Childers" }, { "id": "urn:tag:genre:place:restaurant:barbecue", "name": "Barbecue" } ] },
+    { "tastes": [ { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson" }, { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food" }, { "id": "fx-person-wes-anderson", "name": "Wes Anderson" } ] }
+  ]
+}

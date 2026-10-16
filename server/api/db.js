@@ -7,6 +7,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { entityIdsFromTrace, labelIds } from '../lib/fingerprint.js';
 
 export const DEFAULT_DB_PATH = fileURLToPath(new URL('../data/concierge.sqlite', import.meta.url));
 export const DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/demo-inn.json', import.meta.url));
@@ -67,4 +68,35 @@ export function loadSampleSession() {
     }
   }
   return sampleSession;
+}
+
+export const SAMPLE_CALLERS_PATH = fileURLToPath(new URL('../fixtures/fingerprint.sample-callers.json', import.meta.url));
+
+let sampleFingerprint;
+/**
+ * The sessions behind the SAMPLE guest taste fingerprint: the sample call above (its ids
+ * read from its own trace, exactly as log_session reads a real call) plus a few hand-made
+ * fictional callers. Ids and taste names only. Returns [] if a file is missing or broken.
+ * @returns {Array<{ ids: string[], labels: Record<string, string|null> }>}
+ */
+export function loadSampleFingerprintSessions() {
+  if (sampleFingerprint === undefined) {
+    try {
+      const out = [];
+      const call = loadSampleSession();
+      if (call) {
+        const ids = entityIdsFromTrace(call.trace);
+        out.push({ ids, labels: labelIds({ ids, trace: call.trace, names: call.entities ?? [] }) });
+      }
+      const { callers } = JSON.parse(readFileSync(SAMPLE_CALLERS_PATH, 'utf8'));
+      for (const c of callers) {
+        const tastes = (c.tastes ?? []).filter((t) => typeof t?.id === 'string');
+        out.push({ ids: tastes.map((t) => t.id), labels: Object.fromEntries(tastes.map((t) => [t.id, t.name ?? null])) });
+      }
+      sampleFingerprint = out;
+    } catch {
+      sampleFingerprint = [];
+    }
+  }
+  return sampleFingerprint;
 }

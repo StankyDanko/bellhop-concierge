@@ -11,7 +11,7 @@ import { Hono } from 'hono';
 import { ResponseCache } from '../../lib/cache.js';
 import { silentLogger } from '../../lib/log.js';
 import { createQlooClient } from '../../lib/qloo.js';
-import { SESSIONS_SCHEMA } from '../../lib/sessions.js';
+import { SESSIONS_SCHEMA, migrateSessions } from '../../lib/sessions.js';
 import { createTicketmasterClient } from '../../lib/ticketmaster.js';
 import { openDashboardDb } from '../db.js';
 import { mountDashboard } from '../index.js';
@@ -22,7 +22,7 @@ const FIXED_NOW = new Date('2026-10-16T18:00:00Z');
 
 function build({ env = { adminToken: ADMIN }, withSessions = true, fetchImpl, distDir } = {}) {
   const db = openDashboardDb({ path: ':memory:', now: () => FIXED_NOW });
-  if (withSessions) db.exec(SESSIONS_SCHEMA);
+  if (withSessions) { db.exec(SESSIONS_SCHEMA); migrateSessions(db); }
   const cache = new ResponseCache({ path: ':memory:' });
   const qloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock: true, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger });
   const ticketmaster = createTicketmasterClient({ config: { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: '', mock: true, timeoutMs: 1000 }, cache, logger: silentLogger });
@@ -39,10 +39,11 @@ function build({ env = { adminToken: ADMIN }, withSessions = true, fetchImpl, di
   return { db, req };
 }
 
-const addSession = (db, i, { property = 'demo', entities = ['Sturgill Simpson', 'thai food'] } = {}) => db.prepare(
-  `INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at)
-   VALUES (?, ?, 'harper', ?, ?, ?, 3, 1, 1, ?)`,
-).run(`s${i}`, property, `2026-10-1${i % 10}T20:00:00Z`, `deadbeef${i}hash`, JSON.stringify(entities), FIXED_NOW.toISOString());
+const SAMPLE_IDS = ['fx-artist-sturgill-simpson', 'urn:tag:genre:place:restaurant:thai'];
+const addSession = (db, i, { property = 'demo', entities = ['Sturgill Simpson', 'thai food'], ids = SAMPLE_IDS } = {}) => db.prepare(
+  `INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, entity_ids_json)
+   VALUES (?, ?, 'harper', ?, ?, ?, 3, 1, 1, ?, ?)`,
+).run(`s${i}`, property, `2026-10-1${i % 10}T20:00:00Z`, `deadbeef${i}hash`, JSON.stringify(entities), FIXED_NOW.toISOString(), JSON.stringify(ids));
 
 const admin = { 'X-Admin-Token': ADMIN };
 
@@ -236,15 +237,21 @@ describe('GET /api/properties/:id/insights', () => {
     assert.deepEqual(r.json.interests, []);
   });
 
-  it('opens at the gate and maps the most-named tastes', async () => {
+  it('opens at the gate and feeds the callers\' fingerprint ids straight to Qloo', async () => {
     const { db, req } = build();
     for (let i = 0; i < SESSION_GATE; i += 1) addSession(db, i);
     const r = await req('GET', '/api/properties/demo/insights');
     assert.equal(r.json.gate.open, true);
     assert.notEqual(r.json.demographics.status, 'gated');
-    assert.equal(r.json.heatmap.basis, 'guest_taste');
+    assert.equal(r.json.basis, 'callers');
+    assert.equal(r.json.sample_size, SESSION_GATE);
+    for (const p of [r.json.heatmap, r.json.demographics, r.json.compare]) {
+      assert.equal(p.basis, 'callers');
+      assert.equal(p.sample_size, SESSION_GATE);
+    }
     assert.ok(r.json.interests.length > 0);
     assert.ok(r.json.upstream.every((u) => u.via === 'mock'));
+    assert.ok(!r.json.upstream.some((u) => u.endpoint === '/search' || u.endpoint === '/v2/tags'), 'no name is re-resolved');
   });
 
   it('serves a labeled sample preview while gated', async () => {
@@ -252,6 +259,9 @@ describe('GET /api/properties/:id/insights', () => {
     const r = await req('GET', '/api/properties/demo/insights?sample=1');
     assert.equal(r.json.sample, true);
     assert.equal(r.json.gate.open, false);
+    assert.equal(r.json.basis, 'sample');
+    assert.equal(r.json.heatmap.basis, 'sample');
+    assert.ok(r.json.sample_size >= 8 && r.json.sample_size <= 12, String(r.json.sample_size));
     assert.ok(['ok', 'degraded'].includes(r.json.demographics.status));
   });
 
