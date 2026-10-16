@@ -32,7 +32,7 @@ Or on your own machine, no keys needed:
 ```bash
 git clone https://github.com/StankyDanko/bellhop-concierge && cd bellhop-concierge
 npm install
-npm test        # 189 tests, offline
+npm test        # 218 tests, offline
 npm run mock    # the tool server on :8787, answering from fixtures
 curl -s -X POST localhost:8787/tools/resolve_taste \
   -H 'X-Concierge-Secret: local-dev-secret-change-me' -H 'content-type: application/json' \

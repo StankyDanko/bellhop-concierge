@@ -180,7 +180,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
       tools: {
         ok: toolsOk,
         qloo: ctx.qloo?.mode ?? 'unknown',
-        ticketmaster: ctx.ticketmaster?.enabled ? 'enabled' : 'disabled',
+        ticketmaster: ctx.ticketmaster?.mode ?? (ctx.ticketmaster?.enabled ? 'live' : 'disabled'),
         names: toolNames,
       },
       last_session_at: lastSessionAt(),

@@ -21,12 +21,17 @@ All of it on October 15, 2026, in this order (`git log --reverse` has the detail
   would have heard without their tastes, on the dashboard.
 - **The brief.** One printable page for the front desk, with tear-off room cards.
 
+- **The guest taste fingerprint.** Each call's resolved Qloo ids, pooled per inn (ids only, no
+  names or numbers), become the signal for every dashboard panel, so the insights are about the
+  people who call this number instead of the zip code. Shown with its sample size, behind a
+  five-call floor, with test calls left out.
+- **Proof on every pick.** Places carry a signed token, so the text can never carry a marker
+  the taste graph did not earn. Events are spoken from tool data only, with honest day labels.
+
 ## In flight
 
-- **The guest taste fingerprint.** Each call already resolves what the guest loves into Qloo
-  ids. Pooled per inn (ids only, no names or numbers), those become the signal for every
-  dashboard panel, so the insights are about the people who call this number instead of the zip
-  code. Shown with its sample size, because a small inn gets a small sample.
+- Round-three call fixes: the plus-one question takes the bet's slot, no fit claims after an
+  event line, no guessing a cuisine from a name, and a requested event survives a long text.
 
 ## After the key arrives
 
