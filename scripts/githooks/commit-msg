@@ -28,13 +28,13 @@ while IFS= read -r line; do
   if printf '%s' "$line" | grep -q -i -E '^[^[:alnum:]]*generated with'; then
     fail "drop the \"Generated with\" line. The work speaks for itself."
   fi
-  if printf '%s' "$line" | grep -q -i -E 'co-authored-by|generated with'; then
-    fail "the message names a tool. Say what changed in the code, not what helped write it."
-  fi
-  # "lane" in lowercase, or "Lane B" style; a street like "Larkspur Lane" is fine.
-  if printf '%s' "$line" | grep -q -E '\blanes?\b|\bLanes? [A-Z0-9]\b|[Ss]ubagent'; then
-    fail "the message talks about how the work was split up. Say what changed instead."
-  fi
 done <<< "$msg"
+
+# Optional local denylist: one regex per line, outside the tree.
+denylist="$(git rev-parse --git-common-dir)/info/commit-denylist"
+if [ -f "$denylist" ]; then
+  hit=$(printf '%s\n' "$msg" | grep -n -i -E -f <(grep -v -E '^[[:space:]]*(#|$)' "$denylist") | head -1)
+  [ -n "$hit" ] && fail "line ${hit%%:*} matches the local denylist. Say what changed in the code."
+fi
 
 exit 0
