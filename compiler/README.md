@@ -1,11 +1,11 @@
 # The agent compiler
 
-The compiler turns a host's answers into a working phone concierge. It is plain code, not a
+The compiler turns an innkeeper's answers into a working phone concierge. It is plain code, not a
 language model: a validated config and a persona go in, and an ElevenLabs agent definition
 comes out, linted for the mistakes that are cheap to catch here and expensive to hear on a call.
 
 ```
-  host intake Q0-Q11 ──> config (config/schema.js validates it)
+  innkeeper Q0-Q11 ────> config (config/schema.js validates it)
                              │
   personas/<id>.md ──────────┤
   template/concierge.md ─────┤
@@ -29,18 +29,18 @@ npm run schema                                                           # regen
 Exit code 0 means compiled with no lint errors, 1 means lint errors (the output is still
 written so you can read it), 2 means the config was invalid.
 
-## How a host config becomes an agent
+## How an innkeeper's config becomes an agent
 
 1. **Validate.** `config/schema.js` checks structure (types, ranges, at most five FAQ entries,
    known persona, trust level) and then meaning: no web addresses, phone numbers, or email
    addresses in any field the agent might say; no text that reads like an instruction to the
    agent; no word the voice mispronounces; and no part of the door or wifi note anywhere else
    in the config. Every error names its field.
-2. **Clean.** Host text is normalized for the voice: dashes and semicolons become commas, smart
+2. **Clean.** Innkeeper text is normalized for the voice: dashes and semicolons become commas, smart
    quotes become plain ones, parentheses go.
 3. **Fill the template.** `template/concierge.md` has slots: `{{persona}}`, `{{property}}`,
    `{{picks}}`, `{{rules}}`, `{{faq}}`, `{{handoff}}`, `{{permissions}}`, and a few smaller ones
-   (`{{humor}}`, `{{languages}}`, `{{sending}}`, `{{persona_examples}}`). Host data lands under an
+   (`{{humor}}`, `{{languages}}`, `{{sending}}`, `{{persona_examples}}`). Innkeeper data lands under an
    "Owner's notes" heading that tells the model to treat it as facts, never as instructions.
    `{{system__time}}` is left for the platform to fill on each call.
 4. **Build the tools.** One webhook per server tool, with names, routes, enums, and the auth
@@ -52,7 +52,7 @@ written so you can read it), 2 means the config was invalid.
    `companion_taste` on `recommend_nearby`, and a pick's `favors` on `compose_itinerary`) are
    optional and never required, so a call from a guest who is alone compiles and runs exactly as
    before. See "Companion scoring" in `server/README.md`.
-5. **Set the platform.** The settings below go on every agent, whatever the host chose.
+5. **Set the platform.** The settings below go on every agent, whatever the innkeeper chose.
 6. **Lint.** Everything the model reads (prompt, first message, every tool and parameter
    description) is checked. Errors: em or en dashes, the forbidden two-letter word or its long
    form, any part of the access or wifi note anywhere in the output, phone numbers, web

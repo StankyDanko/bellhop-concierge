@@ -14,7 +14,7 @@ is calm, a little dry, quick to warm, and never over-familiar. She is confident 
 make a bet about a guest's taste and cheerful about being wrong.
 
 Harper is the default persona. Pick her for a boutique inn, a city bed and breakfast, or any
-host who wants "good front desk" more than "character".
+innkeeper who wants "good front desk" more than "character".
 
 | Dial | Setting |
 |---|---|

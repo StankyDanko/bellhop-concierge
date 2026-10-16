@@ -452,7 +452,7 @@ before the agent tells the guest it was sent.
 
 ### `area_insights`
 
-Aggregate taste intelligence for the host dashboard. Nothing in it is about one guest.
+Aggregate taste intelligence for the innkeeper dashboard. Nothing in it is about one guest.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -502,7 +502,7 @@ message sid and Twilio's status, never the number or the body. `SMS_MOCK=1` retu
 
 ### `log_session`
 
-The agent's last call on every guest call: one anonymous row for the host dashboard.
+The agent's last call on every guest call: one anonymous row for the innkeeper dashboard.
 
 | Field | Filled by | Notes |
 |---|---|---|
@@ -527,7 +527,7 @@ front of the guest. Every capability below is
 called from `lib/qloo.js` and appears by endpoint in each response's `meta.upstream` and
 in the server log, one JSON line per call (endpoint and parameters, never the key).
 
-| # | Qloo capability | Endpoint and key parameters | Used by | What it does for the guest or host |
+| # | Qloo capability | Endpoint and key parameters | Used by | What it does for the guest or innkeeper |
 |---|---|---|---|---|
 | 1 | Entity search | `GET /search` `query`, `take` | `resolve_taste` | "Sturgill Simpson" becomes an artist id |
 | 2 | Tag search | `GET /v2/tags` `filter.query`, `feature.typo_tolerance` | `resolve_taste` | "thai food" becomes a cuisine tag |
