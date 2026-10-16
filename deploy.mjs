@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // deploy.mjs: ship Bellhop Concierge to the Reliable VPS. Idempotent.
-//   node deploy.mjs             sync + build (podman, Zeus) + ship image + (re)run container + health
+//   node deploy.mjs             sync + build (podman, local) + ship image + (re)run container + health
 //   node deploy.mjs --status    container state + health
 //   node deploy.mjs --logs      tail container logs
 //   node deploy.mjs --rollback  re-run the previous image (kept as :prev)
@@ -78,7 +78,7 @@ sh('bash', ['-c', `tar czf - -C ${ROOT} --exclude=node_modules --exclude=server/
 // .env is created on first deploy only; later changes go through --sync-env.
 if (!remote(`test -f ${REMOTE}/.env && echo yes`, { quiet: true })) pushEnv();
 
-console.log('-- build (podman, Zeus)');
+console.log('-- build (podman, local)');
 sh('podman', ['build', '--format', 'docker', '-t', `${IMAGE}:latest`, '-f', 'Containerfile', '.'], { cwd: ROOT });
 console.log('-- ship');
 sh('bash', ['-c', `podman save ${IMAGE}:latest | gzip > ${TAR}`]);

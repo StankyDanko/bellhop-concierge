@@ -13,7 +13,7 @@ Built for the Qloo Agentic Hackathon, October 2026. Licensed AGPL-3.0.
 
 | | |
 |---|---|
-| **Call it** | **(706) 810-9262.** Harper answers for The Juniper House, a demo inn in Savannah, GA. Tell her a band you love and what you feel like eating. |
+| **Call it** | **(706) 810-9262.** Harper answers for The Juniper House, a demo inn in Savannah, GA. Name a band you love and what you feel like eating. |
 | **See it** | [concierge.southernsky.cloud](https://concierge.southernsky.cloud): a sample pick, the Qloo request behind it, and what the guest would have heard without their tastes. |
 | **Run the inn** | [`/property/demo`](https://concierge.southernsky.cloud/property/demo): calls, the exact text a guest gets, where each line came from, area insights. |
 | **Print the brief** | [`/property/demo/brief`](https://concierge.southernsky.cloud/property/demo/brief): one page for the front desk, room cards tear off the bottom. |
