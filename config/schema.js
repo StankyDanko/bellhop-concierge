@@ -1,9 +1,9 @@
-// The host config: what the intake (Q0 to Q11) produces and what the compiler reads.
+// The innkeeper config: what the intake (Q0 to Q11) produces and what the compiler reads.
 //
 // SCHEMA is a plain JSON Schema object (draft 2020-12 subset) and is the single source
 // for config/schema.json (`node bin/compile.js --print-schema`). validateConfig() runs
 // the structural checks from SCHEMA, then the semantic checks a JSON Schema cannot say:
-// host text that would garble on the phone, secrets leaking into speakable fields, and
+// innkeeper text that would garble on the phone, secrets leaking into speakable fields, and
 // instruction-shaped text in fields that are meant to be data.
 
 export const SCHEMA_VERSION = 1;
@@ -17,8 +17,8 @@ const strList = (maxItems, maxLength) => ({ type: 'array', maxItems, items: str(
 export const SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://github.com/StankyDanko/bellhop-concierge/config/schema.json',
-  title: 'Bellhop Concierge host config',
-  description: 'One property. Produced by the host intake (Q0 to Q11), read by the compiler.',
+  title: 'Bellhop Concierge innkeeper config',
+  description: 'One property. Produced by the innkeeper intake (Q0 to Q11), read by the compiler.',
   type: 'object',
   additionalProperties: false,
   required: ['schema_version', 'property', 'voice', 'guests', 'logistics', 'rules', 'picks', 'avoid', 'faq', 'handoff', 'permissions', 'trust_level'],
@@ -48,7 +48,7 @@ export const SCHEMA = {
         persona_id: { type: 'string', enum: [...PERSONA_IDS] },
         humor_level: { type: 'integer', minimum: 0, maximum: 2 },
         languages: { type: 'array', minItems: 1, maxItems: 4, items: { type: 'string', pattern: '^[a-z]{2}$' } },
-        feel: str(200, { description: 'Q1: the feeling the host wants guests to have' }),
+        feel: str(200, { description: 'Q1: the feeling the innkeeper wants guests to have' }),
       },
     },
     guests: {
@@ -79,7 +79,7 @@ export const SCHEMA = {
       properties: { list: strList(12, 160), never_bend: strList(6, 160) },
     },
     picks: {
-      description: "Q7. The host's own favorites, quoted to guests with the host's reason.",
+      description: "Q7. The innkeeper's own favorites, quoted to guests with the innkeeper's reason.",
       type: 'array',
       maxItems: 8,
       items: {
@@ -123,7 +123,7 @@ export const SCHEMA = {
       required: ['name', 'triggers', 'hours'],
       properties: {
         name: str(60),
-        phone_last4: { type: 'string', pattern: '^[0-9]{4}$', description: 'For the host dashboard only; never compiled' },
+        phone_last4: { type: 'string', pattern: '^[0-9]{4}$', description: 'For the innkeeper dashboard only; never compiled' },
         triggers: strList(10, 120),
         hours: str(120),
       },
@@ -217,7 +217,7 @@ const URL_RE = /\bhttps?:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|io|co|us|info
 const PHONE_RE = /(?:\+?\d[\s.()-]*){7,}/;
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 const FORBIDDEN_WORD_RE = /\bA\.?I\b|artificial intelligence/i;
-/** Instruction-shaped text: the host fills data fields, never instructions to the agent. */
+/** Instruction-shaped text: the innkeeper fills data fields, never instructions to the agent. */
 const INJECTION_RE = /\b(ignore|disregard|forget)\b.{0,30}\b(instructions?|rules?|prompt|above|previous)\b|\bsystem prompt\b|\byou are now\b|\bact as\b|\bnew instructions?\b/i;
 /** The heteronym the voice mispronounces ("live" as in alive vs. to live). */
 const LIVE_RE = /\blives?\b/i;

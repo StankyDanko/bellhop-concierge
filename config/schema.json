@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/StankyDanko/bellhop-concierge/config/schema.json",
-  "title": "Bellhop Concierge host config",
-  "description": "One property. Produced by the host intake (Q0 to Q11), read by the compiler.",
+  "title": "Bellhop Concierge innkeeper config",
+  "description": "One property. Produced by the innkeeper intake (Q0 to Q11), read by the compiler.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -114,7 +114,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "description": "Q1: the feeling the host wants guests to have"
+          "description": "Q1: the feeling the innkeeper wants guests to have"
         }
       }
     },
@@ -207,7 +207,7 @@
       }
     },
     "picks": {
-      "description": "Q7. The host's own favorites, quoted to guests with the host's reason.",
+      "description": "Q7. The innkeeper's own favorites, quoted to guests with the innkeeper's reason.",
       "type": "array",
       "maxItems": 8,
       "items": {
@@ -317,7 +317,7 @@
         "phone_last4": {
           "type": "string",
           "pattern": "^[0-9]{4}$",
-          "description": "For the host dashboard only; never compiled"
+          "description": "For the innkeeper dashboard only; never compiled"
         },
         "triggers": {
           "type": "array",
