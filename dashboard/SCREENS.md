@@ -119,6 +119,19 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 - Interaction: radius control (1, 2, 5 mi segmented), interests selector chips (from the sessions' resolved taste, aggregate), "Refresh" with `AS OF` timestamp. No guest-level drill-down exists, by design.
 - Cut: Compare (COULD), suggestions (SHOULD, cheap: text templates over panel data), radius control (COULD), map tiles (use a cell grid with a legend if tiles are not ready).
 
+### 3c. Innkeeper brief and room card (`/property/:id/brief`) **SHOULD**
+
+**Purpose:** the work product an innkeeper forwards. One letter page they print or save as PDF and hand to a co-owner, a manager, or a guest-services hire, with a tear-off room card at the bottom. Reached from the "Print the innkeeper brief" link in the property header.
+
+- **Primary action:** "Print or save as PDF" (`window.print()`, disabled until every section has loaded). **Secondary:** "Back to the front desk".
+- **Content, top to bottom:** header (eyebrow `FRONT DESK CONCIERGE BRIEF`, inn name, town, date prepared, the number in tabular figures); What it does (three plain sentences); What guests asked for (top tastes from `/sessions`); What the area is strong in (ranked lists from `/insights`: taste affinity by block, ages leaning in, two kinds of guests); How picks are made (Qloo, Ticketmaster, the innkeeper's own picks, then the honest-limits line); What it will not do (the locked list from `/api/guardrails`); the room cards.
+- **Room cards:** a 3:2 card (4 by 6 proportions) and a 5:3 nightstand card (3 by 5 proportions), each inside a dashed cut line: inn name, "Need a plan tonight?", "Call the front desk concierge", the number, "Tell it two things you love. It texts you three places nearby." The large card adds "An automated line. Calls are recorded." Hairlines only, no fills: they survive a black and white printer.
+- **Paper, in every theme:** the sheet uses the paper and slate tokens directly, so a dark-theme print is still black on white.
+- **Print:** `@page { size: letter; margin: 0.6in }`; topbar, footer and toolbar hidden; no section breaks across a page. Gate: one page in both the zero-session state and an eight-session state.
+- 390: single column, cards stacked full width, print button full width. 1440: the letter sheet centered on the page background.
+- **States:** below five calls, guest tastes show the sample guest with a SAMPLE DATA badge and "Shown as an example until five guests have called."; any insights section that is gated, skipped, or degraded is left off with one line saying why (sections sharing a reason share the line); a property without a published number gets "Your number appears here once it is published" and a blank write-in line on the cards (the demo shows "Number goes live at submission" when no demo number is set); an unreachable `/api/guardrails` falls back to the same module the server serves.
+- **Never:** a review lift, revenue, pricing, or "replaces a concierge". Every number on the page comes from the call log or Qloo, with its source next to it.
+
 ---
 
 ## 4. Settings (`/p/:id/settings`) **COULD (read-only SHOULD)**

@@ -1,5 +1,5 @@
-// A three-route client router on the History API. Small on purpose: the app has /, /build,
-// and /property/:id, and the server sends the same shell for each.
+// A small client router on the History API. Small on purpose: the app has /, /build,
+// /property/:id, and /property/:id/brief, and the server sends the same shell for each.
 import { useEffect, useState } from 'react';
 
 export function navigate(to) {
@@ -7,6 +7,11 @@ export function navigate(to) {
   window.history.pushState({}, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
   window.scrollTo(0, 0);
+}
+
+/** `/property/:id/brief` -> the property id, else null. The printable innkeeper brief. */
+export function matchBrief(path) {
+  return /^\/property\/([a-z0-9-]{1,40})\/brief\/?$/.exec(path)?.[1] ?? null;
 }
 
 export function usePath() {

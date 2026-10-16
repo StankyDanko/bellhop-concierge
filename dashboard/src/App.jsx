@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './icons.jsx';
+import Brief from './pages/Brief.jsx';
 import Builder from './pages/Builder.jsx';
 import Landing from './pages/Landing.jsx';
 import Property from './pages/Property.jsx';
 import { useHealth } from './components/ui.jsx';
-import { Link, usePath } from './router.jsx';
+import { Link, matchBrief, usePath } from './router.jsx';
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'light');
@@ -26,10 +27,12 @@ export default function App() {
   const health = useHealth();
   const repo = health.data?.repo_url;
   const propMatch = /^\/property\/([a-z0-9-]{1,40})\/?$/.exec(path);
+  const briefId = matchBrief(path);
   let page;
   if (path === '/') page = <Landing health={health} />;
   else if (/^\/build\/?$/.test(path)) page = <Builder />;
   else if (propMatch) page = <Property id={propMatch[1]} health={health} />;
+  else if (briefId) page = <Brief id={briefId} health={health} />;
   else page = (
     <div className="container stack">
       <h1>That page isn't here.</h1>
@@ -38,9 +41,10 @@ export default function App() {
   );
 
   useEffect(() => {
+    if (briefId) return; // the brief titles itself with the inn name (the saved PDF's file name)
     const titles = { '/': 'Bellhop Concierge', '/build': 'Build your concierge, Bellhop Concierge' };
     document.title = propMatch ? 'Property dashboard, Bellhop Concierge' : titles[path.replace(/\/$/, '') || '/'] ?? 'Bellhop Concierge';
-  }, [path, propMatch]);
+  }, [path, propMatch, briefId]);
 
   const cur = (p) => (p === '/property' ? (propMatch ? 'page' : undefined) : path === p ? 'page' : undefined);
   return (

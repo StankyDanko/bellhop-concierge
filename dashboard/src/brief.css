@@ -1,0 +1,203 @@
+/* The innkeeper brief (`/property/:id/brief`) and its tear-off room cards.
+   A printed page is paper in every theme: the sheet uses the house paper and slate
+   tokens directly, never the theme's surface tokens, so a dark-theme print is still
+   black on white. No raw hex here (DESIGN-LANGUAGE C1). */
+
+.brief-screen {
+  --brief-paper: var(--paper-000);
+  --brief-ink: var(--slate-800);
+  --brief-dim: var(--slate-600);
+  --brief-rule: var(--paper-300);
+  --brief-rule-strong: var(--ink-500);
+  padding: var(--space-6) max(var(--space-4), var(--space-gutter)) var(--space-16);
+  min-width: 0;
+}
+
+/* ---- screen chrome -------------------------------------------------------------------- */
+
+.brief-toolbar {
+  max-width: 8.5in; margin: 0 auto var(--space-4);
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  align-items: center; justify-content: space-between;
+}
+.brief-toolbar .btn-text { padding-inline: 0; }
+.brief-back { margin-right: var(--space-2); }
+
+/* ---- the sheet ------------------------------------------------------------------------------ */
+
+.brief-page {
+  max-width: 8.5in; margin: 0 auto;
+  padding: 0.6in;
+  background: var(--brief-paper); color: var(--brief-ink);
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raise);
+  font-size: 10pt; line-height: 1.4;
+  min-width: 0;
+}
+.brief-page h1, .brief-page h2 { color: var(--brief-ink); }
+
+.brief-eyebrow {
+  font-size: 7.5pt; font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  color: var(--brief-dim);
+}
+
+.brief-head {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding-bottom: 0.14in; border-bottom: 2px solid var(--brief-ink);
+}
+.brief-head-main { min-width: 0; }
+.brief-head h1 { font-size: 22pt; letter-spacing: var(--tracking-display); margin-top: 2pt; }
+.brief-meta { color: var(--brief-dim); margin-top: 2pt; }
+.brief-head-number { text-align: right; min-width: 0; }
+.brief-number {
+  font-size: 24pt; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; white-space: nowrap;
+}
+.brief-number-pending { font-size: 11pt; font-weight: 600; color: var(--brief-dim); max-width: 18em; }
+
+.brief-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.12in 0.25in; margin-top: 0.12in;
+}
+.brief-span { grid-column: 1 / -1; }
+.brief-span2 { grid-column: span 2; }
+
+.brief-sec { min-width: 0; break-inside: avoid; page-break-inside: avoid; }
+.brief-sec-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--brief-rule); padding-bottom: 2pt; margin-bottom: 4pt;
+}
+.brief-sec h2 { font-size: 11pt; font-weight: 700; }
+.brief-sec .chip-sample { color: var(--brief-dim); border-color: var(--brief-rule-strong); background: transparent; }
+
+/* styles.css caps `main p` at a reading measure; the sheet sets its own measure (the column). */
+.brief-screen .brief-page p { max-width: none; }
+.brief-sub { font-weight: 600; margin-top: 4pt; }
+.brief-sub:first-child { margin-top: 0; }
+.brief-note { color: var(--brief-dim); font-size: 8.5pt; margin-top: 3pt; }
+.brief-dim { color: var(--brief-dim); }
+.brief-cap { text-transform: capitalize; }
+
+.brief-ranked { list-style: none; padding: 0; counter-reset: rank; }
+.brief-ranked li {
+  counter-increment: rank;
+  display: flex; gap: var(--space-2); justify-content: space-between; align-items: baseline;
+  padding: 1.5pt 0; border-bottom: 1px dotted var(--brief-rule);
+}
+.brief-ranked li > span:first-child { min-width: 0; }
+.brief-ranked li > span:first-child::before {
+  content: counter(rank) ". "; font-family: var(--font-mono); color: var(--brief-dim);
+}
+.brief-ranked .num { color: var(--brief-dim); font-size: 8.5pt; white-space: nowrap; }
+
+/* Source labels: outlined mono caps, legible in black and white (no color carries meaning on paper). */
+.brief-src {
+  display: inline-block; flex: none;
+  font-family: var(--font-mono); font-size: 7pt; font-weight: 600;
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  border: 1px solid var(--brief-rule-strong); border-radius: var(--radius-sm);
+  padding: 0 3pt; line-height: 1.5; color: var(--brief-dim);
+}
+
+.brief-sources { list-style: none; padding: 0; display: grid; gap: 2pt; }
+.brief-sources li { max-width: none; }
+.brief-sources .brief-src { margin-right: 3pt; }
+
+/* Area: ranked lists two across; notes take the next free cell. */
+.brief-area { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6pt 0.25in; }
+.brief-area > div { min-width: 0; }
+.brief-area .brief-sub { margin-top: 0; }
+.brief-area-notes .brief-note:first-child { margin-top: 0; }
+
+.brief-aside { display: inline-flex; align-items: center; gap: 3pt; font-size: 8.5pt; color: var(--brief-dim); }
+.brief-aside svg { width: 10pt; height: 10pt; }
+
+.brief-rules { columns: 3; column-gap: 0.25in; list-style: none; padding: 0; font-size: 8.5pt; line-height: 1.25; }
+.brief-rules li { break-inside: avoid; margin-bottom: 1pt; padding-left: 0.7em; text-indent: -0.7em; }
+.brief-rules li::before { content: '\2022'; display: inline-block; width: 0.7em; text-indent: 0; color: var(--brief-dim); }
+
+/* ---- tear-off room cards ------------------------------------------------------------------ */
+
+.brief-tear {
+  margin-top: 0.14in; padding-top: 0.06in;
+  border-top: 1px dashed var(--brief-rule-strong);
+  break-inside: avoid; page-break-inside: avoid;
+}
+.brief-tear-label { font-size: 8pt; color: var(--brief-dim); }
+.brief-cards {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: 0.2in; margin-top: 0.08in;
+}
+
+.rc { margin: 0; min-width: 0; }
+.rc-large { flex: 0 1 3.3in; }
+.rc-tent { flex: 0 1 2.45in; }
+.rc-card {
+  container-type: inline-size;
+  border: 1.25px dashed var(--brief-ink);
+  background: var(--brief-paper); color: var(--brief-ink);
+  display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+  padding: 4% 6%;
+}
+.rc-large .rc-card { aspect-ratio: 3 / 2; }
+.rc-tent .rc-card { aspect-ratio: 5 / 3; }
+.rc-inn {
+  display: inline-flex; align-items: center; gap: 0.4em;
+  font-size: 4.2cqw; font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.rc-inn svg { width: 1.3em; height: 1.3em; }
+.rc-hook { font-size: 9cqw; font-weight: 700; line-height: 1.05; letter-spacing: var(--tracking-display); margin-top: 3.5cqw; }
+.rc-call { font-size: 4.6cqw; margin-top: 1.5cqw; }
+.rc-number {
+  font-size: 10cqw; font-weight: 700; line-height: 1.1; white-space: nowrap;
+  margin-top: 2.5cqw; padding: 1cqw 3cqw; border-top: 1.5px solid var(--brief-ink); border-bottom: 1.5px solid var(--brief-ink);
+}
+.rc-blank { width: 70%; padding: 0; border: 0; }
+.rc-blank span { display: block; height: 10cqw; border-bottom: 1.5px solid var(--brief-ink); }
+.rc-line { font-size: 4cqw; line-height: 1.3; margin-top: 3cqw; max-width: 30em; }
+.rc-fine { font-size: 3cqw; color: var(--brief-dim); margin-top: 2.5cqw; }
+.rc-tent .rc-inn { font-size: 5cqw; }
+.rc-tent .rc-hook { font-size: 10cqw; }
+.rc-tent .rc-call { font-size: 5.6cqw; }
+.rc-tent .rc-number { font-size: 12cqw; }
+.rc-tent .rc-line { font-size: 5cqw; }
+
+/* ---- phone width ----------------------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .brief-screen { padding: var(--space-4) var(--space-4) var(--space-12); }
+  .brief-page { padding: var(--space-5) var(--space-4); font-size: 11pt; }
+  .brief-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .brief-span2 { grid-column: 1 / -1; }
+  .brief-head-number { text-align: left; }
+  .brief-number { font-size: 22pt; }
+  .brief-rules { columns: 1; font-size: 10pt; }
+  .brief-area { grid-template-columns: minmax(0, 1fr); }
+  .rc-large, .rc-tent { flex: 1 1 100%; }
+  .brief-toolbar .btn-primary { width: 100%; }
+}
+
+/* ---- print: one letter page, nothing but the sheet -------------------------------------------- */
+
+@page { size: letter; margin: 0.6in; }
+
+@media print {
+  html, body { background: var(--paper-000) !important; color: var(--slate-800); }
+  .shell:has(.brief-page) > .topbar,
+  .shell:has(.brief-page) > .footer,
+  .shell:has(.brief-page) .skip,
+  .brief-toolbar { display: none !important; }
+  .shell:has(.brief-page) main { padding: 0 !important; margin: 0 !important; }
+  .brief-screen { padding: 0; }
+  .brief-page {
+    max-width: none; padding: 0; margin: 0;
+    border: 0; border-radius: 0; box-shadow: none;
+    font-size: 8.5pt;
+  }
+  .brief-sec h2 { font-size: 10pt; }
+  .brief-head h1 { font-size: 20pt; }
+  .brief-note { font-size: 8pt; }
+  .brief-rules { font-size: 7.5pt; line-height: 1.22; }
+  .brief-sec, .brief-tear, .rc { break-inside: avoid; page-break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
