@@ -32,7 +32,7 @@ function zonedToUtc(y, m, d, hour, zone) {
  * @param {'tonight'|'weekend'} when
  * @param {{ now?: Date, timezone: string }} opts
  * @returns {{ start: Date, end: Date }}
- *   tonight = now .. 3am next morning; weekend = Friday 5pm .. Sunday 11pm
+ *   tonight = the evening of the call's own day, 4pm to 4am (see events-nearby.js); weekend = Friday 5pm .. Sunday 11pm
  *   (or now .. Sunday 11pm when the weekend has already started).
  */
 export function timeWindow(when, { now = new Date(), timezone }) {
