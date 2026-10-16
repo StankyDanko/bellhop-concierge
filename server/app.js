@@ -50,7 +50,7 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
 export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions };
+  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret };
 
   app.get('/health', (c) => c.json({
     ok: true,

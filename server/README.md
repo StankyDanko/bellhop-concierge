@@ -318,6 +318,13 @@ swallowed.
 
 The lines never name the plus-one or guess who they are to the guest.
 
+**The pick token.** Every place also carries `pick_token`, a short HMAC (keyed by
+`CONCIERGE_TOOL_SECRET`, `lib/pick-token.js`) over its name and its `favors` value, or over the
+name and an empty favors for a solo guest. `compose_itinerary` keeps a pick's `favors` only when
+its token verifies, so the `(both)` marker can only reach a text when this tool said so. A
+favors value the model filled in, or a pick without a token, is stripped, and
+`compose_itinerary` reports how many in `favors_dropped`.
+
 **At least one pick for both.** When none of the top `take` picks is `both` and a lower
 shortlist entry is, that entry replaces the last pick (only when `take` is two or more, so the
 top pick never moves). `companion.promoted_shared_pick` names it.
@@ -408,7 +415,8 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 
 | Field | Type | Notes |
 |---|---|---|
-| `picks` | 1-5 of `{ name, why?, url?, detail? }` | in rank order; `detail` is a short label such as `when_label` |
+| `picks` | 1-5 of `{ name, why?, url?, detail?, favors?, pick_token? }` | in rank order, copied as the tools returned them; `detail` is a short label such as `when_label` |
+| (response) `favors_dropped` | number | picks whose `favors` was removed because their `pick_token` did not verify for that name and value |
 | `guest.party_size` | number | used in the header |
 | `guest.when` | `tonight` or `weekend` | used in the header |
 | `intro` | string, optional | replaces the default header |

@@ -90,7 +90,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits. Call it after resolve_taste.',
+      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste.',
       timeout: 15,
       body: {
         type: 'object',
@@ -156,7 +156,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
         properties: {
           picks: {
             type: 'array',
-            description: 'One to three picks in the order you would recommend them, copied from tool results.',
+            description: 'One to three picks in the order you would recommend them. Copy each one exactly as the tool returned it, including its pick_token. Never add or change a field.',
             items: {
               type: 'object',
               description: 'One pick.',
@@ -166,7 +166,8 @@ function serverToolSpecs(property, { propertyId, persona }) {
                 why: s('The why field from the tool result'),
                 url: s('The url field from the tool result, if there was one'),
                 detail: s('For an event, its when_label, for example Fri 8pm'),
-                favors: s('The favors field from recommend_nearby, if there was one', { enum: ['guest', 'companion', 'both'] }),
+                favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
+                pick_token: s('The pick_token field from the tool result, copied exactly'),
               },
             },
           },
