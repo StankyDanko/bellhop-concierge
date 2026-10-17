@@ -4,29 +4,56 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
-import { Banner, formatPhone, LiveBadge, PickCard, SampleBadge, telHref, Toast, ViaChip } from '../components/ui.jsx';
-import { RequestBehind } from '../components/QlooTrace.jsx';
+import { Banner, formatPhone, LiveBadge, PickCard, SampleBadge, SmsPreview, telHref, Toast, ViaChip } from '../components/ui.jsx';
+import { Counterfactual, RequestBehind } from '../components/QlooTrace.jsx';
 
 /** The eight Qloo capabilities the tool server calls (server/README.md, "How Qloo is load-bearing"). */
 const CAPABILITIES = [
   ['Entity search', 'A band name becomes a Qloo artist id.', 'GET /search'],
   ['Tag search', '"Thai food" becomes a cuisine tag.', 'GET /v2/tags'],
   ['Location-scoped insights', 'Places near the inn, ranked for this guest.', 'GET /v2/insights filter.location'],
-  ['Cross-domain affinity', 'A music taste picks a restaurant.', 'GET /v2/insights signal.* + filter.type'],
+  ['Cross-domain affinity', 'A music taste picks a restaurant, and a film to watch at the inn.', 'GET /v2/insights signal.* + filter.type'],
   ['Explainability', 'The reason shown with every pick.', 'feature.explainability=true'],
   ['Heatmap', 'Where around the inn a taste runs hottest.', 'GET /v2/insights filter.type=urn:heatmap'],
   ['Demographics', 'Which age groups lean toward guest tastes.', 'GET /v2/insights filter.type=urn:demographics'],
   ['Audience compare', 'How two kinds of guests differ.', 'GET /v2/analysis/compare'],
 ];
 
-function useSamplePick() {
+/** One GET on mount; path null waits (the demo inn id comes from /health). */
+function useGet(path) {
   const [s, setS] = useState({ state: 'loading' });
   useEffect(() => {
+    if (!path) return undefined;
     let active = true;
-    api('/sample-pick').then((r) => { if (active) setS(r.ok ? { state: 'ok', data: r.data } : { state: 'error' }); });
+    api(path).then((r) => { if (active) setS(r.ok ? { state: 'ok', data: r.data } : { state: 'error' }); });
     return () => { active = false; };
-  }, []);
+  }, [path]);
   return s;
+}
+
+const useSamplePick = () => useGet('/sample-pick');
+
+/** Proof under the call card: without and with Qloo, then the text the sample guest gets. */
+function HeroProof({ pick, itin }) {
+  const cf = pick.state === 'ok' && pick.data.places.length > 0 ? pick.data.counterfactual : null;
+  const sms = itin.state === 'ok' ? itin.data.itinerary : null;
+  if (!cf && !sms) return null;
+  return (
+    <div className="hero-proof">
+      <div className="hero-proof-grid">
+        {cf && <Counterfactual cf={cf} />}
+        {sms && (
+          <div className="hero-sms">
+            <div className="row hero-sms-head">
+              <p className="micro">The text a guest gets</p>
+              <SampleBadge>Sample</SampleBadge>
+            </div>
+            <SmsPreview itinerary={sms} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function NumberCard({ number, onCopy, cardRef, live }) {
@@ -46,7 +73,7 @@ function NumberCard({ number, onCopy, cardRef, live }) {
       <a className="number-link" href={telHref(number)} aria-label={`Call ${pretty}`}>
         <span className="the-number">{pretty}</span>
       </a>
-      <p className="caption">{live ? 'The inn is fictional. The calls and texts are real.' : 'The inn is fictional. The line is in test mode right now, so a call may not connect.'}</p>
+      <p className="caption">{live ? 'The inn is fictional. The calls and texts are real.' : 'The inn is fictional. Today the line answers with sample places until the Qloo key is live.'}</p>
       <div className="row number-actions">
         <a className="btn btn-primary btn-lg only-coarse" href={telHref(number)}><Icon name="phone" />Call now</a>
         <button type="button" className="btn btn-primary only-fine" onClick={onCopy}><Icon name="copy" />Copy number</button>
@@ -61,6 +88,8 @@ export default function Landing({ health }) {
   const number = data?.demo_number;
   const innName = data?.demo?.name ?? 'the demo inn';
   const pick = useSamplePick();
+  const demoId = data?.demo?.id;
+  const itin = useGet(health.state === 'checking' ? null : `/properties/${encodeURIComponent(demoId ?? 'demo')}/itinerary-sample`);
   const [toast, setToast] = useState('');
   const cardRef = useRef(null);
   const [showBar, setShowBar] = useState(false);
@@ -81,16 +110,21 @@ export default function Landing({ health }) {
     <div className={`container${number ? ' has-callbar' : ''}`}>
       <section className="hero" aria-labelledby="hero-h">
         <div>
+          <div className="product-intro">
+            <p className="product-name">Bellhop Concierge</p>
+            <p className="product-line">A phone concierge small inns put on the room card. Guests call, name what they love, and get three picks by text from Qloo's taste graph.</p>
+          </div>
           <div className="eyebrow-row">
             <span className="micro">{innName}, a sample inn</span>
             <LiveBadge state={health.state} lastSessionAt={data?.last_session_at} />
           </div>
           <h1 id="hero-h">Call the front desk at {innName}.</h1>
-          <p className="lead">Tell it two things you love. It texts you three places nearby, with the reason for each.</p>
+          <p className="lead">Tell it three things you love. It texts you three places nearby, with the reason for each.</p>
           <NumberCard number={number} onCopy={copy} cardRef={cardRef} live={health.state === 'answering'} />
+          <HeroProof pick={pick} itin={itin} />
           <p className="qloo-line">
             <span className="chip chip-mono chip-qloo">Qloo</span>
-            <span>Picks come from Qloo's taste graph, with the reason shown. Live events from Ticketmaster.</span>
+            <span>Picks come from Qloo's taste graph, with the reason shown. Events from Ticketmaster.</span>
           </p>
           {health.state === 'busy' && (
             <Banner tone="warning">We couldn't reach the concierge's tool server just now. The number stays the same; try again in a minute.</Banner>
@@ -112,7 +146,7 @@ export default function Landing({ health }) {
             {pick.state === 'ok' && pick.data.places.slice(0, 2).map((p, i) => <PickCard key={p.entity_id ?? p.name} place={p} defaultOpen={i === 0} />)}
           </div>
           <p className="micro" style={{ marginTop: 'var(--space-3)' }}>The real response shape from this server's recommend_nearby tool.</p>
-          {pick.state === 'ok' && pick.data.places.length > 0 && <RequestBehind request={pick.data.request} counterfactual={pick.data.counterfactual} />}
+          {pick.state === 'ok' && pick.data.places.length > 0 && <RequestBehind request={pick.data.request} />}
         </aside>
       </section>
 
@@ -139,6 +173,9 @@ export default function Landing({ health }) {
       <section className="section card card-lg" aria-labelledby="own-h">
         <div className="stack">
           <h2 id="own-h" style={{ fontSize: 'var(--text-xl)' }}>Run your own concierge in about three minutes.</h2>
+          <p className="buyer-line">
+            For the innkeeper with no night desk: "what is around here" is 9.0% of 10 million guest messages (<a href="https://www.conduit.ai/blog/what-10-million-guest-messages-are-about" target="_blank" rel="noopener noreferrer">Conduit, 2026</a>).
+          </p>
           <p className="prose dim">Answer eleven short questions, pick a voice, and see exactly what your concierge will be told before anything goes live. The safety rules are on for every inn, and you can read every one of them.</p>
           <div className="row">
             <Link to="/build" className="btn btn-primary btn-lg">Build yours</Link>

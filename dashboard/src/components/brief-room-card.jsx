@@ -21,7 +21,7 @@ export function RoomCard({ name, number, variant = 'large', label }) {
         <p className="rc-hook">Need a plan tonight?</p>
         <p className="rc-call">Call the front desk concierge</p>
         <CardNumber number={number} />
-        <p className="rc-line">Tell it two things you love. It texts you three places nearby.</p>
+        <p className="rc-line">Tell it three things you love. It texts you three places nearby.</p>
         {variant === 'large' && <p className="rc-fine">An automated line. Calls are recorded.</p>}
       </div>
     </figure>

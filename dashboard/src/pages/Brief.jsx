@@ -238,7 +238,7 @@ export default function Brief({ id, health }) {
           <Section title="What it does" className="brief-span">
             <p className="brief-prose">
               Guests call the front desk concierge from their own phone, wherever they are.
-              They name two things they love, like a band, a film, or a kind of food.
+              They name three things they love, like a band, a film, or a kind of food.
               They get one text with three places nearby and the reason for each.
             </p>
           </Section>

@@ -151,6 +151,9 @@ main { flex: 1; padding-block: var(--space-section); }
 @media (min-width: 1024px) { /* --bp-lg */
   .hero { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); }
 }
+.product-intro { display: grid; gap: var(--space-1); padding-bottom: var(--space-4); margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.product-name { font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.02em; color: var(--color-accent-text); }
+.product-line { font-size: var(--text-md); line-height: var(--leading-snug); color: var(--color-text); max-width: 40rem; }
 .eyebrow-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .hero h1 { font-size: var(--text-2xl); letter-spacing: var(--tracking-display); margin-top: var(--space-3); }
 .hero .lead { margin-top: var(--space-2); }
@@ -164,6 +167,18 @@ main { flex: 1; padding-block: var(--space-section); }
 .the-number.pending { font-size: var(--text-xl); white-space: normal; color: var(--color-text-dim); line-height: var(--leading-tight); }
 .number-card .caption { margin-top: var(--space-3); color: var(--color-text-dim); font-size: var(--text-sm); }
 .number-actions { margin-top: var(--space-4); }
+.hero-proof { container-type: inline-size; margin-top: var(--space-4); min-width: 0; }
+.hero-proof-grid { display: grid; gap: var(--space-3); min-width: 0; }
+.hero-proof-grid > * { min-width: 0; }
+.hero-proof .cf-row { grid-template-columns: minmax(0, 1fr); } /* half-width column: chip above the name */
+.hero-sms { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--r-control); border: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; }
+.hero-sms-head { justify-content: space-between; }
+.hero-sms .sms { max-width: none; }
+@container (min-width: 36rem) {
+  .hero-proof-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}
+.buyer-line { font-size: var(--text-sm); color: var(--color-text); }
+.buyer-line a { padding-block: 0.875rem; } /* inline link: larger hit area, no line shift */
 .qloo-line { margin-top: var(--space-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-taste-text); font-size: var(--text-sm); }
 .only-coarse { display: none; }
 @media (hover: none), (pointer: coarse) { .only-coarse { display: inline-flex; } .only-fine { display: none; } }
