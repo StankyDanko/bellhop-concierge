@@ -4,7 +4,7 @@ What's built, what's being built, and what waits on the Qloo key. Short on purpo
 
 ## Shipped
 
-All of it on October 15, 2026, in this order (`git log --reverse` has the details):
+October 15 to 17, 2026, in this order (`git log --reverse` has the details):
 
 - **The tool server.** Taste resolution, places near the inn, cross-domain picks, live events,
   the text composer, and area insights, over Qloo and Ticketmaster. A PII guard on every
