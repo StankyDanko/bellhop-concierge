@@ -158,6 +158,15 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 
 ---
 
+## 4c. Text opt-in (`/sms-opt-in`) **MUST**
+
+- **Purpose:** the evidence page a toll-free review asks for: how a guest gets from the room to one text, with the entity, brand, domain, and number telling one story. Not linked from the footer; linked from the Terms page and the landing shell's no-script note.
+- **Same build as 4b:** a page in `src/legal-content.js` (`SMS_OPT_IN`), rendered by `LegalPage` in-app and by `scripts/build-legal.mjs` into `dist/sms-opt-in.html`, no scripts. Two block shapes exist for it: `card` (the room card) and `quote` (words the concierge says). Card and quote styles live in `src/opt-in.css`, imported by `LegalPage` and inlined into the static copy.
+- **Top to bottom:** the card in the room (paper on any theme, 3:2, the inn name, "Need a plan tonight?", "Call the concierge:" and the toll-free number under review, "Ask for a text and the plan goes to the number you call from.", the automated-line note) and a link to the same card as `/room-card-juniper-833.png` (about 1200x800, captured from this page); what the concierge says (Harper's opener verbatim, the offer line, "only if the guest says yes"); what the guest agrees to (one text per call at most, only the calling number, about 1 to 3 a month, the plan and nothing else, STOP and HELP set apart, the never-sold sentence, the support address); links to `/privacy` and `/sms-terms`. The usual footer with the bridge sentence.
+- This is the one page that carries an email address and a phone number: the support mailbox and the toll-free line under review. `server/test/opt-in-copy.test.js` fails if the persona's opener drifts from the quoted one.
+
+---
+
 ## 5. Shared fixtures needed before design is testable (small, do first)
 
 Seeded property (name, city covered by Qloo, lat/lng), a ConfigCard JSON with provenance per field, 2 personas with a sample line, 5 and 14 session aggregates (to show both the gate and the filled state), three `area_insights` payloads (ok, one section degraded, all skipped), one `recommend_nearby` response with `why_trace.basis` of `explainability` and one of `affinity`, and one `compose_itinerary` result with a non-empty `truncation`. Mock mode (`npm run mock`) already produces the response shapes; the session aggregates and ConfigCard JSON are the new pieces.

@@ -1,4 +1,5 @@
-// Renders dashboard/src/legal-content.js into dist/privacy.html and dist/terms.html: whole
+// Renders dashboard/src/legal-content.js into dist/privacy.html, dist/terms.html, and
+// dist/sms-opt-in.html: whole
 // HTML documents with no scripts, so a reviewer's fetcher that runs no JavaScript still reads
 // the policy. The React pages render the same module, so the words cannot drift apart.
 // Runs after vite in `npm run build:dashboard` (vite empties dist/ first).
@@ -7,7 +8,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { EFFECTIVE, FOOTER, PRIVACY, REPO_URL, TERMS, segments } from '../src/legal-content.js';
+import { EFFECTIVE, FOOTER, PRIVACY, REPO_URL, SMS_OPT_IN, TERMS, segments } from '../src/legal-content.js';
 
 const DASH = fileURLToPath(new URL('..', import.meta.url));
 const DIST = `${DASH}dist`;
@@ -48,7 +49,21 @@ footer p,footer nav{font-size:var(--text-sm)}
 footer p+p,footer nav+p,footer p+nav{margin-top:.5rem}
 footer nav{display:flex;flex-wrap:wrap;gap:0 1rem}
 footer nav a{display:inline-flex;align-items:center;min-height:48px}
-.bridge{font-size:var(--text-xs)}`;
+.bridge{font-size:var(--text-xs)}
+${readFileSync(`${DASH}src/opt-in.css`, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\n\s*\n+/g, '\n')}`;
+
+// The bell from src/icons.jsx, drawn the same way.
+const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 18h14M7 18a5 5 0 0 1 10 0M12 11V9"/></svg>';
+
+function card(c) {
+  return `<figure class="oc" aria-label="Room card for ${esc(c.inn)}"><div class="oc-card">
+<p class="oc-inn">${BELL}${esc(c.inn)}</p>
+<p class="oc-hook">${esc(c.hook)}</p>
+<p class="oc-call">${esc(c.call)} <span class="oc-number">${esc(c.number)}</span></p>
+<p class="oc-line">${esc(c.line)}</p>
+<p class="oc-fine">${esc(c.fine)}</p>
+</div></figure>`;
+}
 
 function inline(value) {
   return segments(value).map((s) => {
@@ -59,6 +74,8 @@ function inline(value) {
 }
 
 function block(b) {
+  if (b.card) return card(b.card);
+  if (b.quote) return `<blockquote class="oc-quote"><p>${esc(b.quote)}</p></blockquote>`;
   if (b.ul) return `<ul>${b.ul.map((item) => `<li>${inline(item)}</li>`).join('')}</ul>`;
   if (b.key) return `<p class="key">${esc(b.key)}</p>`;
   return `<p>${inline(b.p)}</p>`;
@@ -66,7 +83,7 @@ function block(b) {
 
 function render(page) {
   const sections = page.sections.map((sec) => {
-    const id = `${page.title.toLowerCase()}-${sec.id}`;
+    const id = `${page.slug ?? page.title.toLowerCase()}-${sec.id}`;
     return `<section aria-labelledby="${id}">\n<h2 id="${id}">${esc(sec.heading)}</h2>\n${sec.blocks.map(block).join('\n')}\n</section>`;
   }).join('\n');
   return `<!doctype html>
@@ -104,7 +121,7 @@ ${sections}
 `;
 }
 
-for (const [file, page] of [['privacy.html', PRIVACY], ['terms.html', TERMS]]) {
+for (const [file, page] of [['privacy.html', PRIVACY], ['terms.html', TERMS], ['sms-opt-in.html', SMS_OPT_IN]]) {
   const html = render(page);
   writeFileSync(`${DIST}/${file}`, html);
   console.log(`dist/${file}  ${(html.length / 1024).toFixed(1)} kB`);

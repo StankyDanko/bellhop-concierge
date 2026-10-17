@@ -5,8 +5,9 @@ import Builder from './pages/Builder.jsx';
 import Landing from './pages/Landing.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Property from './pages/Property.jsx';
+import SmsOptIn from './pages/SmsOptIn.jsx';
 import Terms from './pages/Terms.jsx';
-import { FOOTER, PRIVACY, REPO_URL, TERMS } from './legal-content.js';
+import { FOOTER, PRIVACY, REPO_URL, SMS_OPT_IN, TERMS } from './legal-content.js';
 import { useHealth } from './components/ui.jsx';
 import { Link, matchBrief, usePath } from './router.jsx';
 
@@ -38,6 +39,7 @@ export default function App() {
   else if (briefId) page = <Brief id={briefId} health={health} />;
   else if (/^\/privacy\/?$/.test(path)) page = <Privacy />;
   else if (/^\/(sms-)?terms\/?$/.test(path)) page = <Terms />;
+  else if (/^\/sms-opt-in\/?$/.test(path)) page = <SmsOptIn />;
   else page = (
     <div className="container stack">
       <h1>That page isn't here.</h1>
@@ -47,7 +49,7 @@ export default function App() {
 
   useEffect(() => {
     if (briefId) return; // the brief titles itself with the inn name (the saved PDF's file name)
-    const titles = { '/': 'Bellhop Concierge', '/build': 'Build your concierge, Bellhop Concierge', [PRIVACY.path]: PRIVACY.docTitle, [TERMS.path]: TERMS.docTitle, '/sms-terms': TERMS.docTitle };
+    const titles = { '/': 'Bellhop Concierge', '/build': 'Build your concierge, Bellhop Concierge', [PRIVACY.path]: PRIVACY.docTitle, [TERMS.path]: TERMS.docTitle, '/sms-terms': TERMS.docTitle, [SMS_OPT_IN.path]: SMS_OPT_IN.docTitle };
     document.title = propMatch ? 'Property dashboard, Bellhop Concierge' : titles[path.replace(/\/$/, '') || '/'] ?? 'Bellhop Concierge';
   }, [path, propMatch, briefId]);
 

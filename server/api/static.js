@@ -17,15 +17,17 @@ const TYPES = {
 /**
  * Pages served as whole HTML documents, built from dashboard/src/legal-content.js by
  * dashboard/scripts/build-legal.mjs, so a reader that runs no JavaScript still gets the
- * policy. Checked before the app shell. `/sms-terms` is the name a carrier review asks for.
+ * policy. Checked before the app shell. `/sms-terms` is the name a carrier review asks for, and
+ * `/sms-opt-in` shows a reviewer how a guest asks for a text.
  */
 export const STATIC_PAGES = [
   { re: /^\/privacy\/?$/, file: 'privacy.html' },
   { re: /^\/(sms-)?terms\/?$/, file: 'terms.html' },
+  { re: /^\/sms-opt-in\/?$/, file: 'sms-opt-in.html' },
 ];
 
 /** Client-side routes that render the app shell (the legal pages too, if their files are missing). */
-export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/privacy\/?$/, /^\/(sms-)?terms\/?$/,/^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
+export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/privacy\/?$/, /^\/(sms-)?terms\/?$/, /^\/sms-opt-in\/?$/, /^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',

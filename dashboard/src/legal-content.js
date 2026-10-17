@@ -1,6 +1,7 @@
-// The words on /privacy and /terms, in one place. The React pages render this module, and
-// dashboard/scripts/build-legal.mjs renders the same module into dist/privacy.html and
-// dist/terms.html, the copies a fetcher that runs no JavaScript reads. Edit here only.
+// The words on /privacy, /terms, and /sms-opt-in, in one place. The React pages render this
+// module, and dashboard/scripts/build-legal.mjs renders the same module into dist/privacy.html,
+// dist/terms.html, and dist/sms-opt-in.html, the copies a fetcher that runs no JavaScript
+// reads. Edit here only.
 //
 // Every claim matches the code: server/lib/pii-guard.js (what reaches Qloo),
 // server/lib/ticketmaster.js (what reaches Ticketmaster), server/lib/sessions.js (what is
@@ -9,6 +10,8 @@
 //
 // Shapes: a page has a title, a lead, and sections. A section has blocks:
 //   { p: Inline }  a paragraph       { ul: Inline[] }  a list       { key: string }  set apart
+//   { quote: string }  words the concierge says, verbatim
+//   { card: RoomCard }  the printed room card ({ inn, hook, call, number, line, fine })
 // Inline is a string, or an array of strings and links: { text, href } leaves the site,
 // { text, to } stays in it.
 
@@ -16,6 +19,13 @@ export const EFFECTIVE = 'October 16, 2026';
 export const SITE = 'https://southernsky.cloud';
 export const REPO_URL = 'https://github.com/StankyDanko/bellhop-concierge';
 export const BRIDGE = 'Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.';
+export const SUPPORT_EMAIL = 'support@southernsky.cloud';
+/** The toll-free line under carrier review. Printed on the opt-in page's room card only. */
+export const OPT_IN_NUMBER = '(833) 658-4321';
+/** Harper's first sentence (personas/harper.md `opener`), with the demo inn's name filled in. */
+export const OPENER = 'Hi, this is Harper, the automated concierge at The Juniper House, this call is recorded, and any text I send goes only to the number you are calling from.';
+export const OFFER_LINE = "I can text the plan to the number you're calling from. Want that?";
+export const STOP_HELP = 'Reply STOP to opt out, HELP for help. Message and data rates may apply.';
 export const SMS_SENTENCE = 'Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.';
 
 /** The footer, shared by the app shell and the static pages. */
@@ -122,7 +132,7 @@ export const TERMS = {
           'Reply STOP to any text to stop them. Message and data rates may apply.',
         ] },
         { key: SMS_SENTENCE },
-        { p: ['How your number is handled is on the ', { text: 'privacy page', to: '/privacy' }, '.'] },
+        { p: ['How your number is handled is on the ', { text: 'privacy page', to: '/privacy' }, '. How a guest asks for a text, step by step, is on the ', { text: 'opt-in page', to: '/sms-opt-in' }, '.'] },
       ],
     },
     {
@@ -131,6 +141,64 @@ export const TERMS = {
       blocks: [{ p: ['The source is licensed under the GNU Affero General Public License, version 3. Read it, run it, or fork it: ', { text: 'the source on GitHub', href: REPO_URL }, '.'] }],
     },
     questions(),
+  ],
+};
+
+export const SMS_OPT_IN = {
+  path: '/sms-opt-in',
+  slug: 'opt-in',
+  title: 'How guests opt in to texts',
+  docTitle: 'Text opt-in, Bellhop Concierge',
+  description: 'How a guest of an inn on Bellhop Concierge asks for a text: the room card, the words on the call, and the consent.',
+  lead: 'Bellhop Concierge sends a text only when a guest asks for one, out loud, on a call to the inn. Here is every step the guest sees and hears, from the card in the room to the text.',
+  sections: [
+    {
+      id: 'card',
+      heading: 'The card in the room',
+      blocks: [
+        { p: 'The inn sets this card in the guest room. It is how a guest finds the number to call.' },
+        { card: {
+          inn: 'The Juniper House',
+          hook: 'Need a plan tonight?',
+          call: 'Call the concierge:',
+          number: OPT_IN_NUMBER,
+          line: 'Ask for a text and the plan goes to the number you call from.',
+          fine: 'An automated line. Calls are recorded.',
+        } },
+        { p: ['The same card as an image: ', { text: 'room-card-juniper-833.png', to: '/room-card-juniper-833.png' }, '.'] },
+      ],
+    },
+    {
+      id: 'script',
+      heading: 'What the concierge says',
+      blocks: [
+        { p: 'The first sentence of every call:' },
+        { quote: OPENER },
+        { p: 'When the plan is ready, the concierge asks before it sends anything:' },
+        { quote: OFFER_LINE },
+        { p: 'The text goes out only if the guest says yes.' },
+      ],
+    },
+    {
+      id: 'consent',
+      heading: 'What the guest agrees to',
+      blocks: [
+        { ul: [
+          'One text per call at most, sent only after the guest says yes.',
+          'Only to the number the guest is calling from. The concierge cannot text any other number, and it never asks for one.',
+          'About 1 to 3 texts per month per guest.',
+          'The text is the plan the guest asked for: the picks by name, and a reason where it fits. No marketing.',
+        ] },
+        { key: STOP_HELP },
+        { key: SMS_SENTENCE },
+        { p: ['Support: ', { text: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` }, '.'] },
+      ],
+    },
+    {
+      id: 'more',
+      heading: 'The rest of the policy',
+      blocks: [{ p: ['How a number is handled is on the ', { text: 'privacy page', to: '/privacy' }, '. The text program terms are on the ', { text: 'SMS terms page', to: '/sms-terms' }, '.'] }],
+    },
   ],
 };
 

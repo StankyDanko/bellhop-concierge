@@ -85,6 +85,21 @@ try {
       `${path} carries the SMS sentence and the bridge sentence without JavaScript`);
     check(!/<script/i.test(html) && html.includes(`<h1 id="legal-title">${title}</h1>`), `${path} is the ${title} page, with no scripts`);
   }
+  // The opt-in evidence page: the room card, the spoken lines, and the consent, with no scripts.
+  {
+    const res = await fetch(`${BASE}/sms-opt-in`);
+    const html = await res.text();
+    check(res.status === 200 && /^<!doctype html>/i.test(html) && !/<script/i.test(html), '/sms-opt-in returns a whole HTML document with no scripts');
+    for (const words of ['<h1 id="legal-title">How guests opt in to texts</h1>', 'The Juniper House', 'Call the concierge: <span class="oc-number">(833) 658-4321</span>',
+      'Ask for a text and the plan goes to the number you call from', 'any text I send goes only to the number you are calling from',
+      'Reply STOP to opt out, HELP for help. Message and data rates may apply.', 'support@southernsky.cloud',
+      'a service of E Brands, LLC.', 'href="/privacy"', 'href="/sms-terms"']) {
+      check(html.includes(words), `/sms-opt-in carries ${JSON.stringify(words.slice(0, 60))}`);
+    }
+    const png = await fetch(`${BASE}/room-card-juniper-833.png`);
+    const sig = Buffer.from(await png.arrayBuffer()).subarray(0, 8).toString('hex');
+    check(png.status === 200 && png.headers.get('content-type') === 'image/png' && sig === '89504e470d0a1a0a', '/room-card-juniper-833.png is served as a PNG');
+  }
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
 } finally {

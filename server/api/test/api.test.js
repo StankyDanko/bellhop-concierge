@@ -342,4 +342,20 @@ describe('static dashboard', () => {
     const unbuilt = build();
     assert.equal((await unbuilt.req('GET', '/build')).status, 503);
   });
+
+  it('serves the opt-in page as its own document, and the app shell when that file is missing', async () => {
+    const dist = mkdtempSync(join(tmpdir(), 'dash-'));
+    writeFileSync(join(dist, 'index.html'), '<!doctype html><div data-live-badge></div>');
+    const shell = build({ distDir: dist });
+    for (const p of ['/sms-opt-in', '/sms-opt-in/']) {
+      const r = await shell.req('GET', p);
+      assert.equal(r.status, 200, p);
+      assert.match(r.text, /data-live-badge/);
+    }
+    writeFileSync(join(dist, 'sms-opt-in.html'), '<!doctype html><h1 id="legal-title">How guests opt in to texts</h1>');
+    const r = await build({ distDir: dist }).req('GET', '/sms-opt-in');
+    assert.equal(r.status, 200);
+    assert.match(r.text, /How guests opt in to texts/);
+    assert.match(r.headers.get('content-type'), /text\/html/);
+  });
 });
