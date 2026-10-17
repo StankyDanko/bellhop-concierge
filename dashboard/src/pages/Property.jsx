@@ -268,7 +268,7 @@ export default function Property({ id, health }) {
   return (
     <div className="container">
       <header className="prop-head">
-        <p className="micro" style={{ width: '100%' }}>Host dashboard{isDemo ? ', sample inn' : ''}</p>
+        <p className="micro" style={{ width: '100%' }}>Innkeeper dashboard{isDemo ? ', sample inn' : ''}</p>
         <h1>{cfg.property.name}</h1>
         <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} />
         <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Draft'}</span>

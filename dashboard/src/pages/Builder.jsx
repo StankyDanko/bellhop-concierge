@@ -1,4 +1,4 @@
-// `/build`: the typed host interview (Q0 to Q11), guardrails, persona, preview, publish.
+// `/build`: the typed innkeeper interview (Q0 to Q11), guardrails, persona, preview, publish.
 // The draft lives in this browser until it is saved; Preview compiles it on the server
 // without writing anything (DESIGN-LANGUAGE.md 5.3 to 5.9, R8 section 5).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
