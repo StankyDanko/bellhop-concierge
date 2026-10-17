@@ -165,6 +165,7 @@ export const SMS_OPT_IN = {
           line: 'Ask for a text and the plan goes to the number you call from.',
           fine: 'An automated line. Calls are recorded.',
         } },
+        { p: 'Toll-free number, pending carrier approval. Today\'s test line is (706) 810-9262.' },
         { p: ['The same card as an image: ', { text: 'room-card-juniper-833.png', to: '/room-card-juniper-833.png' }, '.'] },
       ],
     },

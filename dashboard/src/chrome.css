@@ -1,0 +1,3 @@
+/* Tap targets for the footer links and the theme toggle: padding, not font size. */
+.theme-toggle { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.footer-links a { min-height: 44px; min-width: 44px; padding-inline: 0.25rem; justify-content: center; }

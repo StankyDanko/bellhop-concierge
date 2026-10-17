@@ -29,6 +29,12 @@ export const STATIC_PAGES = [
 /** Client-side routes that render the app shell (the legal pages too, if their files are missing). */
 export const APP_ROUTES = [/^\/$/, /^\/build\/?$/, /^\/privacy\/?$/, /^\/(sms-)?terms\/?$/, /^\/sms-opt-in\/?$/, /^\/property\/[a-z0-9-]{1,40}\/?$/, /^\/property\/[a-z0-9-]{1,40}\/brief\/?$/];
 
+/** Names a reader is likely to type, sent to the real route. */
+export const REDIRECTS = [
+  { re: /^\/builder\/?$/, to: '/build' },
+  { re: /^\/brief\/?$/, to: '/property/demo/brief' },
+];
+
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -51,6 +57,8 @@ export function serveDashboard(app, { distDir = DEFAULT_DIST } = {}) {
 
   app.get('*', async (c, next) => {
     const path = decodeURIComponent(new URL(c.req.url).pathname);
+    const moved = REDIRECTS.find((r) => r.re.test(path));
+    if (moved) return c.redirect(moved.to, 301);
     const legal = STATIC_PAGES.find((p) => p.re.test(path));
     if (legal && existsSync(join(root, legal.file))) return send(c, join(root, legal.file), 'no-cache');
     if (APP_ROUTES.some((re) => re.test(path))) {

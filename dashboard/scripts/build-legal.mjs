@@ -10,6 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { EFFECTIVE, FOOTER, PRIVACY, REPO_URL, SMS_OPT_IN, TERMS, segments } from '../src/legal-content.js';
 
+const SHARE_IMAGE = 'https://concierge.southernsky.cloud/share.png';
 const DASH = fileURLToPath(new URL('..', import.meta.url));
 const DIST = `${DASH}dist`;
 if (!existsSync(DIST)) { console.error('dashboard/dist is missing: run vite build first'); process.exit(1); }
@@ -31,6 +32,10 @@ a{color:var(--color-accent-text);text-underline-offset:.18em}
 .wrap{max-width:calc(var(--prose-max) + 2rem);margin:0 auto;padding:0 1rem}
 .top{border-bottom:1px solid var(--color-border);background:var(--color-surface)}
 .top a{display:inline-flex;align-items:center;min-height:48px;font-weight:600;color:var(--color-text);text-decoration:none}
+.topnav{display:flex;flex-wrap:wrap;align-items:center;column-gap:1.25rem}
+.topnav .wordmark{gap:.5rem;margin-right:auto}
+.topnav .wordmark svg{width:20px;height:20px}
+.topnav a:not(.wordmark){font-weight:500;color:var(--color-text-dim)}
 main.wrap{padding:2rem 1rem 4rem}
 .eyebrow{font-size:var(--text-xs);font-weight:600;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--color-text-dim)}
 h1{font-size:var(--text-2xl);line-height:1.15;margin-top:.5rem}
@@ -94,11 +99,20 @@ function render(page) {
 <meta name="color-scheme" content="light dark">
 <title>${esc(page.docTitle)}</title>
 <meta name="description" content="${esc(page.description)}">
+<meta property="og:site_name" content="SouthernSky">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${esc(page.docTitle)}">
+<meta property="og:description" content="${esc(page.description)}">
+<meta property="og:image" content="${SHARE_IMAGE}">
+<meta property="og:image:width" content="1800">
+<meta property="og:image:height" content="1200">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
 <style>${CSS}</style>
 </head>
 <body>
-<div class="top"><div class="wrap"><a href="/">Bellhop Concierge</a></div></div>
+<div class="top"><div class="wrap"><nav class="topnav" aria-label="Main"><a class="wordmark" href="/">${BELL}Bellhop Concierge</a><a href="/property/demo">Dashboard</a><a href="${esc(REPO_URL)}" rel="noopener">Source</a></nav></div></div>
 <main class="wrap">
 <article aria-labelledby="legal-title">
 <header>
@@ -112,7 +126,7 @@ ${sections}
 </main>
 <footer><div class="wrap">
 <p>${esc(FOOTER.edition)}</p>
-<nav aria-label="Site"><a href="${esc(REPO_URL)}" rel="noopener">Source</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>
+<nav aria-label="Site"><a href="${esc(REPO_URL)}" rel="noopener">Source</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://devpost.com/software/bellhop-concierge" rel="noopener">Devpost</a></nav>
 <p>${esc(FOOTER.sources)}</p>
 <p class="bridge">${esc(FOOTER.bridge)}</p>
 </div></footer>

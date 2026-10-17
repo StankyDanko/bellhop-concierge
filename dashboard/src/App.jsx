@@ -9,7 +9,10 @@ import SmsOptIn from './pages/SmsOptIn.jsx';
 import Terms from './pages/Terms.jsx';
 import { FOOTER, PRIVACY, REPO_URL, SMS_OPT_IN, TERMS } from './legal-content.js';
 import { useHealth } from './components/ui.jsx';
+import './chrome.css';
 import { Link, matchBrief, usePath } from './router.jsx';
+
+const DEVPOST_URL = 'https://devpost.com/software/bellhop-concierge';
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'light');
@@ -19,7 +22,7 @@ function ThemeToggle() {
   }, [theme]);
   const next = theme === 'dark' ? 'light' : 'dark';
   return (
-    <button type="button" className="btn-text" onClick={() => setTheme(next)} aria-label={`Switch to ${next} theme`} style={{ background: 'none', border: 0, cursor: 'pointer' }}>
+    <button type="button" className="btn-text theme-toggle" onClick={() => setTheme(next)} aria-label={`Switch to ${next} theme`} style={{ background: 'none', border: 0, cursor: 'pointer' }}>
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} width="18" height="18" />
       <span className="visually-hidden">{next} theme</span>
     </button>
@@ -77,6 +80,7 @@ export default function App() {
             <a href={repo ?? REPO_URL} rel="noopener">Source</a>
             <Link to="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</Link>
             <Link to="/terms" aria-current={path === '/terms' ? 'page' : undefined}>Terms</Link>
+            <a href={DEVPOST_URL} rel="noopener">Devpost</a>
           </nav>
           <p>{FOOTER.sources}</p>
           <p className="footer-bridge">{FOOTER.bridge}</p>
