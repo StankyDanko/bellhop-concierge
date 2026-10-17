@@ -48,6 +48,10 @@ try {
     check(res.status === 200, `${path} returns 200`);
     check(/data-live-badge/.test(html) && /data-state="checking"/.test(html), `${path} carries the live badge markup (neutral until the app checks)`);
     check(/<script type="module"[^>]+src="\/assets\//.test(html), `${path} loads the built bundle`);
+    // A reader that runs no JavaScript still sees who stands behind the site.
+    check(html.includes('Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.') && html.includes('<meta property="og:site_name" content="SouthernSky"'),
+      `${path} carries the bridge sentence and the site name in the served HTML`);
+    check(html.includes('<title>Bellhop Concierge</title>'), `${path} keeps the title Bellhop Concierge`);
   }
   const h = await (await fetch(`${BASE}/api/health-summary`)).json();
   check(h.ok === true && ['test', 'answering', 'busy'].includes(h.line?.state), `/api/health-summary line state = ${h.line?.state}`);
