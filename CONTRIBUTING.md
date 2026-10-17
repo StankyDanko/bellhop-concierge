@@ -20,7 +20,7 @@ That points git at `scripts/githooks/`. Two hooks live there, and every commit p
   and stops on an em dash, on "AI", or on a word from the local denylist.
 - Reads every line the commit adds, looking for anything that looks like a key, a real
   `X-Api-Key` value, a server address, a login, a home directory, a phone number, or an email.
-  The public demo number is allowed.
+  The public demo numbers and the support address are allowed.
 - Runs `npm test` when code changed.
 
 **commit-msg**

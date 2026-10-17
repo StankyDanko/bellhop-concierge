@@ -74,8 +74,8 @@ leak "a secret written in the clear" "(?i)\\b(api_?key|secret|token|password|aut
 leak "a server address"           '\b(?!(?:10|127|0)\.)(?!192\.168\.)(?!172\.(?:1[6-9]|2\d|3[01])\.)(?!169\.254\.)(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b'
 leak "a login on a server"        '\b[a-z_][a-z0-9_-]*@(?:\d{1,3}\.){3}\d{1,3}\b'
 leak "a home directory path"      '(/home/[a-z_][a-z0-9_-]*|/Users/[A-Za-z][A-Za-z0-9_-]*)/'
-leak "a phone number"             '(\+1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(\d{3}\)\s?\d{3}[\s.-]\d{4})' '706\D{0,3}810\D?9262|555\D?01\d\d'
-leak "an email address"           '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' '@(example\.(com|org|net)|users\.noreply\.github\.com)\b'
+leak "a phone number"             '(\+1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(\d{3}\)\s?\d{3}[\s.-]\d{4})' '706\D{0,3}810\D?9262|833\D{0,3}658\D?4321|555\D?01\d\d'
+leak "an email address"           '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' '@(example\.(com|org|net)|users\.noreply\.github\.com)\b|\bsupport@southernsky\.cloud\b'
 
 # 4. Code changed? Then the tests run. (Build and smoke are on you; see CONTRIBUTING.md.)
 if printf '%s\n' "${staged[@]}" | grep -q -E '\.(js|jsx|mjs|json)$|^(template|personas|config)/'; then
