@@ -104,6 +104,142 @@
       }
     },
     {
+      "match": {
+        "filter.query": "lively"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:lively",
+              "name": "Lively",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "fun"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:fun",
+              "name": "Fun",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "relaxed"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:relaxed",
+              "name": "Relaxed",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "romantic"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:romantic",
+              "name": "Romantic",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "intimate"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:intimate",
+              "name": "Intimate",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "quiet"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:quiet",
+              "name": "Quiet",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "adventurous"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:adventurous",
+              "name": "Adventurous",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "comfort food"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:keyword:place:comfort_food",
+              "name": "Comfort Food",
+              "type": "urn:tag:keyword:place"
+            }
+          ]
+        }
+      }
+    },
+    {
       "match": {},
       "response": {
         "success": true,

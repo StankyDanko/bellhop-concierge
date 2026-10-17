@@ -37,6 +37,7 @@ import { redactParams } from './log.js';
  * @property {number} ms
  * @property {number} results                   how many items came back
  * @property {string} [error]                   error code when the request failed
+ * @property {string} [mapped_from]             the guest's phrase this request was mapped from (a vibe phrase sent to /v2/tags one word at a time)
  */
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,16 @@ export async function withTrace(tool, fn) {
   }
 }
 
+/**
+ * Run fn so every trace entry it opens carries the fields in note, e.g. { mapped_from }.
+ * Outside a trace it simply runs fn.
+ * @template T @param {{ mapped_from?: string }} note @param {() => Promise<T>} fn @returns {Promise<T>}
+ */
+export function withTraceNote(note, fn) {
+  const ctx = traceStore.getStore();
+  return ctx ? traceStore.run({ ...ctx, note }, fn) : fn();
+}
+
 /** The params as they appear in a trace: credential-shaped keys are dropped, not masked. */
 export function traceParams(params) {
   /** @type {Record<string,string>} */
@@ -90,7 +101,7 @@ function openTraceEntry(service, endpoint, params, mock) {
   if (!ctx || !TRACE_SOURCES.includes(service)) return null;
   /** @type {TraceEntry} */
   const entry = { n: ctx.trace.length + 1, tool: ctx.tool, source: service, endpoint, params: traceParams(params),
-    mode: mock ? 'mock' : 'live', cache: 'miss', ms: 0, results: 0 };
+    mode: mock ? 'mock' : 'live', cache: 'miss', ms: 0, results: 0, ...ctx.note };
   ctx.trace.push(entry);
   return entry;
 }

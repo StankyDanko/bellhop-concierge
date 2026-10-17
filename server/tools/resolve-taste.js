@@ -9,9 +9,16 @@
 // the way a guest means it. The kind word still counts: a match is kept only when its type
 // fits ("films" takes a movie or a person, "music" an artist or a person), so "jazz music"
 // cannot become a movie called Jazz. Anything that does not fit falls through to tags.
+//
+// A vibe phrase ("spicy and loud", "slow and candlelit") is the guest's answer to a two way
+// food choice. It is a mood, not a name, so it never goes to /search. Each taste word in it
+// goes to /v2/tags on its own, under the tag words in VIBE_PHRASES, and the trace entry
+// records the phrase it came from. Budget words ("splurge", "easy") are not tastes: they come
+// back as preferences and are never sent upstream.
 
 import { arr } from '../lib/validate.js';
 import { InputError } from '../lib/errors.js';
+import { withTraceNote } from '../lib/upstream.js';
 
 /** Words that mark a mention as a category (tag) rather than a named entity. */
 const CATEGORY_WORDS = /\b(food|cuisine|music|movies?|films?|restaurants?|bars?|places?|spots?|dining|vibes?|shows?|books?|podcasts?|style|scene)\b/i;
@@ -57,6 +64,49 @@ export function spokenList(items) {
   return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
 }
 
+/**
+ * Each taste word a guest uses to answer a food choice, with the /v2/tags search words it
+ * stands for, in the order tried. The first word that finds a tag wins; the rest are only
+ * asked when it finds nothing. Phrases are built from these words, so "spicy and loud",
+ * "loud and fun", and "kind of quiet" all resolve without being listed one by one.
+ */
+export const VIBE_PHRASES = Object.freeze({
+  spicy: ['spicy'],
+  loud: ['lively'],
+  fun: ['fun'],
+  slow: ['relaxed'],
+  candlelit: ['romantic', 'intimate'],
+  quiet: ['quiet'],
+  adventurous: ['adventurous'],
+  familiar: ['comfort food'],
+});
+
+/** Budget words: what the guest wants to spend, never a taste and never sent upstream. */
+export const BUDGET_WORDS = Object.freeze({ splurge: 'splurge', easy: 'easy' });
+
+/** Words that join or soften a vibe phrase and carry no taste of their own. */
+const VIBE_FILLER = new Set(['and', 'or', 'but', 'good', 'kind', 'of', 'sort', 'a', 'bit', 'little', 'really', 'very', 'pretty', 'more', 'something', 'somewhere', 'nice']);
+
+/**
+ * "spicy and loud" -> { tastes: ['spicy', 'loud'], budget: null }. Null unless every word
+ * is a vibe word, a budget word, or filler, so "Quiet Riot" and "spicy food" are not vibes.
+ * Both budget words at once ("splurge or easy") is no budget at all.
+ * @param {string} mention
+ * @returns {{ tastes: string[], budget: string|null } | null}
+ */
+export function vibeOf(mention) {
+  const words = tokens(mention);
+  const tastes = [];
+  const budgets = new Set();
+  for (const w of words) {
+    if (Object.hasOwn(VIBE_PHRASES, w)) { if (!tastes.includes(w)) tastes.push(w); }
+    else if (Object.hasOwn(BUDGET_WORDS, w)) budgets.add(BUDGET_WORDS[w]);
+    else if (!VIBE_FILLER.has(w)) return null;
+  }
+  if (!tastes.length && !budgets.size) return null;
+  return { tastes, budget: budgets.size === 1 ? [...budgets][0] : null };
+}
+
 const sentenceCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -86,7 +136,45 @@ export async function resolveTaste(body, { qloo }) {
   /** @type {import('../lib/upstream.js').CallRecord[]} */
   const calls = [];
 
-  const resolveOne = async (mention) => {
+  /** @type {{ budget?: string }} */
+  const preferences = {};
+  /** One request per tag word per call, however many phrases use it. */
+  const tagAsks = new Map();
+  const askTags = (query, phrase) => {
+    if (!tagAsks.has(query)) {
+      tagAsks.set(query, withTraceNote({ mapped_from: phrase }, () => qloo.tags({ query, take: 3 }))
+        .then(({ tags, call }) => { calls.push(call); return tags; }));
+    }
+    return tagAsks.get(query);
+  };
+
+  /** A vibe phrase: each taste word to /v2/tags, never /search. Items carry the guest's words. */
+  const resolveVibe = async (mention, vibe, who) => {
+    if (vibe.budget && who === 'guest') preferences.budget = vibe.budget;
+    const items = await Promise.all(vibe.tastes.map(async (word) => {
+      for (const query of VIBE_PHRASES[word]) {
+        const tags = await askTags(query, mention);
+        if (tags.length) {
+          const t = tags[0];
+          return { mention, kind: 'tag', id: t.tag_id, entity_id: null, tag_id: t.tag_id,
+            name: sentenceCase(word), type: 'tag', confidence: round2(Math.max(0.5, similarity(query, t.name))) };
+        }
+      }
+      return null;
+    }));
+    const found = items.filter(Boolean);
+    if (found.length) return { items: found, say: mention };
+    return vibe.tastes.length ? null : { items: [], say: null };
+  };
+
+  const resolveOne = async (mention, who) => {
+    const vibe = vibeOf(mention);
+    if (vibe) return resolveVibe(mention, vibe, who);
+    const one = await resolveNamed(mention);
+    return one ? { items: [one], say: one.name } : null;
+  };
+
+  const resolveNamed = async (mention) => {
     const named = nameCore(mention);
     if (named) {
       const { entities, call } = await qloo.search({ query: named.core, take: 3 });
@@ -136,26 +224,30 @@ export async function resolveTaste(body, { qloo }) {
   };
 
   const [results, companionResults] = await Promise.all([
-    Promise.all(mentions.map(resolveOne)),
-    Promise.all(companionMentions.map(resolveOne)),
+    Promise.all(mentions.map((m) => resolveOne(m, 'guest'))),
+    Promise.all(companionMentions.map((m) => resolveOne(m, 'companion'))),
   ]);
-  const resolved = results.filter(Boolean);
+  const itemsOf = (list) => list.filter(Boolean).flatMap((r) => r.items);
+  /** The say-back: each mention once, in the guest's words for a vibe phrase. */
+  const echoOf = (list) => spokenList([...new Set(list.filter(Boolean).map((r) => r.say).filter(Boolean))]);
+  const resolved = itemsOf(results);
   const unresolved = mentions.filter((_, i) => !results[i]);
 
   /** @type {Record<string, unknown>} */
   const companion = {};
   if (companionMentions.length) {
-    const companionResolved = companionResults.filter(Boolean).map((r) => ({ ...r, who: 'companion' }));
+    const companionResolved = itemsOf(companionResults).map((r) => ({ ...r, who: 'companion' }));
     companion.companion_resolved = companionResolved;
     companion.companion_unresolved = companionMentions.filter((_, i) => !companionResults[i]);
-    companion.companion_echo_line = spokenList(companionResolved.map((r) => r.name));
+    companion.companion_echo_line = echoOf(companionResults);
   }
 
   return {
-    status: resolved.length || companion.companion_resolved?.length ? 'ok' : 'empty',
+    status: resolved.length || companion.companion_resolved?.length || preferences.budget ? 'ok' : 'empty',
     resolved,
     unresolved,
-    echo_line: spokenList(resolved.map((r) => r.name)),
+    echo_line: echoOf(results),
+    ...(preferences.budget ? { preferences } : {}),
     ...companion,
     calls,
   };

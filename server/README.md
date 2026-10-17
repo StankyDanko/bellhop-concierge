@@ -196,6 +196,13 @@ mention and the matched name), so the agent can confirm a weak match out loud.
 The `resolved` items are the `taste` input of the next three tools: pass them back as they
 are (`{ id, name }` is enough; bare id strings also work).
 
+A vibe phrase, the guest's answer to a two way food choice such as "spicy and loud", never
+goes to `/search`. Each taste word goes to `/v2/tags` on its own, under the tag words in
+`VIBE_PHRASES` (`server/tools/resolve-taste.js`), and each of those trace entries carries
+`mapped_from: "spicy and loud"`. The say-back line repeats the guest's words, and budget
+words ("splurge", "easy") come back as `preferences: { "budget": "splurge" }` without
+being sent upstream.
+
 ### `recommend_nearby`
 
 Places near the property, ranked by Qloo affinity for this guest's taste.
