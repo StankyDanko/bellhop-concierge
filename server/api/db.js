@@ -1,4 +1,4 @@
-// Dashboard storage: one SQLite file in server/data/ holding the host configs
+// Dashboard storage: one SQLite file in server/data/ holding the innkeeper configs
 // (`properties`). The `sessions` table in the same file is written by the log_session
 // tool (server/lib/sessions.js); the dashboard only reads it, and reads it defensively,
 // because a fresh install has no sessions table until the first call is logged.
