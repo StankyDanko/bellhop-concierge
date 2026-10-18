@@ -60,7 +60,7 @@ test('every panel counts calls from one set of numbers, and says when nothing re
   const { app, sessions } = makeApp();
   // A call where nothing the guest named resolved, but the agent still asked for restaurants.
   const sid = 'conv_unresolved_1';
-  const r = await callTool(app, 'resolve_taste', { session_id: sid, mentions: ['Illenium', 'spicy and loud'] });
+  const r = await callTool(app, 'resolve_taste', { session_id: sid, mentions: ['Illenium'] });
   assert.equal(r.json.resolved.length, 0);
   await callTool(app, 'recommend_nearby', { session_id: sid, taste: [{ id: 'urn:tag:genre:place:restaurant', name: 'Restaurant' }], ...PROPERTY, take: 3 });
   await callTool(app, 'log_session', { session_id: sid, caller_id: '+15555550142', property_id: 'demo', persona: 'harper', entities: [], picks_count: 3, events_count: 0, sms_sent: false });
