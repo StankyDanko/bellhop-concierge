@@ -12,6 +12,31 @@ import '../trace.css';
 
 const SOURCE_LABEL = { qloo: 'Qloo', ticketmaster: 'Ticketmaster' };
 
+export const MOCK_NOTE = 'Mock mode: names outside the sample set resolve to nothing until the Qloo key is live.';
+
+/**
+ * True for a call whose every taste lookup came back empty from the mock fixtures: the
+ * guest named something outside the sample set, so nothing could resolve.
+ * @param {Array<{ tool?: string, mode?: string, results?: number }>} trace
+ */
+export function unresolvedInMock(trace) {
+  const resolves = (trace ?? []).filter((e) => e.tool === 'resolve_taste');
+  return resolves.length > 0 && resolves.every((e) => e.mode === 'mock' && !e.results);
+}
+
+export function MockNote() {
+  return <p className="mock-note">{MOCK_NOTE}</p>;
+}
+
+/** What a request was for, read from its own params, so the trace explains itself. */
+function purposeOf(e) {
+  const p = e.params ?? {};
+  if (p['filter.results.entities']) return 'Scored for one person';
+  if (e.tool === 'cross_domain') return `Cross-domain: ${String(p['filter.type'] ?? '').split(':').at(-1) || 'other'}`;
+  if (e.endpoint === '/v2/insights' && !Object.keys(p).some((k) => k.startsWith('signal.'))) return 'No taste signal';
+  return null;
+}
+
 function ParamList({ params }) {
   const entries = Object.entries(params ?? {});
   if (!entries.length) return <span className="dim">no params</span>;
@@ -50,6 +75,8 @@ export function TraceTable({ trace }) {
               <SourceChip source={SOURCE_LABEL[e.source] ?? e.source} />
               <code className="trace-endpoint">GET {e.endpoint}</code>
               <span className="micro mono">{e.tool}</span>
+              {e.mapped_from && <span className="micro mono trace-mapped">from "{e.mapped_from}"</span>}
+              {purposeOf(e) && <span className="chip chip-taste trace-purpose">{purposeOf(e)}</span>}
             </span>
             <ParamList params={e.params} />
             <Facts e={e} />
@@ -65,7 +92,7 @@ export function Counterfactual({ cf }) {
   if (!cf) return null;
   return (
     <div className="cf" aria-label="What this guest would have heard without their tastes">
-      <p className="micro">Without Qloo, and with it</p>
+      <p className="micro">Without your tastes, and with them</p>
       {!cf.same && (
         <dl className="cf-pair">
           <div className="cf-row">
@@ -84,7 +111,7 @@ export function Counterfactual({ cf }) {
 }
 
 /** "Qloo calls (n)" toggle with the trace and counterfactual inside. */
-export function SessionTrace({ trace, counterfactual, defaultOpen = false }) {
+export function SessionTrace({ trace, counterfactual, defaultOpen = false, note = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
   const n = trace?.length ?? 0;
@@ -95,6 +122,7 @@ export function SessionTrace({ trace, counterfactual, defaultOpen = false }) {
         <Icon name="chev" className="chev" />
       </button>
       <div id={id} className="trace-body" hidden={!open}>
+        {note && <MockNote />}
         <TraceTable trace={trace} />
         <Counterfactual cf={counterfactual} />
       </div>
@@ -102,18 +130,58 @@ export function SessionTrace({ trace, counterfactual, defaultOpen = false }) {
   );
 }
 
+const FAVORS_CHIP = { both: 'For both', guest: 'Leans to the guest', companion: 'For the plus-one' };
+const SIGNED_AS = { guest: 'as leaning to the guest', companion: 'as one for the plus-one' };
+
 /** The sample call, from server/fixtures/sample-session.json, always badged. */
 export function SampleSessionCard({ session }) {
   if (!session) return null;
+  const plusOne = session.companion_mentions?.length > 0;
+  const film = session.cross_domain;
+  const signed = session.signed_text;
   return (
     <article className="card trace-sample" aria-label="A sample call">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h3>{session.label ?? 'Sample call'}</h3>
         <SampleBadge>Sample</SampleBadge>
       </div>
-      <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>
-        A made-up guest who named {session.entities.join(' and ')}. This is how every real call appears here: each request the concierge sent to Qloo, exactly as sent.
+      <p className="dim sample-lede">
+        A made-up guest who named {session.entities.join(' and ')}{plusOne ? `, calling for two. The plus-one loves ${session.companion_mentions.join(' and ')}` : ''}. This is how every real call appears here: each request the concierge sent to Qloo, exactly as sent.
       </p>
+      {session.picks?.length > 0 && (
+        <div className="sample-grid">
+          <section className="sample-block" aria-label="What the guest heard">
+            <p className="micro">What the guest heard</p>
+            <ol className="sample-picks">
+              {session.picks.map((p) => (
+                <li key={p.name}>
+                  <p className="sample-pick-head"><strong>{p.name}</strong>{p.favors && <span className={`chip ${p.favors === 'both' ? 'chip-taste' : ''}`}>{FAVORS_CHIP[p.favors] ?? p.favors}</span>}</p>
+                  <p className="dim sample-pick-why">{p.why}.{p.favors_line ? ` "${p.favors_line}"` : ''}</p>
+                </li>
+              ))}
+            </ol>
+            {plusOne && <p className="micro sample-foot">Each pick scored once per person, one Qloo call each. Nobody is named.</p>}
+          </section>
+          {film && (
+            <section className="sample-block" aria-label="Cross-domain pick">
+              <p className="micro">A film to watch at the inn</p>
+              <p className="sample-pick-head"><strong>{film.name}</strong>{film.year && <span className="dim tnum">{film.year}</span>}<SourceChip source="Qloo" /></p>
+              <p className="dim sample-pick-why">{film.why}. Music taste in, a film out: one domain's signals, another's filter.type.</p>
+            </section>
+          )}
+        </div>
+      )}
+      {signed && (
+        <section className="sample-signed" aria-label="Signed picks">
+          <p className="sample-signed-line"><Icon name="check" />Every pick carries a signed token. A claim the server did not sign is dropped before the text goes out.</p>
+          {signed.dropped && (
+            <p className="dim sample-pick-why">
+              Here the text asked to print <code>{signed.dropped.claim}</code>. The server signed that pick {SIGNED_AS[signed.dropped.signed_for] ?? 'without that claim'}, not for both, so <code>(both)</code> was dropped and the pick went out by name.
+            </p>
+          )}
+          {signed.body && <p className="sms sample-sms" aria-label="The text this sample guest got">{signed.body}</p>}
+        </section>
+      )}
       <SessionTrace trace={session.trace} counterfactual={session.counterfactual} defaultOpen />
     </article>
   );

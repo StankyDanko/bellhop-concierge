@@ -5,20 +5,27 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
-import { Counterfactual, SampleSessionCard, SessionTrace, TraceTable } from '../components/QlooTrace.jsx';
-import { BasisTag, FingerprintCard } from '../components/Fingerprint.jsx';
+import { Counterfactual, MockNote, SampleSessionCard, SessionTrace, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
+import { BasisTag, FingerprintCard, tasteCountText } from '../components/Fingerprint.jsx';
+import '../property.css';
+
+/** What the guest named, or a muted "none resolved" rather than a blank. */
+function Tastes({ entities }) {
+  return entities.length ? entities.join(', ') : <span className="none-resolved">none resolved</span>;
+}
 
 /** One Calls table row plus its expandable Qloo trace row. */
 function SessionTableRow({ s }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const n = s.trace?.length ?? 0;
+  const mock = unresolvedInMock(s.trace);
   return (
     <Fragment>
-      <tr>
+      <tr className={mock ? 'has-note' : undefined}>
         <td className="tnum">{clock(s.started_at)}</td>
         <td>{s.persona ?? ''}</td>
-        <td>{s.entities.join(', ')}</td>
+        <td><Tastes entities={s.entities} /></td>
         <td className="n">{s.picks_count}</td>
         <td className="n">{s.events_count}</td>
         <td>{s.sms_sent ? 'Yes' : 'No'}</td>
@@ -28,9 +35,10 @@ function SessionTableRow({ s }) {
           </button>
         </td>
       </tr>
+      {mock && <tr className="note-row"><td colSpan={7}><MockNote /></td></tr>}
       <tr id={id} hidden={!open}>
         <td colSpan={7} className="trace-cell">
-          <div className="trace-body"><TraceTable trace={s.trace} /><Counterfactual cf={s.counterfactual} /></div>
+          <div className="trace-body">{mock && <MockNote />}<TraceTable trace={s.trace} /><Counterfactual cf={s.counterfactual} /></div>
         </td>
       </tr>
     </Fragment>
@@ -84,11 +92,11 @@ function PanelShell({ title, source = 'Qloo', meta, sample, basis, children, foo
   );
 }
 
-function GateCard({ count, min, onSample }) {
+function GateCard({ count, min, onSample, tastes }) {
   return (
     <div>
       <div className="gate-bricks" aria-hidden="true">{Array.from({ length: min }, (_, i) => <span key={i} className={i < count ? 'on' : ''} />)}</div>
-      <p>Taste insights switch on after {min} calls that name a taste. You have <span className="tnum">{count}</span>. This keeps any single guest from being picked out of the numbers.</p>
+      <p>Taste insights switch on after {min} calls that name a taste. {tasteCountText(tastes, count, min)} This keeps any single guest from being picked out of the numbers.</p>
       {onSample && <button type="button" className="btn btn-text" onClick={onSample} style={{ marginTop: 'var(--space-2)', paddingInline: 0 }}>Preview what it will look like</button>}
     </div>
   );
@@ -103,8 +111,8 @@ function Degraded({ asOf, onRetry, demographics }) {
   );
 }
 
-function SectionState({ sec, asOf, onRetry, onSample, demographics, skippedText }) {
-  if (sec.status === 'gated') return <GateCard count={sec.count} min={sec.min} onSample={onSample} />;
+function SectionState({ sec, asOf, onRetry, onSample, demographics, skippedText, tastes }) {
+  if (sec.status === 'gated') return <GateCard count={sec.count} min={sec.min} onSample={onSample} tastes={tastes} />;
   if (sec.status === 'degraded') return <Degraded asOf={asOf} onRetry={onRetry} demographics={demographics} />;
   if (sec.status === 'skipped') return <Banner tone="info">{skippedText}</Banner>;
   return null;
@@ -164,10 +172,10 @@ function Diverging({ rows }) {
   );
 }
 
-function Demographics({ data, onRetry, onSample }) {
+function Demographics({ data, onRetry, onSample, tastes }) {
   const sec = data.demographics;
   let body;
-  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} demographics skippedText="Add a few things your guests love and this section fills in." />;
+  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} tastes={tastes} demographics skippedText="Add a few things your guests love and this section fills in." />;
   else {
     body = (
       <>
@@ -181,16 +189,18 @@ function Demographics({ data, onRetry, onSample }) {
   return (
     <PanelShell title="Who shares these tastes" sample={data.sample} basis={sec}
       meta={sec.status === 'ok' ? `Across ${sec.interests_counted} guest interest${sec.interests_counted === 1 ? '' : 's'}` : null}
-      footer={data.sample ? 'Shown with example data until 5 calls name a taste.' : `Aggregate, anonymous. People who like these things around here, from the tastes of ${sec.sample_size ?? data.gate.count} calls.`}>
+      footer={data.sample ? 'Shown with example data until 5 calls name a taste.'
+        : sec.status === 'gated' ? null
+          : `Aggregate, anonymous. People who like these things around here, from the tastes of ${sec.sample_size} ${sec.sample_size === 1 ? 'call' : 'calls'}.`}>
       {body}
     </PanelShell>
   );
 }
 
-function Compare({ data, onRetry, onSample }) {
+function Compare({ data, onRetry, onSample, tastes }) {
   const sec = data.compare;
   let body;
-  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} skippedText="Comparing your callers with your town needs at least one named favorite, like a band or a film, not only a kind of food." />;
+  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} tastes={tastes} skippedText="Comparing your callers with your town needs at least one named favorite, like a band or a film, not only a kind of food." />;
   else {
     const items = [...(sec.items ?? [])].sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 3);
     const a = sec.groups?.a ?? 'Group A';
@@ -237,7 +247,9 @@ export default function Property({ id, health }) {
   const [sessions, reloadSessions] = useApi(`/properties/${id}/sessions`);
   const [itin] = useApi(`/properties/${id}/itinerary-sample`);
   const [radius, setRadius] = useState(2);
-  const [sample, setSample] = useState(false);
+  // The demo inn opens with the labeled sample on, so a first visit never lands on dark
+  // panels. Every panel it fills carries the sample badge. Other inns start on their own data.
+  const [sample, setSample] = useState(id === 'demo');
   const [ins, reloadIns] = useApi(`/properties/${id}/insights?radius=${radius}${sample ? '&sample=1' : ''}`);
   const [fp] = useApi(`/properties/${id}/fingerprint${sample ? '?sample=1' : ''}`);
 
@@ -259,6 +271,7 @@ export default function Property({ id, health }) {
   const badgeState = isDemo ? health.state : p.status === 'published' ? 'test' : 'paused';
   const list = sessions.data?.sessions ?? [];
   const total = sessions.data?.total ?? 0;
+  const tastes = sessions.data?.tastes;
   const capped = total > list.length;
   const texts = list.filter((s) => s.sms_sent).length;
   const picks = list.reduce((n, s) => n + s.picks_count, 0);
@@ -305,8 +318,9 @@ export default function Property({ id, health }) {
                         <span className="tnum">{clock(s.started_at)}</span>
                         <span className={`chip ${s.sms_sent ? 'chip-success' : ''}`}>{s.sms_sent ? 'Itinerary sent' : 'No text needed'}</span>
                       </p>
-                      <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>{s.entities.join(', ') || 'No tastes named'}</p>
-                      <SessionTrace trace={s.trace} counterfactual={s.counterfactual} />
+                      <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>Tastes named: <Tastes entities={s.entities} /></p>
+                      {unresolvedInMock(s.trace) && <MockNote />}
+                      <SessionTrace trace={s.trace} counterfactual={s.counterfactual} note={unresolvedInMock(s.trace)} />
                     </li>
                   ))}
                 </ul>
@@ -364,7 +378,7 @@ export default function Property({ id, health }) {
             )}
           </div>
         </div>
-        <div style={{ marginBottom: 'var(--space-4)' }}><FingerprintCard fp={fp} onSample={() => setSample(true)} /></div>
+        <div style={{ marginBottom: 'var(--space-4)' }}><FingerprintCard fp={fp} tastes={tastes} onSample={() => setSample(true)} /></div>
         {ins.state === 'ok' && <p className="micro mono" style={{ marginBottom: 'var(--space-3)' }}>As of {new Date(ins.data.as_of).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · <ViaChip upstream={ins.data.upstream} /></p>}
         {ins.state === 'loading' && (
           <div className="insights-top" aria-busy="true" aria-label="Loading insights">
@@ -381,9 +395,9 @@ export default function Property({ id, health }) {
             {ins.data.sample && <Banner tone="info">Showing sample callers' tastes ({ins.data.interests.join(', ')}). Shown with example data until 5 calls name a taste.</Banner>}
             <div className="insights-top">
               <Heatmap data={ins.data} inn={inn} onRetry={reloadIns} />
-              <Demographics data={ins.data} onRetry={reloadIns} onSample={() => setSample(true)} />
+              <Demographics data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={() => setSample(true)} />
             </div>
-            <Compare data={ins.data} onRetry={reloadIns} onSample={() => setSample(true)} />
+            <Compare data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={() => setSample(true)} />
           </div>
         )}
       </section>
@@ -393,7 +407,7 @@ export default function Property({ id, health }) {
         {ins.state === 'ok' && (() => {
           const guestOpen = ins.data.gate.open || ins.data.sample;
           const items = guestOpen ? deriveSuggestions(ins.data, inn) : [];
-          if (!guestOpen) return <div className="card"><GateCard count={ins.data.gate.count} min={ins.data.gate.min} onSample={() => setSample(true)} /></div>;
+          if (!guestOpen) return <div className="card"><GateCard count={ins.data.gate.count} min={ins.data.gate.min} tastes={tastes} onSample={() => setSample(true)} /></div>;
           if (!items.length) return <p className="dim">Nothing to suggest yet. Suggestions appear once the panels above have data.</p>;
           return (
             <div className="suggestions">

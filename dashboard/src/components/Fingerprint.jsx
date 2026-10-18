@@ -10,6 +10,21 @@ const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'e
 export const inWords = (n) => WORDS[n] ?? String(n);
 const calls = (n) => `${n} ${n === 1 ? 'call' : 'calls'}`;
 
+/**
+ * The one sentence every gated panel uses for "how many so far", read from the sessions
+ * API's `tastes` counts: all calls, calls that sent Qloo a taste signal (what the floor
+ * counts), and calls where something the guest named resolved. `count` is the floor's own
+ * number, used when the counts have not loaded.
+ * @param {{ calls: number, signal: number, resolved: number } | undefined} tastes
+ * @param {number} count @param {number} min
+ */
+export function tasteCountText(tastes, count, min) {
+  if (!tastes || (tastes.calls === tastes.signal && tastes.signal === tastes.resolved)) return `You have ${count}.`;
+  const generic = Math.max(0, tastes.signal - tastes.resolved);
+  return `You have ${calls(tastes.calls)}, ${tastes.resolved} that named a taste the tools could resolve.`
+    + (generic ? ` ${generic === 1 ? 'One' : generic} sent Qloo only a general place signal, which still counts toward the ${min}.` : '');
+}
+
 /** The small tag on every innkeeper panel saying what the numbers describe. */
 export function BasisTag({ basis, n }) {
   if (basis === 'callers') return <span className="chip chip-mono fp-tag fp-tag-callers" title={`Built from ${calls(n)} to this number`}>Callers <span className="tnum">{n}</span></span>;
@@ -32,7 +47,7 @@ function Chips({ items }) {
 }
 
 /** The card at the top of the insights section. `fp` is a useApi state. */
-export function FingerprintCard({ fp, onSample }) {
+export function FingerprintCard({ fp, onSample, tastes }) {
   const head = (d) => (
     <div className="panel-head">
       <h3>Your callers' taste fingerprint</h3>
@@ -52,7 +67,7 @@ export function FingerprintCard({ fp, onSample }) {
         {head(d)}
         <p className="fp-line">People who call this number, not the town.</p>
         <div className="gate-bricks" aria-hidden="true">{Array.from({ length: d.gate.min }, (_, i) => <span key={i} className={i < d.gate.count ? 'on' : ''} />)}</div>
-        <p>Your fingerprint appears after {d.gate.min} calls that name a taste. You have <span className="tnum">{d.gate.count}</span>. Until then no single caller can be picked out of it.</p>
+        <p>Your fingerprint appears after {d.gate.min} calls that name a taste. {tasteCountText(tastes, d.gate.count, d.gate.min)} Until then no single caller can be picked out of it.</p>
         {onSample && <button type="button" className="btn btn-text fp-preview" onClick={onSample}>Preview it with sample callers</button>}
       </section>
     );

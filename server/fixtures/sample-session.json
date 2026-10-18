@@ -1,5 +1,5 @@
 {
-  "_note": "Hand-made SAMPLE call for the dashboard. Generated once by running the mock tool server (QLOO_MOCK=1, TICKETMASTER_MOCK=1) through resolve_taste, recommend_nearby, events_nearby, and log_session. Every value comes from the synthetic fixtures in this folder; nothing here is a Qloo or Ticketmaster response. ms values are illustrative.",
+  "_note": "Hand-made SAMPLE call for the dashboard, rebuilt by server/scripts/make-sample-session.js: one made-up guest and plus-one run through resolve_taste, recommend_nearby, cross_domain, events_nearby, and compose_itinerary in mock mode. Every value comes from the synthetic fixtures in this folder; nothing here is a Qloo or Ticketmaster response. The API moves started_at and the event window to the day the page is viewed.",
   "label": "Sample call",
   "started_at": "2026-10-16T22:05:00.000Z",
   "persona": "harper",
@@ -7,9 +7,54 @@
     "Sturgill Simpson",
     "Thai food"
   ],
-  "picks_count": 2,
+  "companion_mentions": [
+    "Kacey Musgraves"
+  ],
+  "picks_count": 3,
   "events_count": 1,
   "sms_sent": true,
+  "picks": [
+    {
+      "name": "Lemongrass Lantern",
+      "why": "Fans of Thai food and Sturgill Simpson love it",
+      "favors": "guest",
+      "favors_line": "That one leans your way.",
+      "signed": true
+    },
+    {
+      "name": "The Low Lantern Listening Room",
+      "why": "Fans of Sturgill Simpson love it",
+      "favors": "both",
+      "favors_line": "This one you both will like.",
+      "signed": true
+    },
+    {
+      "name": "Pastel Diner & Pie",
+      "why": "Strong match for your overall taste",
+      "favors": "companion",
+      "favors_line": "That one is for your plus-one.",
+      "signed": true
+    }
+  ],
+  "cross_domain": {
+    "target": "movie",
+    "name": "Inside Llewyn Davis",
+    "year": 2013,
+    "why": "Fans of Sturgill Simpson love it",
+    "signed": true
+  },
+  "signed_text": {
+    "body": "1. The Low Lantern Listening Room (both) - Fans of Sturgill Simpson love it https://example.com/low-lantern\n2. Lemongrass Lantern https://example.com/lemongrass-lantern\n3. Inside Llewyn Davis\n4. Hollow Pines String Band Tonight 8pm\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+    "picks_included": 4,
+    "favors_dropped": 1,
+    "when_dropped": 0,
+    "tokens_dropped": 1,
+    "dropped": {
+      "name": "Lemongrass Lantern",
+      "claim": "Lemongrass Lantern (both)",
+      "signed_for": "guest"
+    }
+  },
   "trace": [
     {
       "n": 1,
@@ -22,7 +67,7 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 47,
+      "ms": 1,
       "results": 2
     },
     {
@@ -37,18 +82,32 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 54,
+      "ms": 0,
       "results": 1
     },
     {
       "n": 3,
+      "tool": "resolve_taste",
+      "source": "qloo",
+      "endpoint": "/search",
+      "params": {
+        "query": "Kacey Musgraves",
+        "take": "3"
+      },
+      "mode": "mock",
+      "cache": "miss",
+      "ms": 0,
+      "results": 1
+    },
+    {
+      "n": 4,
       "tool": "recommend_nearby",
       "source": "qloo",
       "endpoint": "/v2/insights",
       "params": {
         "feature.explainability": "true",
         "filter.type": "urn:entity:place",
-        "signal.interests.entities": "fx-artist-sturgill-simpson",
+        "signal.interests.entities": "fx-artist-sturgill-simpson,fx-artist-kacey-musgraves",
         "signal.interests.tags": "urn:tag:genre:place:restaurant:thai",
         "filter.location": "POINT(-81.0943 32.0749)",
         "filter.location.radius": "4828",
@@ -58,11 +117,46 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 61,
+      "ms": 1,
       "results": 4
     },
     {
-      "n": 4,
+      "n": 5,
+      "tool": "recommend_nearby",
+      "source": "qloo",
+      "endpoint": "/v2/insights",
+      "params": {
+        "feature.explainability": "true",
+        "filter.type": "urn:entity:place",
+        "signal.interests.entities": "fx-artist-sturgill-simpson",
+        "signal.interests.tags": "urn:tag:genre:place:restaurant:thai",
+        "filter.results.entities": "fx-place-lemongrass-lantern,fx-place-low-lantern,fx-place-pastel-diner,fx-place-riverbend-smokehouse",
+        "take": "4"
+      },
+      "mode": "mock",
+      "cache": "miss",
+      "ms": 0,
+      "results": 4
+    },
+    {
+      "n": 6,
+      "tool": "recommend_nearby",
+      "source": "qloo",
+      "endpoint": "/v2/insights",
+      "params": {
+        "feature.explainability": "true",
+        "filter.type": "urn:entity:place",
+        "signal.interests.entities": "fx-artist-kacey-musgraves",
+        "filter.results.entities": "fx-place-lemongrass-lantern,fx-place-low-lantern,fx-place-pastel-diner,fx-place-riverbend-smokehouse",
+        "take": "4"
+      },
+      "mode": "mock",
+      "cache": "miss",
+      "ms": 0,
+      "results": 4
+    },
+    {
+      "n": 7,
       "tool": "recommend_nearby",
       "source": "qloo",
       "endpoint": "/v2/insights",
@@ -75,11 +169,27 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 68,
+      "ms": 0,
       "results": 4
     },
     {
-      "n": 5,
+      "n": 8,
+      "tool": "cross_domain",
+      "source": "qloo",
+      "endpoint": "/v2/insights",
+      "params": {
+        "feature.explainability": "true",
+        "filter.type": "urn:entity:movie",
+        "signal.interests.entities": "fx-artist-sturgill-simpson",
+        "take": "1"
+      },
+      "mode": "mock",
+      "cache": "miss",
+      "ms": 0,
+      "results": 3
+    },
+    {
+      "n": 9,
       "tool": "events_nearby",
       "source": "ticketmaster",
       "endpoint": "/events.json",
@@ -87,14 +197,15 @@
         "latlong": "32.0749,-81.0943",
         "radius": "10",
         "unit": "miles",
-        "startDateTime": "2026-10-16T18:00:00Z",
-        "endDateTime": "2026-10-17T07:00:00Z",
+        "startDateTime": "2026-10-16T22:05:00Z",
+        "endDateTime": "2026-10-17T08:00:00Z",
         "sort": "date,asc",
-        "size": "2"
+        "size": "1",
+        "classificationName": "music"
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 75,
+      "ms": 0,
       "results": 3
     }
   ],

@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { entityIdsFromTrace, labelIds } from '../lib/fingerprint.js';
+import { tonightEnds } from '../tools/events-nearby.js';
 
 export const DEFAULT_DB_PATH = fileURLToPath(new URL('../data/concierge.sqlite', import.meta.url));
 export const DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/demo-inn.json', import.meta.url));
@@ -68,6 +69,42 @@ export function loadSampleSession() {
     }
   }
   return sampleSession;
+}
+
+const DAY_MS = 86_400_000;
+const localDay = (d, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+/** The zone's offset from UTC at an instant, in ms (local wall time read as UTC, minus the instant). */
+function zoneOffset(d, tz) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(d).map((x) => [x.type, x.value]));
+  return Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}Z`) - Math.floor(d.getTime() / 1000) * 1000;
+}
+/** Ticketmaster's date format: seconds, no milliseconds. */
+const tmDate = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+/**
+ * The sample call as of `now`: the same call, moved to the day the page is viewed so its
+ * events always read as tonight. The call keeps its local time of day (early evening) when
+ * that time has passed, and otherwise sits a few minutes before `now`. The Ticketmaster
+ * window is then rebuilt by the same "tonight" rule events_nearby uses: from the call to
+ * 4 am the morning after the call's calendar day.
+ * @param {Date} now @param {string} tz IANA zone of the inn
+ */
+export function sampleSessionAt(now, tz) {
+  const base = loadSampleSession();
+  if (!base) return null;
+  const stored = new Date(base.started_at);
+  if (Number.isNaN(stored.getTime())) return base;
+  const days = Math.round((Date.parse(`${localDay(now, tz)}T12:00:00Z`) - Date.parse(`${localDay(stored, tz)}T12:00:00Z`)) / DAY_MS);
+  const shifted = new Date(stored.getTime() + days * DAY_MS);
+  // Same wall-clock time across a clock change.
+  const moved = new Date(shifted.getTime() + zoneOffset(stored, tz) - zoneOffset(shifted, tz));
+  const start = moved <= now ? moved : new Date(now.getTime() - 5 * 60_000);
+  const end = tonightEnds(start, tz);
+  const trace = (base.trace ?? []).map((e) => (e.source === 'ticketmaster' && e.params?.startDateTime
+    ? { ...e, params: { ...e.params, startDateTime: tmDate(start), endDateTime: tmDate(end) } }
+    : e));
+  return { ...base, started_at: start.toISOString(), trace };
 }
 
 export const SAMPLE_CALLERS_PATH = fileURLToPath(new URL('../fixtures/fingerprint.sample-callers.json', import.meta.url));

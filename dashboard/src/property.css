@@ -1,0 +1,39 @@
+/* Innkeeper dashboard additions (pages/Property.jsx and the sample call in QlooTrace.jsx).
+   Semantic tokens only. Kept out of styles.css on purpose. */
+
+/* "Tastes named" when nothing resolved: said, not left blank. */
+.none-resolved { color: var(--color-text-dim); font-style: italic; }
+
+/* The mock-mode note on a call where every taste lookup came back empty. */
+.mock-note {
+  margin: 0; padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-warning); border-radius: 0 var(--r-control) var(--r-control) 0;
+  background: var(--color-warning-tint); color: var(--color-warning-text);
+  font-size: var(--text-sm); line-height: 1.4; overflow-wrap: anywhere; max-width: none;
+}
+main .mock-note { max-width: none; }
+.session-cards .mock-note { margin-top: var(--space-2); }
+.session-table tr.has-note td { border-bottom: 0; }
+.session-table tr.note-row td { padding-top: 0; }
+
+/* Trace rows that say what they were for. */
+.trace-mapped { text-transform: none; letter-spacing: 0; }
+.trace-purpose { white-space: normal; }
+
+/* The sample call: what the guest heard, the film, and the signed-picks line. */
+.sample-lede { font-size: var(--text-sm); margin-top: var(--space-1); max-width: var(--prose-max); }
+.sample-grid { display: grid; gap: var(--space-3); margin-top: var(--space-4); min-width: 0; }
+.trace-sample { container-type: inline-size; }
+@container (min-width: 44rem) { .sample-grid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } }
+.sample-block { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--r-control); min-width: 0; }
+.sample-picks { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: grid; gap: var(--space-3); }
+.sample-pick-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; margin-top: var(--space-2); }
+.sample-picks .sample-pick-head { margin-top: 0; }
+.sample-pick-head strong { font-weight: 600; overflow-wrap: anywhere; }
+.sample-pick-why { font-size: var(--text-sm); margin-top: var(--space-1); overflow-wrap: anywhere; }
+.sample-foot { margin-top: var(--space-3); }
+.sample-signed { display: grid; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border); min-width: 0; }
+.sample-signed-line { display: flex; align-items: flex-start; gap: var(--space-2); font-weight: 500; }
+.sample-signed-line svg { width: 1.125rem; height: 1.125rem; flex: none; margin-top: 0.15em; color: var(--color-success-text); }
+.sample-signed code { font-family: var(--font-mono); font-size: 0.92em; background: var(--color-surface-2); padding: 0 0.25em; border-radius: 4px; overflow-wrap: anywhere; }
+main .sample-sms { max-width: 24rem; }

@@ -13,6 +13,7 @@
 .trace-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 @media (hover: hover) and (pointer: fine) { .trace-toggle:hover { background: var(--color-taste-tint); } }
 .trace-body { margin-top: var(--space-3); display: grid; gap: var(--space-3); min-width: 0; }
+.trace-body[hidden] { display: none; }
 .trace-empty { font-size: var(--text-sm); }
 
 /* One markup, two layouts: stacked cards in a narrow container, aligned columns in a wide one. */

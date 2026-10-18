@@ -26,7 +26,7 @@ import { withTrace } from '../lib/upstream.js';
 import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, parseIds } from '../lib/fingerprint.js';
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { locationParams } from '../tools/places.js';
-import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, loadSampleSession } from './db.js';
+import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
 import { LOCKED_RULES, OWNER_TOGGLES } from './guardrails.js';
 
 export const ADMIN_HEADER = 'X-Admin-Token';
@@ -151,6 +151,15 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     if (gate.open) return { basis: 'callers', gate, ...own };
     if (sample) return { basis: 'sample', gate, ...aggregateFingerprint(loadSampleFingerprintSessions()) };
     return { basis: 'none', gate, sessions: 0, entities: [], tags: [] };
+  };
+
+  /** Call counts for the panels, from the same rows the fingerprint reads. */
+  const tasteCounts = (propertyId, calls) => {
+    const signal = callerFingerprint(propertyId).sessions;
+    if (!sessionsAvailable()) return { calls, signal, resolved: 0 };
+    const ids = sdb.prepare(`SELECT id FROM sessions WHERE property_id = ?${notTest()}`).all(propertyId).map((r) => r.id);
+    const resolved = ids.filter((sid) => traceOf(sid).trace.some((e) => e.tool === 'resolve_taste' && e.results > 0)).length;
+    return { calls, signal, resolved };
   };
 
   const lastSessionAt = () => {
@@ -289,15 +298,21 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const row = id && getProperty(id);
     if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
     const total = sessionCount(id);
+    const tz = JSON.parse(row.config_json).property?.timezone ?? ctx.timezone;
     return c.json({
       ok: true,
       available: sessionsAvailable(),
       total,
       gate: { min: SESSION_GATE, count: total, open: total >= SESSION_GATE },
+      // One set of numbers for every panel that counts calls: all calls, calls that sent
+      // Qloo any taste signal (what the five-call floor counts), and calls where something
+      // the guest named resolved to a Qloo id.
+      tastes: tasteCounts(id, total),
       sessions: listSessions(id),
       // A hand-made example call (server/fixtures/sample-session.json) so the trace view is
-      // visible before the first real call. Always labeled sample; never counted above.
-      sample_session: loadSampleSession(),
+      // visible before the first real call, moved to the day it is viewed. Always labeled
+      // sample; never counted above.
+      sample_session: sampleSessionAt(now(), tz),
     });
   });
 
