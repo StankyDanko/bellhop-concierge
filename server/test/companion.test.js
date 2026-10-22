@@ -92,18 +92,19 @@ test('recommend_nearby: a plus-one gets per-person fit and a favors line on ever
     taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 3,
   });
   assert.equal(status, 200);
-  // By rank over the four-place shortlist (top half = 2). Guest: Lemongrass, Riverbend, Low
-  // Lantern, Pastel. Plus-one: Pastel, Low Lantern, Riverbend, Lemongrass. No place is in both
-  // top halves, so nothing is "both" and there is no shared pick to promote.
+  // By rank over the four-place shortlist (top half = 2). Guest: Lemongrass, Low Lantern,
+  // Riverbend, Pastel. Plus-one: Pastel, Low Lantern, Riverbend, Lemongrass. Low Lantern is in
+  // both top halves, so it is the one shared pick; the other two lean one way each.
   assert.deepEqual(json.places.map((p) => [p.name, p.favors]), [
     ['Lemongrass Lantern', 'guest'],
-    ['The Low Lantern Listening Room', 'companion'],
+    ['The Low Lantern Listening Room', 'both'],
     ['Pastel Diner & Pie', 'companion'],
   ]);
   assert.deepEqual(json.places[0].fit, { guest: 0.92, companion: 0.48 });
   assert.equal(json.places[0].favors_line, 'That one leans your way.');
   assert.equal(json.places[2].favors_line, 'That one is for your plus-one.');
-  assert.deepEqual(json.companion, { scored: true, shared_pick: false, promoted_shared_pick: null });
+  assert.equal(json.places[1].favors_line, 'This one you both will like.');
+  assert.deepEqual(json.companion, { scored: true, shared_pick: true, promoted_shared_pick: null });
   // One shortlist call plus exactly two scoring calls.
   assert.equal(json.meta.upstream.length, 4); // taste + two scoring calls + the counterfactual
 });

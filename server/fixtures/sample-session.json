@@ -24,8 +24,8 @@
     {
       "name": "The Low Lantern Listening Room",
       "why": "Fans of Sturgill Simpson love it",
-      "favors": "companion",
-      "favors_line": "That one is for your plus-one.",
+      "favors": "both",
+      "favors_line": "This one you both will like.",
       "signed": true
     },
     {
@@ -44,15 +44,15 @@
     "signed": true
   },
   "signed_text": {
-    "body": "1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. The Low Lantern Listening Room https://example.com/low-lantern\n3. Inside Llewyn Davis\n4. Hollow Pines String Band Tonight 8pm\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+    "body": "1. The Low Lantern Listening Room (both) - Fans of Sturgill Simpson love it https://example.com/low-lantern\n2. Lemongrass Lantern https://example.com/lemongrass-lantern\n3. Inside Llewyn Davis\n4. Hollow Pines String Band Tonight 8pm\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
     "picks_included": 4,
     "favors_dropped": 1,
     "when_dropped": 0,
     "tokens_dropped": 1,
     "dropped": {
-      "name": "The Low Lantern Listening Room",
-      "claim": "The Low Lantern Listening Room (both)",
-      "signed_for": "companion"
+      "name": "Lemongrass Lantern",
+      "claim": "Lemongrass Lantern (both)",
+      "signed_for": "guest"
     }
   },
   "trace": [
@@ -67,7 +67,7 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 2,
+      "ms": 1,
       "results": 2
     },
     {

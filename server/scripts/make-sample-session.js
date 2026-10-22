@@ -48,9 +48,9 @@ const near = await tool('recommend_nearby', { taste: taste.resolved.map(strip), 
 const film = await tool('cross_domain', { taste: taste.resolved.filter((r) => !r.id.startsWith('urn:tag:')).map(strip), target: 'movie', take: 1 });
 const events = await tool('events_nearby', { ...INN, when: 'tonight', classification: 'music', take: 1 });
 
-// The lead pick is the shared one when the rank rule finds one, otherwise the guest's best.
-const both = near.places.find((p) => p.favors === 'both') ?? near.places[0];
-const other = near.places.find((p) => p !== both && p.favors !== 'both');
+// The fixtures give one shared pick under the rank rule (sample-session.test.js checks it).
+const both = near.places.find((p) => p.favors === 'both');
+const other = near.places.find((p) => p.favors !== 'both');
 const movie = film.results[0];
 const show = events.events[0];
 // The one claim the server did not sign: a "both" marker written onto a pick whose token was

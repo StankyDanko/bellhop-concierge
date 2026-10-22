@@ -40,10 +40,11 @@ test('the sample call keeps the write-up\'s promises with fixture data only', ()
   assert.ok(s.companion_mentions.length >= 1, 'the guest is not alone');
   const perPerson = s.trace.filter((e) => e.params?.['filter.results.entities']);
   assert.equal(perPerson.length, 2, 'one scoring call per person');
-  // Favors come from the rank rule (lib/why.js favorsByRank); the sample shortlist has no shared
-  // pick under it, so every pick is labelled for one person, each with its own line.
+  // Favors come from the rank rule (lib/why.js favorsByRank): one shared pick, one the
+  // guest's, one the plus-one's, each with its own line.
   const LINES = { both: 'This one you both will like.', guest: 'That one leans your way.', companion: 'That one is for your plus-one.' };
-  assert.ok(s.picks.length >= 2 && s.picks.every((p) => LINES[p.favors] === p.favors_line), 'every pick labelled, line matches label');
+  assert.deepEqual(s.picks.map((p) => p.favors).sort(), ['both', 'companion', 'guest']);
+  assert.ok(s.picks.every((p) => LINES[p.favors] === p.favors_line), 'each line matches its label');
   assert.ok(!s.picks.some((p) => /Kacey|Sturgill/.test(p.favors_line)), 'the plus-one line names nobody');
   assert.equal(s.cross_domain.target, 'movie');
   assert.ok(s.cross_domain.why && s.cross_domain.signed);

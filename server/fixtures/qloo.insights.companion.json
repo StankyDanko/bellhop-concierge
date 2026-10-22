@@ -25,7 +25,7 @@
         { "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.92 } },
         { "name": "The Low Lantern Listening Room", "entity_id": "fx-place-low-lantern", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.8 } },
         { "name": "Pastel Diner & Pie", "entity_id": "fx-place-pastel-diner", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.55 } },
-        { "name": "Riverbend Smokehouse", "entity_id": "fx-place-riverbend-smokehouse", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.86 } }
+        { "name": "Riverbend Smokehouse", "entity_id": "fx-place-riverbend-smokehouse", "type": "urn:entity", "subtype": "urn:entity:place", "query": { "affinity": 0.78 } }
       ] } }
     },
     {
