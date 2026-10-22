@@ -211,7 +211,7 @@ export default function Landing({ health }) {
             <Link to="/property/demo/brief" className="btn btn-text">See the one-page brief</Link>
           </div>
           {data?.tools && (
-            <p className="micro mono">Tool server: Qloo {data.tools.qloo}, Ticketmaster {data.tools.ticketmaster}. Checked {new Date(data.checked_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</p>
+            <p className="micro mono">Tool server: Qloo {data.tools.qloo}, Ticketmaster {data.tools.ticketmaster}.{Number.isFinite(Date.parse(data.checked_at)) ? ` Checked ${new Date(data.checked_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}</p>
           )}
         </div>
       </section>

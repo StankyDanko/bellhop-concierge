@@ -11,7 +11,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -35,17 +35,26 @@ if (!BASE) {
       SESSIONS_PATH: join(ownTmp, 'sessions.sqlite'), CACHE_PATH: join(ownTmp, 'cache.sqlite'), DASHBOARD_ADMIN_TOKEN: '', PUBLIC_DEMO_NUMBER: '' },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
+  // Whatever ends this process (a missing build, a throw, a failed check), the server it
+  // started ends with it. 'exit' runs on uncaught errors too; kill and rmSync are synchronous.
+  process.on('exit', () => {
+    if (own.exitCode === null && own.signalCode === null) own.kill('SIGTERM');
+    rmSync(ownTmp, { recursive: true, force: true });
+  });
   let up = false;
   for (let i = 0; i < 50 && !up; i += 1) {
     try { up = (await fetch(`${BASE}/health`)).ok; } catch { await new Promise((r) => setTimeout(r, 100)); }
   }
-  if (!up) { own.kill('SIGTERM'); console.error('mock server did not start'); process.exit(1); }
+  // A port can be taken between the free-port probe and the spawn: then /health may answer
+  // from someone else's server while ours has already exited. Only our live child counts.
+  if (!up || own.exitCode !== null) { console.error('mock server did not start'); process.exit(1); }
 }
 const req = createRequire(join(W, 'package.json'));
 let fails = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`); if (!ok) fails += 1; };
 
 // ---- 1. built output -------------------------------------------------------------------
+if (!existsSync(join(D, 'dist/index.html'))) { console.error('no build: run npm run build:dashboard first'); process.exit(1); }
 const html = readFileSync(join(D, 'dist/index.html'), 'utf8');
 const assets = readdirSync(join(D, 'dist/assets'));
 const js = assets.filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(D, 'dist/assets', f), 'utf8')).join('\n');
@@ -130,6 +139,22 @@ try {
   const top1 = { same: false, without_qloo_taste: { name: 'Fx Place 9', reason: 'most popular place nearby' }, with_qloo: { name: 'Fx Place 4', why: 'Fans of Fx Artist go there' }, say: 'Without your tastes, the top pick would be Fx Place 9.' };
   const vt = render(h(Counterfactual, { cf: top1 }), 'V2 top-1 fallback (fake)');
   check(vt.includes('cf-pair') && vt.includes('Fx Place 9'), 'V2 top-1 fallback renders the pair');
+
+  // Degraded payloads: a partial counterfactual, a missing clock, an odd price. The page must
+  // render something honest and never throw (there is no error boundary: a throw blanks the app).
+  const renders = (el, label) => { try { return render(el, label); } catch (e) { check(false, `${label} threw: ${e.message}`); return ''; } };
+  for (const [label, cf] of [
+    ['V2 moved, without_list empty, no top-1 fields (fake)', { verdict: 'moved', same: false, with_list: [fx(1)], without_list: [], say: 'Fx say line.' }],
+    ['V2 say only (fake)', { say: 'Fx say line.' }],
+    ['V2 verdict missing (fake)', { with_list: [fx(1)], without_list: [fx(2)], say: 'Fx say line.' }],
+  ]) {
+    const out = renders(h(Counterfactual, { cf }), label);
+    check(out.includes('Fx say line.'), `${label}: renders the say line`);
+  }
+  const noClock = renders(h(Landing, { health: { state: 'answering', data: { ...health.data, demo_number: null, checked_at: undefined } } }), 'landing (no checked_at)');
+  check(!noClock.includes('Invalid Date'), 'landing never prints "Invalid Date"');
+  const oddPrice = renders(h(WhyPick, { place: { name: 'Fx Place 7', price_level: 7, why_trace: { basis: 'affinity', drivers: [] } } }), 'V3 price out of range (fake)');
+  check(!/\bundefined\b/.test(oddPrice.replace(/<[^>]+>/g, ' ')), 'V3 never prints "undefined"');
 
   const st = stationsOf(ses.trace, { said: ses.entities, plusOne: ses.companion_mentions });
   const reqTotal = st.reduce((a, s) => a + s.rows.length, 0);

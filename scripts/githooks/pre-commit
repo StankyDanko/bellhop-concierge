@@ -31,7 +31,7 @@ deny_hit() {   # stdin = text; prints the first matching line number
 # 2. Copy rules, on the words a judge, an innkeeper, or a guest reads.
 in_copy_scope() {
   case "$1" in
-    dashboard/src/*|server/tools/*|server/api/*|template/*|personas/*|compiler/tools.js|docs/*.md|dashboard/*.md) return 0 ;;
+    dashboard/src/*|server/tools/*|server/api/*|template/*|personas/*|compiler/tools.js|docs/*.md|dashboard/*.md|server/README.md|deploy/README.md) return 0 ;;
     */*) return 1 ;;
     *.md) return 0 ;;
   esac

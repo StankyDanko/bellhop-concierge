@@ -36,7 +36,7 @@ export function WhyPick({ place, request }) {
   const max = Math.max(0.01, ...named.map((d) => d.score ?? 0));
   const meta = [
     typeof place.distance_miles === 'number' ? `${place.distance_miles.toFixed(1)} mi away` : null,
-    place.price_level ? `${PRICE[place.price_level]} price` : null,
+    PRICE[place.price_level] ? `${PRICE[place.price_level]} price` : null,
     typeof place.rating === 'number' ? `${place.rating.toFixed(1)} of 5 rating` : null,
   ].filter(Boolean);
   const tags = (place.tags ?? []).slice(0, 6);

@@ -182,7 +182,7 @@ export function Counterfactual({ cf, mentions }) {
   return (
     <div className="cf" data-verdict={cf.same ? 'agrees' : 'moved'} aria-label="What this guest would have heard without their tastes">
       <p className="micro">Without your words, and with them</p>
-      {!cf.same && (
+      {!cf.same && cf.without_qloo_taste?.name && cf.with_qloo?.name && (
         <dl className="cf-pair">
           <div className="cf-row">
             <dt><span className="chip chip-mono">Without your words</span></dt>
