@@ -23,7 +23,7 @@ if (!config.toolSecret) {
 }
 
 const needsCache = !(config.qloo.mock && config.ticketmaster.mock);
-const cache = needsCache ? new ResponseCache({ path: config.cache.path, only: config.cache.only }) : null;
+const cache = needsCache ? new ResponseCache({ path: config.cache.path, only: config.cache.only, frozen: config.cache.freeze }) : null;
 const logger = jsonLogger;
 
 const sessions = new SessionStore({ path: config.sessionsPath, hashKey: config.toolSecret });
@@ -41,6 +41,7 @@ try {
     logger,
     sms,
     sessions,
+    cacheMode: cache?.frozen ? 'frozen' : cache?.only ? 'only' : cache ? 'on' : 'off',
     dashboard: { db: dashboardDb, env: dashboardEnv() },
   });
 } catch (err) {

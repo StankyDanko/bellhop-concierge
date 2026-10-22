@@ -44,10 +44,11 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/log.js').Logger} deps.logger
  * @param {import('./lib/twilio.js').SmsSender} deps.sms
  * @param {import('./lib/sessions.js').SessionStore} deps.sessions
+ * @param {string} [deps.cacheMode]  'frozen' | 'only' | 'on' | 'off', reported by /health
  * @param {() => Date} [deps.now]
  * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the host dashboard (server/api/)
  */
-export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard }) {
+export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard, cacheMode }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
   const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret };
@@ -58,6 +59,7 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
     qloo: qloo.mode,
     ticketmaster: ticketmaster.mode ?? (ticketmaster.enabled ? 'live' : 'disabled'),
     sms: sms.mode,
+    cache: cacheMode ?? 'on',
     tools: Object.keys(TOOLS),
   }));
 

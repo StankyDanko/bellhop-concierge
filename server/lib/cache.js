@@ -5,7 +5,8 @@
 // in server/data/, which is gitignored; nothing it holds is ever committed.
 //
 // CACHE_ONLY=1 serves whatever is cached (expired or not) and never calls upstream,
-// so the demo keeps working after the hackathon key is deactivated.
+// so the demo keeps working after the hackathon key is deactivated. CACHE_FREEZE=1 is the
+// same behavior under the name the dark period uses; /health then reports cache: 'frozen'.
 
 import Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
@@ -35,10 +36,11 @@ export function cacheKey(service, endpoint, params) {
 }
 
 export class ResponseCache {
-  /** @param {{ path: string, only?: boolean, now?: () => number }} opts */
-  constructor({ path, only = false, now = () => Math.floor(Date.now() / 1000) }) {
+  /** @param {{ path: string, only?: boolean, frozen?: boolean, now?: () => number }} opts */
+  constructor({ path, only = false, frozen = false, now = () => Math.floor(Date.now() / 1000) }) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
-    this.only = only;
+    this.frozen = frozen;
+    this.only = only || frozen;
     this.now = now;
     this.db = new Database(path);
     this.db.pragma('journal_mode = WAL');
@@ -72,6 +74,16 @@ export class ResponseCache {
     if (!row) return undefined;
     if (!this.only && row.expires_at <= this.now()) return undefined;
     return JSON.parse(row.body);
+  }
+
+  /**
+   * Cached body regardless of age, or undefined. Used when upstream cannot answer (rate limit,
+   * deactivated key): an old answer beats no answer.
+   * @param {string} key @returns {unknown | undefined}
+   */
+  getStale(key) {
+    const row = /** @type {{ body: string } | undefined} */ (this.getStmt.get(key));
+    return row ? JSON.parse(row.body) : undefined;
   }
 
   /** @param {string} key @param {string} service @param {string} endpoint @param {unknown} body */

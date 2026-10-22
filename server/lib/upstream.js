@@ -2,6 +2,7 @@
 // Qloo and Ticketmaster clients both go through here.
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { loadConfig } from '../config.js';
 import { cacheKey } from './cache.js';
 import { UpstreamError } from './errors.js';
 import { redactParams } from './log.js';
@@ -15,6 +16,7 @@ import { redactParams } from './log.js';
  * @property {boolean} mock                    fixtures in use (cache is bypassed)
  * @property {number} retries                  extra attempts on retryable failures
  * @property {(ms: number) => Promise<void>} [sleep]
+ * @property {number} [rateLimitBackoffMs]    sleep before the one retry after a 429 (default: config QLOO_429_BACKOFF_MS)
  */
 
 /**
@@ -37,6 +39,8 @@ import { redactParams } from './log.js';
  * @property {number} ms
  * @property {number} results                   how many items came back
  * @property {string} [error]                   error code when the request failed
+ * @property {boolean} [rate_limited]          upstream answered HTTP 429 at least once for this request
+ * @property {boolean} [stale]                 the answer is a cached one served past its TTL because upstream could not answer
  * @property {string} [mapped_from]             the guest's phrase this request was mapped from (a vibe phrase sent to /v2/tags one word at a time)
  */
 
@@ -148,6 +152,7 @@ export async function callUpstream(opts, endpoint, params) {
 
   const via = mock ? 'mock' : 'live';
   let attempt = 0;
+  let rateLimited = 0;
   for (;;) {
     attempt += 1;
     try {
@@ -160,15 +165,33 @@ export async function callUpstream(opts, endpoint, params) {
       }
       throw errorFor(service, status, body);
     } catch (err) {
-      const retryable = err instanceof UpstreamError && err.retryable;
-      if (!retryable || attempt > retries) {
+      if (err instanceof UpstreamError && err.status === 429) {
+        // A 429 gets one bounded sleep and one retry, outside the generic retry budget.
+        rateLimited += 1;
+        if (entry) entry.rate_limited = true;
+        if (rateLimited === 1) {
+          await sleep(opts.rateLimitBackoffMs ?? loadConfig().qloo.rateLimitBackoffMs);
+          continue;
+        }
+      }
+      // A second 429, or a key that no longer works: an old cached answer beats no answer.
+      if (!mock && cache && (rateLimited >= 2 || (err instanceof UpstreamError && (err.status === 401 || err.status === 403)))) {
+        const old = cache.getStale(key);
+        if (old !== undefined) {
+          logger({ ...logBase, via: 'cache', stale: true, reason: err.code, ms: Date.now() - started });
+          close({ cache: 'hit', stale: true, results: countResults(old) });
+          return { body: old, call: { service, endpoint, via: 'cache', ms: Date.now() - started } };
+        }
+      }
+      const retryable = err instanceof UpstreamError && err.retryable && err.status !== 429;
+      if (!retryable || attempt > retries + rateLimited) {
         close({ error: err?.code ?? 'error' });
         if (!(err instanceof UpstreamError) || err.status === undefined) {
           logger({ ...logBase, via, attempt, error: err?.code ?? err?.message, ms: Date.now() - started });
         }
         throw err;
       }
-      await sleep(250 * 2 ** (attempt - 1)); // 250ms, 500ms, ...
+      await sleep(250 * 2 ** (attempt - 1 - rateLimited)); // 250ms, 500ms, ...
     }
   }
 }
