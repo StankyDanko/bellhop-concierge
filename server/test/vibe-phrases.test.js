@@ -145,3 +145,16 @@ test('the resolved vibe items feed recommend_nearby as tag signals', async () =>
   const insights = rec.json.trace.find((e) => e.endpoint === '/v2/insights');
   assert.match(insights.params['signal.interests.tags'], /urn:tag:keyword:place:lively/);
 });
+
+test('both sides of one food choice is no answer: nothing resolves, nothing is sent', async () => {
+  for (const p of ['adventurous or familiar', 'spicy or slow', 'loud and fun or quiet and good', 'candlelit or loud']) {
+    assert.deepEqual(vibeOf(p)?.tastes, [], p);
+    assert.equal(vibeOf(p)?.undecided, true, p);
+  }
+  assert.equal(vibeOf('spicy and loud').undecided, false);
+  const { json, sent } = await resolve({ mentions: ['adventurous or familiar', 'Fx Nobody Band'] }, { empty: ['Fx Nobody Band'] });
+  assert.ok(sent.every((s) => !Object.values(s.params).some((v) => /adventurous|comfort food/.test(String(v)))), 'neither side goes upstream');
+  assert.deepEqual(json.resolved.filter((r) => r.mention === 'adventurous or familiar'), []);
+  assert.ok(!json.unresolved.includes('adventurous or familiar'));
+  assert.deepEqual(json.preferences, { undecided: ['adventurous or familiar'] });
+});

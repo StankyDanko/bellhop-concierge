@@ -304,9 +304,9 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
       available: sessionsAvailable(),
       total,
       gate: { min: SESSION_GATE, count: total, open: total >= SESSION_GATE },
-      // One set of numbers for every panel that counts calls: all calls, calls that sent
-      // Qloo any taste signal (what the five-call floor counts), and calls where something
-      // the guest named resolved to a Qloo id.
+      // One set of numbers for every panel that counts calls: all calls, calls that count
+      // toward the five-call floor (only calls where something the guest named resolved),
+      // and calls where something the guest named resolved to a Qloo id.
       tastes: tasteCounts(id, total),
       sessions: listSessions(id),
       // A hand-made example call (server/fixtures/sample-session.json) so the trace view is

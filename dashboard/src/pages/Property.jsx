@@ -96,7 +96,7 @@ function GateCard({ count, min, onSample, tastes }) {
   return (
     <div>
       <div className="gate-bricks" aria-hidden="true">{Array.from({ length: min }, (_, i) => <span key={i} className={i < count ? 'on' : ''} />)}</div>
-      <p>Taste insights switch on after {min} calls that name a taste. {tasteCountText(tastes, count, min)} This keeps any single guest from being picked out of the numbers.</p>
+      <p>Taste insights switch on after {min} calls that name a taste. {tasteCountText(tastes, count)} This keeps any single guest from being picked out of the numbers.</p>
       {onSample && <button type="button" className="btn btn-text" onClick={onSample} style={{ marginTop: 'var(--space-2)', paddingInline: 0 }}>Preview what it will look like</button>}
     </div>
   );

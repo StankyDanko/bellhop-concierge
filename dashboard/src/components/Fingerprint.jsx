@@ -12,17 +12,16 @@ const calls = (n) => `${n} ${n === 1 ? 'call' : 'calls'}`;
 
 /**
  * The one sentence every gated panel uses for "how many so far", read from the sessions
- * API's `tastes` counts: all calls, calls that sent Qloo a taste signal (what the floor
- * counts), and calls where something the guest named resolved. `count` is the floor's own
+ * API's `tastes` counts: all calls, calls that count toward the floor, and calls where
+ * something the guest named resolved. Only a call whose own lookups resolved a taste counts
+ * toward the floor, so the floor's number is the resolved one. `count` is the floor's own
  * number, used when the counts have not loaded.
  * @param {{ calls: number, signal: number, resolved: number } | undefined} tastes
- * @param {number} count @param {number} min
+ * @param {number} count
  */
-export function tasteCountText(tastes, count, min) {
+export function tasteCountText(tastes, count) {
   if (!tastes || (tastes.calls === tastes.signal && tastes.signal === tastes.resolved)) return `You have ${count}.`;
-  const generic = Math.max(0, tastes.signal - tastes.resolved);
-  return `You have ${calls(tastes.calls)}, ${tastes.resolved} that named a taste the tools could resolve.`
-    + (generic ? ` ${generic === 1 ? 'One' : generic} sent Qloo only a general place signal, which still counts toward the ${min}.` : '');
+  return `You have ${calls(tastes.calls)}, ${tastes.resolved} that named a taste the tools could resolve.`;
 }
 
 /** The small tag on every innkeeper panel saying what the numbers describe. */
@@ -67,7 +66,7 @@ export function FingerprintCard({ fp, onSample, tastes }) {
         {head(d)}
         <p className="fp-line">People who call this number, not the town.</p>
         <div className="gate-bricks" aria-hidden="true">{Array.from({ length: d.gate.min }, (_, i) => <span key={i} className={i < d.gate.count ? 'on' : ''} />)}</div>
-        <p>Your fingerprint appears after {d.gate.min} calls that name a taste. {tasteCountText(tastes, d.gate.count, d.gate.min)} Until then no single caller can be picked out of it.</p>
+        <p>Your fingerprint appears after {d.gate.min} calls that name a taste. {tasteCountText(tastes, d.gate.count)} Until then no single caller can be picked out of it.</p>
         {onSample && <button type="button" className="btn btn-text fp-preview" onClick={onSample}>Preview it with sample callers</button>}
       </section>
     );

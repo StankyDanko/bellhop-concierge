@@ -14,7 +14,9 @@
 // food choice. It is a mood, not a name, so it never goes to /search. Each taste word in it
 // goes to /v2/tags on its own, under the tag words in VIBE_PHRASES, and the trace entry
 // records the phrase it came from. Budget words ("splurge", "easy") are not tastes: they come
-// back as preferences and are never sent upstream.
+// back as preferences and are never sent upstream. A phrase holding both sides of one choice
+// ("adventurous or familiar") is the question said back, not an answer: nothing resolves and
+// nothing is sent, and the phrase comes back as preferences.undecided.
 
 import { arr, TASTE_MAX } from '../lib/validate.js';
 import { InputError } from '../lib/errors.js';
@@ -81,6 +83,18 @@ export const VIBE_PHRASES = Object.freeze({
   familiar: ['comfort food'],
 });
 
+/**
+ * The two sides of each food choice the agent offers. A mention holding both sides of one
+ * pair repeats the question back, so it is no answer at all.
+ */
+export const VIBE_OPPOSITES = Object.freeze([
+  ['spicy', 'slow'],
+  ['loud', 'quiet'],
+  ['adventurous', 'familiar'],
+  ['candlelit', 'loud'],
+  ['fun', 'quiet'],
+]);
+
 /** Budget words: what the guest wants to spend, never a taste and never sent upstream. */
 export const BUDGET_WORDS = Object.freeze({ splurge: 'splurge', easy: 'easy' });
 
@@ -90,9 +104,11 @@ const VIBE_FILLER = new Set(['and', 'or', 'but', 'good', 'kind', 'of', 'sort', '
 /**
  * "spicy and loud" -> { tastes: ['spicy', 'loud'], budget: null }. Null unless every word
  * is a vibe word, a budget word, or filler, so "Quiet Riot" and "spicy food" are not vibes.
- * Both budget words at once ("splurge or easy") is no budget at all.
+ * Both budget words at once ("splurge or easy") is no budget at all, and both sides of one
+ * food choice ("adventurous or familiar") is no taste at all: tastes comes back empty and
+ * undecided is true.
  * @param {string} mention
- * @returns {{ tastes: string[], budget: string|null } | null}
+ * @returns {{ tastes: string[], budget: string|null, undecided: boolean } | null}
  */
 export function vibeOf(mention) {
   const words = tokens(mention);
@@ -104,7 +120,9 @@ export function vibeOf(mention) {
     else if (!VIBE_FILLER.has(w)) return null;
   }
   if (!tastes.length && !budgets.size) return null;
-  return { tastes, budget: budgets.size === 1 ? [...budgets][0] : null };
+  const budget = budgets.size === 1 ? [...budgets][0] : null;
+  if (VIBE_OPPOSITES.some(([a, b]) => tastes.includes(a) && tastes.includes(b))) return { tastes: [], budget, undecided: true };
+  return { tastes, budget, undecided: false };
 }
 
 const sentenceCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -136,7 +154,7 @@ export async function resolveTaste(body, { qloo }) {
   /** @type {import('../lib/upstream.js').CallRecord[]} */
   const calls = [];
 
-  /** @type {{ budget?: string }} */
+  /** @type {{ budget?: string, undecided?: string[] }} */
   const preferences = {};
   /** One request per tag word per call, however many phrases use it. */
   const tagAsks = new Map();
@@ -151,6 +169,7 @@ export async function resolveTaste(body, { qloo }) {
   /** A vibe phrase: each taste word to /v2/tags, never /search. Items carry the guest's words. */
   const resolveVibe = async (mention, vibe, who) => {
     if (vibe.budget && who === 'guest') preferences.budget = vibe.budget;
+    if (vibe.undecided && who === 'guest') (preferences.undecided ??= []).push(mention);
     const items = await Promise.all(vibe.tastes.map(async (word) => {
       for (const query of VIBE_PHRASES[word]) {
         const tags = await askTags(query, mention);
@@ -263,7 +282,7 @@ export async function resolveTaste(body, { qloo }) {
     resolved,
     unresolved,
     echo_line: echoOf(results),
-    ...(preferences.budget ? { preferences } : {}),
+    ...(preferences.budget || preferences.undecided ? { preferences } : {}),
     ...companion,
     calls,
   };
