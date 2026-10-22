@@ -479,7 +479,7 @@ const TOWN_PLACES = 5;
  * The innkeeper panels for one fingerprint. `interests` are fingerprint ids with labels,
  * sent to Qloo directly as signal.interests.entities / .tags (no name is re-resolved).
  * Compare: a = the fingerprint's entity ids, b = the most popular places near the inn
- * (an unsignaled place insights call). That compare shape is unverified until the live key.
+ * (an unsignaled place insights call). The live API accepts place ids in a compare group.
  */
 async function insightsFor(ctx, { lat, lng, radius, interests }) {
   const calls = [];

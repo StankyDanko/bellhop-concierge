@@ -1,13 +1,22 @@
 {
-  "_note": "Synthetic fixture, hand-written to the /v2/analysis/compare request shape. The response shape is UNVERIFIED (not documented in the notes we built from). Not Qloo response data.",
+  "_note": "Synthetic fixture, hand-written to the /v2/analysis/compare response shape seen on key day: results.a and results.b list each group's tags with a string count, results.tags lists linking tags per entity pairing. Fake ids and names. Not Qloo response data.",
   "cases": [
     {
       "match": {},
-      "response": { "success": true, "results": { "tags": [
-        { "tag_id": "urn:tag:genre:place:restaurant:barbecue", "name": "Barbecue", "query": { "a": 0.81, "b": 0.34, "difference": 0.47 } },
-        { "tag_id": "urn:tag:genre:place:bar:cocktail", "name": "Cocktail Bar", "query": { "a": 0.42, "b": 0.77, "difference": -0.35 } },
-        { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "query": { "a": 0.6, "b": 0.58, "difference": 0.02 } }
-      ] } }
+      "response": { "success": true, "results": {
+        "tags": [
+          { "tag_id": "urn:tag:region:fx:lowcountry", "name": "Lowcountry", "type": "urn:tag:region", "subtype": "urn:tag:region:fx", "entity_id": "urn:tag:region:fx:lowcountry", "popularity": 0.9, "query": { "score": 1, "a.signal.interests.entities": [{ "entity_id": "fx-a-1", "name": "Fixture A" }], "b.signal.interests.entities": [{ "entity_id": "fx-b-1", "name": "Fixture B" }] } }
+        ],
+        "a": [
+          { "tag_id": "urn:tag:genre:place:restaurant:barbecue", "name": "Barbecue", "type": "urn:tag:genre", "subtype": "urn:tag:genre:place", "entity_id": "urn:tag:genre:place:restaurant:barbecue", "popularity": 0.6, "query": { "count": "1" } },
+          { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "type": "urn:tag:genre", "subtype": "urn:tag:genre:place", "entity_id": "urn:tag:genre:place:restaurant:thai", "popularity": 0.5, "query": { "count": "1" } }
+        ],
+        "b": [
+          { "tag_id": "urn:tag:genre:place:bar:cocktail", "name": "Cocktail Bar", "type": "urn:tag:genre", "subtype": "urn:tag:genre:place", "entity_id": "urn:tag:genre:place:bar:cocktail", "popularity": 0.7, "query": { "count": "1" } },
+          { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "type": "urn:tag:genre", "subtype": "urn:tag:genre:place", "entity_id": "urn:tag:genre:place:restaurant:thai", "popularity": 0.5, "query": { "count": "1" } }
+        ],
+        "matchEntities": []
+      } }
     }
   ]
 }

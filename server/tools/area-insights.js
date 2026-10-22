@@ -47,16 +47,52 @@ export function compactDemographics(body) {
   return { age: average('age'), gender: average('gender'), interests_counted: rows.length };
 }
 
-/** Top differentiating items from a compare result, whatever list it returns. */
-export function compactCompare(body, max = 6) {
+/**
+ * Top differentiating tags from a compare result.
+ *
+ * The live answer lists each group's tags in `results.a` and `results.b`, each with
+ * `query.count`: how many of that group's entities carry the tag (sent as a string).
+ * One item per tag found in either group: `a` and `b` are the share of each group that
+ * carries it, `difference` is a minus b. Biggest differences first.
+ * `results.tags` (tags linking the two groups, one row per entity pairing) is not used.
+ * @param {any} body
+ * @param {number} [max]
+ * @param {{ a?: number, b?: number }} [sizes]  entities sent in each group; without it the
+ *   largest count seen in that group stands in
+ */
+export function compactCompare(body, max = 6, sizes = {}) {
   const results = body?.results ?? {};
-  const list = Array.isArray(results) ? results : Object.values(results).find(Array.isArray) ?? [];
-  return list.slice(0, max).map((item) => {
-    /** @type {Record<string, number|null>} */
-    const scores = {};
-    for (const [k, v] of Object.entries(item?.query ?? item ?? {})) if (typeof v === 'number') scores[k] = r2(v);
-    return { name: String(item?.name ?? item?.tag_id ?? item?.entity_id ?? ''), id: item?.tag_id ?? item?.entity_id ?? item?.id ?? null, scores };
-  }).filter((x) => x.name);
+  const groupA = Array.isArray(results.a) ? results.a : [];
+  const groupB = Array.isArray(results.b) ? results.b : [];
+  /** @param {any[]} list @param {number|undefined} size */
+  const shares = (list, size) => {
+    const counts = new Map();
+    for (const t of list) {
+      const id = t?.tag_id ?? t?.id;
+      const n = Number(t?.query?.count);
+      if (typeof id === 'string' && Number.isFinite(n) && n > 0) counts.set(id, Math.max(counts.get(id) ?? 0, n));
+    }
+    const denom = size && size > 0 ? size : Math.max(1, ...counts.values());
+    return new Map([...counts].map(([id, n]) => [id, Math.min(1, n / denom)]));
+  };
+  const a = shares(groupA, sizes.a);
+  const b = shares(groupB, sizes.b);
+  /** @type {Map<string, string>} */
+  const names = new Map();
+  for (const t of [...groupA, ...groupB]) {
+    const id = t?.tag_id ?? t?.id;
+    if (typeof id === 'string' && !names.has(id) && t?.name) names.set(id, String(t.name));
+  }
+  return [...new Set([...a.keys(), ...b.keys()])]
+    .filter((id) => names.has(id))
+    .map((id) => {
+      const sa = a.get(id) ?? 0;
+      const sb = b.get(id) ?? 0;
+      return { name: /** @type {string} */ (names.get(id)), id, scores: { a: r2(sa), b: r2(sb), difference: r2(sa - sb) } };
+    })
+    .sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)
+      || Math.max(q.scores.a ?? 0, q.scores.b ?? 0) - Math.max(p.scores.a ?? 0, p.scores.b ?? 0))
+    .slice(0, max);
 }
 
 /**
@@ -113,7 +149,7 @@ export async function areaInsights(body, { qloo }) {
         'b.signal.interests.entities': compare.b.entityIds.join(','),
       });
       calls.push(call);
-      return { items: compactCompare(res) };
+      return { items: compactCompare(res, 6, { a: compare.a.entityIds.length, b: compare.b.entityIds.length }) };
     })
     : Promise.resolve({ status: 'skipped', reason: 'no compare groups given' });
 
