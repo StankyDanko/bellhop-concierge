@@ -19,6 +19,13 @@ The session log (`server/data/sessions.sqlite`, never in git) holds, per call:
 
 - a keyed hash of the caller's number (HMAC-SHA256, `server/lib/sessions.js`), so repeat callers
   can be counted. Not the number.
+- returning-guest memory (`server/lib/memory.js`), off unless `GUEST_MEMORY_SECRET` is set, in its
+  own SQLite file, keyed by a second keyed hash of the number with its own secret so it can never
+  be joined to the session log: the tastes that resolved (in the guest's own filtered words), the
+  ids of places texted, party size, kids, nights, and which opening lines were heard. Seven days
+  after the last call by default, the stated stay plus one day when said, never past fourteen days
+  after the last call or thirty after the first. "Forget me" deletes it at once and unlinks past
+  session rows. Nothing under server/api/ can open it (a test enforces this).
 - the tastes named and the Qloo ids they resolved to.
 - counts: picks, events, whether a text went out.
 - the call trace: each upstream request, its endpoint and parameters, and how it was answered.

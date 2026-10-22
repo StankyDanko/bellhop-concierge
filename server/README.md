@@ -104,6 +104,10 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `SMS_FROM_NUMBER` | | the verified sending number, E.164. Without it (and credentials) live sending is `disabled` and fails closed |
 | `SMS_TIMEOUT_MS` | `8000` | |
 | `SESSIONS_PATH` | `server/data/sessions.sqlite` | the session log |
+| `GUEST_MEMORY_PATH` | `server/data/guest-memory.sqlite` | returning-guest memory, its own file; the dashboard is never handed it |
+| `GUEST_MEMORY_SECRET` | | keys the memory hash; empty switches memory off, and it must differ from `CONCIERGE_TOOL_SECRET` or memory stays off |
+| `GUEST_MEMORY_TTL_DAYS` | `7` | days a memory lasts after the last call when no stay length was said (1 to 14) |
+| `CONCIERGE_AGENTS` | | JSON: voice agent id to `{ property_id, persona, timezone }`; the initiation webhook answers default lines for any agent not listed |
 
 `npm run probe:qloo` makes one live call per Qloo capability and prints the response
 shapes next to what the normalizers extracted. Run it the day a key arrives.
@@ -165,6 +169,35 @@ Errors are never reported as success:
 | 422 | `pii_refused` | the request would have sent personal data to Qloo |
 | 429 | `rate_limited` | a local limit refused the call before any upstream request (today, the `send_sms` hourly limit); the response has `reason: "rate_limited"` and a `say` line |
 | 502 | `unauthorized`, `forbidden`, `rate_limited`, `timeout`, `cache_miss`, ... | upstream failed; the response includes `say`, a line the agent can speak instead of inventing an answer |
+
+### `POST /hooks/conversation-init`
+
+Off unless `GUEST_MEMORY_SECRET` is set and the agent is compiled with the webhook. The voice
+platform posts `{ caller_id, agent_id, called_number, call_sid, conversation_id }` while the line
+rings, and starts the call with the nine dynamic variables this answers (`greeting`,
+`opener_hook`, `choice_pair`, `bet_domain`, `plan_window`, `caller_status`, `memory_line`,
+`stay_line`, `texted_count`). It never answers anything but 200 with variables, except a body over
+8 KB: bad auth, an unknown agent, a withheld number, or an internal error all get the default lines,
+which are the lines a call hears today. The number, `called_number` and `call_sid` are never stored
+or logged. It never returns a config override.
+
+### `forget_guest`
+
+Body `{ session_id, caller_id }`, both bound by the platform. Deletes every memory row for the
+caller at every inn, marks the call's link forgotten so nothing is written back, and sets
+`caller_hash` to NULL on the caller's past session rows. Answers `{ forgotten: true, say }` the same
+way whether or not anything was stored.
+
+### Returning-guest memory (`server/lib/memory.js`)
+
+On a call the webhook linked, recommend_nearby sends places already texted to this caller as
+`filter.exclude.entities` (and drops them from the results too) and adds remembered tastes as
+interest signals after the call's own, twelve in all. `applied.memory` reports the two counts. The
+ids memory added are stripped from the call trace before it is returned or stored, so the
+dashboard's trace and the guest taste fingerprint never show them: the trace is exactly what was
+sent, minus those ids. Retention: seven days after the last call, or the stated stay plus one day,
+never more than fourteen days after the last call or thirty after the first
+(`grep -n "_DAYS = " server/lib/memory.js`).
 
 ### `resolve_taste`
 
@@ -767,7 +800,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # fifteen simulated callers, twelve criteria, offline
+npm run battery -- --mock    # fifteen simulated callers and two two-call sequences, sixteen criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

@@ -27,7 +27,7 @@ These change only with a commit, and the command shows the current value.
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
 | Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
 | Twenty calls a day on the test line | README | `grep -n "daily_limit" compiler/compile.js` (the demo inn is at trust level `test`) |
-| Fifteen battery callers, twelve criteria | README, TESTING | `grep -c '"id"' server/battery/scenarios.json`; `grep -c "{ id: 'C" server/battery/criteria.js` |
+| Fifteen battery callers, two two-call sequences, sixteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
 
 ## Repo commands, live

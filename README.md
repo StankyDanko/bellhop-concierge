@@ -132,7 +132,7 @@ The whole data flow, one table: [docs/PRIVACY.md](docs/PRIVACY.md).
 ```bash
 npm test                         # unit and contract suite, offline, mock transports
 npm run smoke:dashboard          # boots the server, loads the pages a judge opens
-npm run battery -- --mock        # fifteen simulated callers, twelve criteria, offline
+npm run battery -- --mock        # fifteen simulated callers and two two-call sequences, sixteen criteria, offline
 ```
 
 The battery plays callers against the tool server in the order the voice agent calls the

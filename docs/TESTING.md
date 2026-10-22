@@ -7,7 +7,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 |---|---|---|---|
 | Unit and contract suite | `npm test` | nothing | every tool, the text composer, the privacy guard, the cache, the battery's own scoring |
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
-| Battery, offline | `npm run battery -- --mock` | nothing | fifteen simulated callers pass twelve criteria on fixtures |
+| Battery, offline | `npm run battery -- --mock` | nothing | fifteen simulated callers and two two-call sequences pass sixteen criteria on fixtures |
 | Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
 
@@ -40,7 +40,7 @@ with a cuisine, two couples (different tastes, two things each), a family with k
 budget, a name that won't resolve, a misspelled cuisine, tonight and this weekend with events, a
 twenty-mile radius, a film request, a book request, and a guest who names three things.
 
-The twelve criteria, in plain words:
+The sixteen criteria, in plain words:
 
 | | Criterion | What trips it (a warn or a fail) |
 |---|---|---|
@@ -56,6 +56,15 @@ The twelve criteria, in plain words:
 | C10 | The text is 320 characters or fewer, plain characters, every line traceable to a tool | too long, or a line nobody returned |
 | C11 | Each tool answers in under 2.5 s, the whole chain in under 6 s | a slow tool or chain |
 | C12 | Every outbound Qloo parameter passed the privacy allowlist | anything that didn't |
+| C13 | A second call from the same number hears a new opener and a new food choice | the same opener or pair twice running |
+| C14 | A returning call skips places already texted and carries the earlier tastes | a texted place picked again, or a remembered id in the recorded trace |
+| C15 | After "forget me" nothing is left and the next call is new | a row left, or a probe call still remembered |
+| C16 | Nothing remembered appears in any dashboard response | a memory field, the number, a hash, or a remembered line in any /api answer |
+
+C13 to C16 run only on the two-call sequences in scenarios.json. Each call in a sequence first
+posts the initiation webhook with a fictional 555-01xx number; the mock run moves its clock a day
+for the next-day sequence. Live runs stay same-day and cannot see the memory file, so C15 reports
+the row count as not visible.
 
 Each criterion returns pass, warn, fail, or n/a. N/a means the caller didn't exercise it (C8
 only applies when kids are along). A tool that was called and failed is a fail, never an n/a.
