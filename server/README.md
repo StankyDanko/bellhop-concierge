@@ -260,7 +260,7 @@ Per-person scoring for a plus-one is unchanged (signals only, on the shortlist).
     "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern",
     "address": "112 Fictional Ln", "price_level": 2, "rating": 4.6, "distance_miles": 0.2,
     "url": "https://example.com/lemongrass-lantern", "affinity": 0.91,
-    "why": "Fans of Thai food and Sturgill Simpson love it",
+    "why": "Fans of Sturgill Simpson love it; tagged Thai",
     "why_trace": { "basis": "explainability", "drivers": [
       { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food", "score": 0.88 },
       { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "score": 0.61 } ] },
@@ -337,7 +337,7 @@ three, and the game stops). This section is how the tools score each pick per pe
 > host it returns only the listed ids, with affinities, highest first; the bare
 > `filter.entities` spelling behaves the same. The PII guard accepts both (as entity-id
 > lists only). On a filtered call the affinities come back in a narrow, high band (0.78 to
-> 0.83 measured on nine-place shortlists), so the rule below works by rank, not by absolute
+> 0.83 measured on nine-place shortlists, on the three measured pairs), so the rule below works by rank, not by absolute
 > score.
 
 **Inputs.**
@@ -545,7 +545,7 @@ Rules:
 ```json
 // request
 { "picks": [
-    { "name": "Lemongrass Lantern", "why": "Fans of Thai food and Sturgill Simpson love it",
+    { "name": "Lemongrass Lantern", "why": "Fans of Sturgill Simpson love it; tagged Thai",
       "url": "https://example.com/lemongrass-lantern" },
     { "name": "Hollow Pines String Band", "when_label": "Tonight 8pm", "pick_token": "<from events_nearby>",
       "url": "https://example.com/events/hollow-pines" } ],
@@ -553,8 +553,8 @@ Rules:
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Thai food and Sturgill Simpson love it https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 271, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+  "char_count": 270, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
   "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "tokens_dropped": 0, "meta": { "upstream": [] } }
 ```
 
@@ -636,7 +636,7 @@ counterfactual_json, created_at)`, at most 40 rows per session. The response add
 ## Guest taste fingerprint
 
 Taste tools usually learn an audience from a form one person fills in once. This line
-learns it from the calls: every caller names two things they love, Qloo resolves them to
+learns it from the calls: every caller names a few things they love, Qloo resolves them to
 ids, and those ids add up, call after call, into a fingerprint of the people who call this
 number. The fingerprint then drives every innkeeper panel, so the dashboard describes the
 inn's own callers rather than a zip code.
@@ -743,43 +743,40 @@ in the server log, one JSON line per call (endpoint and parameters, never the ke
 | 5 | Explainability | `feature.explainability=true` on every insights call | all recommendation tools | the per-pick "why", traced to the guest's own inputs |
 | 6 | Heatmap | `GET /v2/insights` `filter.type=urn:heatmap` | `area_insights` | where around the property a taste runs hottest |
 | 7 | Demographics | `GET /v2/insights` `filter.type=urn:demographics` | `area_insights` | which age and gender groups lean toward the guests' tastes |
-| 8 | Audience compare | `GET /v2/analysis/compare` `a.signal.*`, `b.signal.*` | `area_insights` | how two guest segments differ |
-| 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
+| 8 | Callers vs. town | `GET /v2/insights` `filter.type=urn:tag` on the fingerprint and on the inn's location alone, plus `GET /v2/analysis/compare` `a.signal.*`, `b.signal.*` | the dashboard API | two lean lists, with compare as one quiet line where they share a tag |
+| 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` and no cuisine `filter.tags` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
+
+What each capability did when measured live, and what we did not ship: [`docs/QLOO.md`](../docs/QLOO.md).
 
 Each call's requests are visible on the property dashboard (`/property/:id`, Calls, "Qloo
 calls (n)") and the landing page shows the exact request behind its sample pick.
 
 Ticketmaster adds what a taste graph does not hold: what is on tonight.
 
-## When the live key arrives
+## Checked against the live API
 
-The client was written from Qloo's documentation before a hackathon key was issued. These
-are the places most likely to need a correction, all of them in one file each:
-
-- `lib/why.js` `collectDrivers`: the inner shape of `query.explainability`. The walker
-  accepts any nesting that names an input id with a score, but the field names are a best
-  reading of the docs.
-- `lib/qloo.js` `toWktPoint`: geo filters are sent as `POINT(lng lat)`. If the host wants
-  `lat,lng`, it is a one-line change.
-- `lib/qloo.js` `normalizeEntity` and `tools/area-insights.js` `compact*`: property names for
-  rating, price, website, heatmap cells, and the compare response.
-
-`npm run probe:qloo` prints exactly these shapes. The full list of guesses, how each one is
-checked, and the key-day steps in order are in [`QLOO-NOTES.md`](../QLOO-NOTES.md).
+The client was written from Qloo's documentation before a hackathon key was issued, and met
+the live API on 2026-10-22. Ten of the thirteen shapes we had read from the docs matched; the
+compare response differed and was fixed (`tools/area-insights.js` `compactCompare`); rate
+limits and cache lifetime are policy no single call confirms. `npm run probe:qloo` prints every
+shape side by side with what the normalizers read. The row-by-row record is
+[`QLOO-NOTES.md`](../QLOO-NOTES.md); what the live API taught us is
+[`docs/LEARNED.md`](../docs/LEARNED.md).
 
 ## Tests
 
 ```bash
-npm test
+npm test                     # Node's built-in runner, offline, mock transports
+npm run battery -- --mock    # fifteen simulated callers, twelve criteria, offline
 ```
 
-Tests on Node's built-in runner, all offline: the SMS composer (length, footer, links,
-GSM-7, segment math, truncation order), shared-secret auth, the why trace, the PII guard
-(including that a refused request never reaches the transport), the cache (TTL, cache-only,
-mock bypass, bounded retries, no credentials in logs), and the mock path of every tool end
-to end over HTTP.
+The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the
+shared-secret auth, the why trace, the PII guard (including that a refused request never
+reaches the transport), the cache and its modes, the fingerprint floor, and the battery's own
+scoring. It stays offline even with a live key in the shell. What each layer proves and how to
+read a scorecard: [`docs/TESTING.md`](../docs/TESTING.md).
 
 ## Deployed (2026-10-15)
 
-Live in mock mode at **https://concierge.southernsky.cloud**: dashboard (`/`, `/build`, `/property/demo`), `/api/*` (writes need `X-Admin-Token`), `/health`, and `POST /tools/<name>` with `X-Concierge-Secret`. Caddy proxies the whole hostname to the container. No fake sessions are seeded in production (sessions come only from `log_session`).
+Deployed at **https://concierge.southernsky.cloud**: dashboard (`/`, `/build`, `/property/demo`), `/api/*` (writes need `X-Admin-Token`), `/health`, and `POST /tools/<name>` with `X-Concierge-Secret`. Caddy proxies the whole hostname to the container. No fake sessions are seeded in production (sessions come only from `log_session`). `/health` reports each service's mode (Qloo, Ticketmaster, texts) and whether the cache is frozen.
 Container `bellhop-concierge` on the Reliable VPS, port 4040. See `deploy/README.md` for deploy, layout, and rollback.

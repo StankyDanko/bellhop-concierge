@@ -1,10 +1,11 @@
-# Qloo key-day notes
+# Qloo notes: what we read in the docs, and how it held up
 
-Written before the hackathon key existed, so the day it arrives is a checklist and not a
-scramble. Every Qloo call in this repo was built from the docs at
-[docs.qloo.com/reference](https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide).
-On 2026-10-22 it met the live host; the Observed column says how each reading held up. This page says which parts are a careful reading,
-how we will find out, and where the fix goes if the reading was wrong.
+Every Qloo call in this repo was built from the docs at
+[docs.qloo.com/reference](https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide)
+before a hackathon key existed. On 2026-10-22 the key arrived and each reading was checked
+against the live API; the Observed column says how it held up. Ten matched, one (compare)
+differed and was fixed, two are policy no single call confirms. What we measured beyond these
+shapes, words and counts only: [docs/QLOO.md](docs/QLOO.md).
 
 Two facts from the docs shape everything below:
 
@@ -15,7 +16,7 @@ Two facts from the docs shape everything below:
 - **Every Qloo call goes through one file,** `server/lib/qloo.js`, and every outbound parameter
   passes the allowlist in `server/lib/pii-guard.js` first. A fix is a line in a known place.
 
-## What is a careful reading of the docs, not a live response
+## The shapes, read and observed
 
 The probe is `npm run probe:qloo` (`server/scripts/probe-qloo.js`). Its sections are named in
 quotes below.
@@ -84,8 +85,8 @@ In this order. Fill in the Observed column that day, with what was seen, not wha
 | 4 | The checks the probe skips | The two curls below this table | Raw JSON on the terminal, then gone | Done. `sort_by=affinity` leaves the order unchanged; typo tolerance resolves "thia food" to the thai food tag |
 | 5 | Fix what disagreed | One commit per fix, each in the file the table names, with a test that encodes the live shape using hand-written fake values | | Done. One fix: `compactCompare`, with a test on made-up values |
 | 6 | Tests | `npm test` | all green | Green, offline, with the live key exported in the shell |
-| 7 | Go live | `git status` clean, then `set -a; . server/.env; set +a` and `/usr/bin/node deploy.mjs --sync-env`. If step 5 changed code, a full `/usr/bin/node deploy.mjs` first | `--sync-env` pushes `server/.env` and recreates the container; a full deploy ships the working tree | |
-| 8 | Confirm | `curl -s https://concierge.southernsky.cloud/health` | `"qloo": "live"` | |
+| 7 | Go live | `git status` clean, then `set -a; . server/.env; set +a` and `/usr/bin/node deploy.mjs --sync-env`. If step 5 changed code, a full `/usr/bin/node deploy.mjs` first | `--sync-env` pushes `server/.env` and recreates the container; a full deploy ships the working tree | Done. The public server answers live (step 8) |
+| 8 | Confirm | `curl -s https://concierge.southernsky.cloud/health` | `"qloo": "live"` | `"qloo": "live"` on the public server, 2026-10-22 18:40 ET |
 | 9 | The live badge | Open the landing page and `/property/demo` | The Qloo trace reads "Qloo, live" (or "Qloo, cached"), never "Mock fixtures" | |
 | 10 | Call the line | One real call to the demo number | A plan text whose reasons name the caller's own tastes | |
 | 11 | The sessions floor | Open `/property/demo` | Guest-taste panels stay dark until five real calls are in. Test calls don't count, and nothing is seeded to get there | |
