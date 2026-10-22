@@ -61,7 +61,9 @@ export async function logSession(body, { sessions, now = () => new Date(), memor
   // Returning-guest memory: fold this call into the caller's memory. Only a call the initiation
   // webhook linked has anything to fold; best effort, it never fails the log.
   if (memory && sid) {
-    try { memory.commit(sid, { nights, smsSent: flag(body?.sms_sent) }); } catch { /* memory is optional */ }
+    // sms_sent is the model's word and is stored on the session row only; memory takes "texted"
+    // from the server's own send (memory.noteTexted).
+    try { memory.commit(sid, { nights }); } catch { /* memory is optional */ }
   }
   // trace_calls: how many Qloo and Ticketmaster requests this call made, linked by session_id.
   // taste_ids: how many resolved Qloo ids the row added to the inn's guest taste fingerprint.

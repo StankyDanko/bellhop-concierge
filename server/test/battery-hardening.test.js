@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { evaluate } from '../battery/criteria.js';
-import { exitCodeFor, liveEnv, pacedCall, parseArgs, runBattery } from '../scripts/battery.js';
+import { exitCodeFor, liveEnv, pacedCall, parseArgs, qlooLimited, runBattery } from '../scripts/battery.js';
 import { PROPERTY } from './helpers.js';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -63,4 +63,16 @@ test('live tool calls are paced 2000 ms apart by default, mock calls are not', a
   const call = pacedCall(async () => ({ status: 200 }), 2000, async (ms) => { slept.push(ms); });
   await call('a', {}); await call('b', {}); await call('c', {});
   assert.deepEqual(slept, [2000, 2000], 'no wait before the first call, one before each after it');
+});
+
+test("send_sms's own 429 (one text per call, the hourly limit) never stops a run; only Qloo's limit does", async () => {
+  const smsRefused = { status: 429, json: { ok: false, sent: false, reason: 'rate_limited', error: { code: 'rate_limited', service: 'twilio' } }, ms: 1 };
+  assert.equal(qlooLimited(smsRefused), false);
+  assert.equal(qlooLimited(limited), true);
+  assert.equal(qlooLimited({ status: 200, json: { trace: [{ source: 'qloo', error: 'rate_limited' }] } }), true);
+  const ok = { status: 200, json: { ok: true }, ms: 1 };
+  let calls = 0;
+  const out = await runBattery({ call: async () => { calls += 1; return calls === 1 ? smsRefused : ok; }, scenarios, property: PROPERTY });
+  assert.equal(out.stoppedBy, null);
+  assert.deepEqual(out.skipped, []);
 });

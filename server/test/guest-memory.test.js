@@ -39,7 +39,8 @@ function fullCall(m, sid, { caller = CALLER, property = 'demo', ids = ['fx-artis
   m.noteResolved(sid, ids.map((id, i) => ({ id, mention: `taste ${i}` })));
   m.noteOffered(sid, [{ entity_id: placeId, name: `Place ${placeId}` }], { party_size: 2 });
   m.noteComposed(sid, [`Place ${placeId}`], 'fx body');
-  m.commit(sid, { nights, smsSent: texted });
+  if (texted) m.noteTexted(caller, 'fx body', sid);
+  m.commit(sid, { nights });
 }
 
 // ---- keys --------------------------------------------------------------------------------
@@ -104,7 +105,8 @@ test('caps: twelve tastes (four companion), fifteen texted, words filtered, row 
   m.noteResolved('conv-cap', [...many, ...comp]);
   m.noteOffered('conv-cap', Array.from({ length: 20 }, (_, i) => ({ entity_id: `fx-place-${i}`, name: `P${i}` })));
   m.noteComposed('conv-cap', Array.from({ length: 20 }, (_, i) => `P${i}`), 'fx body');
-  m.commit('conv-cap', { smsSent: true });
+  m.noteTexted(CALLER, 'fx body', 'conv-cap');
+  m.commit('conv-cap');
   const row = m.read(m.keyFor(CALLER), 'demo');
   assert.ok(row.tastes.length <= MAX_TASTES);
   assert.ok(row.tastes.filter((t) => t.who === 'companion').length <= MAX_COMPANION);
@@ -337,7 +339,9 @@ test('no memory field or value appears in any /api response (every route walked)
     const r = await callTool(app, 'resolve_taste', { session_id: sid, mentions });
     const taste = r.json.resolved.map((x) => ({ id: x.id, name: x.name }));
     const rec = await callTool(app, 'recommend_nearby', { session_id: sid, taste, ...PROPERTY, take: 3, constraints: { party_size: 2 } });
-    await callTool(app, 'compose_itinerary', { session_id: sid, picks: rec.json.places.slice(0, 2).map((p) => ({ name: p.name, pick_token: p.pick_token })) });
+    const text = await callTool(app, 'compose_itinerary', { session_id: sid, picks: rec.json.places.slice(0, 2).map((p) => ({ name: p.name, pick_token: p.pick_token })) });
+    // Texted places come only from the server's own send (the mock sender answers sent true).
+    assert.equal((await callTool(app, 'send_sms', { session_id: sid, to: CALLER, body: text.json.body })).json.sent, true);
     await callTool(app, 'log_session', { session_id: sid, caller_id: CALLER, property_id: 'demo', persona: 'harper', entities: mentions, picks_count: 2, events_count: 0, sms_sent: true, nights: 3 });
   }
   const probe = await callInit(app, { caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-api-3' });
@@ -367,3 +371,21 @@ test('no memory field or value appears in any /api response (every route walked)
   for (const n of needles) assert.ok(!health.includes(n));
 });
 
+
+test('a place is remembered as texted only after the server sent it, never on the model-filled sms_sent flag', () => {
+  const { m } = mem();
+  start(m, 'conv-claim');
+  m.noteOffered('conv-claim', [{ entity_id: 'fx-place-claim', name: 'Fx Claim Place' }]);
+  m.noteComposed('conv-claim', ['Fx Claim Place'], 'fx claim body');
+  // The model says it texted, but no send happened: log_session's flag no longer reaches commit.
+  m.commit('conv-claim', { smsSent: true });
+  assert.deepEqual(m.read(m.keyFor(CALLER), 'demo').texted, [], 'composed but never sent is not texted');
+
+  start(m, 'conv-sent');
+  m.noteOffered('conv-sent', [{ entity_id: 'fx-place-sent', name: 'Fx Sent Place' }]);
+  m.noteComposed('conv-sent', ['Fx Sent Place'], 'fx sent body');
+  assert.equal(m.noteTexted(CALLER, 'fx sent body', 'conv-other'), false, 'another call id never marks this call');
+  assert.equal(m.noteTexted(CALLER, 'fx sent body', 'conv-sent'), true);
+  m.commit('conv-sent');
+  assert.deepEqual(m.read(m.keyFor(CALLER), 'demo').texted.map((t) => t.id), ['fx-place-sent']);
+});

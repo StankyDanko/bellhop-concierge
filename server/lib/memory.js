@@ -351,21 +351,27 @@ export class GuestMemory {
   }
 
   /**
-   * send_sms answered sent true: mark the live call whose composed body this was. Server truth,
-   * not the model's claim. send_sms carries no session id, so the link is found by the
-   * recipient's memory key plus the body digest.
+   * The server's own send_sms answered sent true: record, at send time, the ids of the places in
+   * the itinerary that was sent. This is the only way a place becomes "texted"; the model-filled
+   * sms_sent flag on log_session is never trusted for it. The link is the recipient's memory key
+   * plus the body digest of what compose_itinerary built, narrowed to the call's own session id
+   * when send_sms carried one.
+   * @param {string} to @param {string} body @param {string} [sessionId]
    */
-  noteTexted(to, body) {
+  noteTexted(to, body, sessionId) {
     const hash = this.keyFor(to);
     if (!hash || typeof body !== 'string') return false;
     const digest = sha256(body);
+    const sid = sessionFrom(sessionId);
     const links = this.db.prepare('SELECT session_id, scratch_json FROM call_links WHERE caller_hash = ? AND expires_at > ?')
       .all(hash, this.now().toISOString());
     let marked = false;
     for (const l of links) {
+      if (sid && l.session_id !== sid) continue;
       const s = parse(l.scratch_json, {});
       if (s.forgotten || s.body_digest !== digest) continue;
-      this.db.prepare('UPDATE call_links SET scratch_json = ? WHERE session_id = ?').run(JSON.stringify({ ...s, texted: true }), l.session_id);
+      const textedIds = [...new Set([...(s.texted_ids ?? []), ...(s.composed ?? [])])];
+      this.db.prepare('UPDATE call_links SET scratch_json = ? WHERE session_id = ?').run(JSON.stringify({ ...s, texted_ids: textedIds }), l.session_id);
       marked = true;
     }
     return marked;
@@ -374,13 +380,13 @@ export class GuestMemory {
   /**
    * Fold a call's scratch into the caller's row. log_session calls this; the sweep calls it for
    * a call that ended without log_session. Skipped when the guest said forget me.
-   * @param {string} sessionId @param {{ nights?: number|null, smsSent?: boolean }} [opts]
+   * @param {string} sessionId @param {{ nights?: number|null }} [opts]
    */
-  commit(sessionId, { nights = null, smsSent = false } = {}) {
+  commit(sessionId, { nights = null } = {}) {
     const l = this.link(sessionId) ?? this.expiredLink(sessionId);
     if (!l || l.scratch.forgotten || l.scratch.committed) return false;
     const tx = this.db.transaction(() => {
-      this.commitLink(l, { nights, smsSent });
+      this.commitLink(l, { nights });
       this.db.prepare('UPDATE call_links SET scratch_json = ? WHERE session_id = ?').run(JSON.stringify({ ...l.scratch, committed: true }), l.session_id);
     });
     tx();
@@ -395,7 +401,7 @@ export class GuestMemory {
   }
 
   /** @param {any} l a link with parsed scratch */
-  commitLink(l, { nights = null, smsSent = false } = {}) {
+  commitLink(l, { nights = null } = {}) {
     const row = this.read(l.caller_hash, l.property_id);
     if (!row) return; // the row expired or was forgotten since the call started: nothing to build on
     const s = l.scratch;
@@ -406,12 +412,11 @@ export class GuestMemory {
       if (i >= 0) tastes.splice(i, 1);
       tastes.push({ ...r, at });
     }
+    // Only what the server itself sent (noteTexted, at send time) counts as texted.
     let texted = [...row.texted];
-    if (s.texted || smsSent) {
-      for (const id of s.composed ?? []) {
-        texted = texted.filter((t) => t.id !== id);
-        texted.push({ id, at });
-      }
+    for (const id of s.texted_ids ?? []) {
+      texted = texted.filter((t) => t.id !== id);
+      texted.push({ id, at });
     }
     const party = { ...row.party, ...(s.party ?? {}) };
     if (Number.isFinite(nights) && nights > 0) party.nights = Math.min(STAY_MAX_NIGHTS, Math.max(1, Math.round(nights)));
@@ -531,7 +536,7 @@ export function observeTool(memory, tool, body, result) {
       memory.noteComposed(sid, (Array.isArray(body?.picks) ? body.picks : []).map((p) => p?.name), result.body);
       break;
     case 'send_sms':
-      if (result.sent === true) memory.noteTexted(body?.to, body?.body);
+      if (result.sent === true) memory.noteTexted(body?.to, body?.body, body?.session_id);
       break;
     default:
   }

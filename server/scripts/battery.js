@@ -105,8 +105,10 @@ export async function playScenario(call, scenario, property, opts = {}) {
     const res = await call(tool, body);
     rec.statuses.push(res.status);
     rec.trace.push(...(res.json?.trace ?? []));
-    // An upstream 429 comes back as a 502 with code rate_limited and no trace at all.
-    if (res.status === 429 || res.json?.error?.code === 'rate_limited' || (res.json?.trace ?? []).some((t) => t.error === 'rate_limited')) rec.rateLimited = true;
+    // A Qloo 429 comes back as a 502 with code rate_limited, service qloo, and no trace at all.
+    // send_sms's own refusals (one text per call, the hourly limit) also say rate_limited, with
+    // another service: those are the server's rules working, never a reason to stop the run.
+    if (qlooLimited(res)) rec.rateLimited = true;
     if (chain) rec.tools.push({ tool, ms: res.ms, status: res.status });
     return res;
   };
@@ -160,9 +162,14 @@ export async function playScenario(call, scenario, property, opts = {}) {
     rec.compose = { ...res, submitted: picks.map((p) => p.name) };
   }
 
-  // A texted call never calls send_sms: log_session reports sms_sent, the path memory trusts
-  // when no send was seen. The places it texted are the submitted picks recommend returned.
-  const textedNow = inSequence && opts.texted === true && rec.compose?.status === 200;
+  // A texted call goes through send_sms (the mock sender answers sent true), so memory learns
+  // what was texted from the server's own send, the only path it trusts. The places it texted
+  // are the submitted picks recommend returned.
+  let textedNow = false;
+  if (inSequence && opts.texted === true && rec.compose?.status === 200) {
+    rec.sms = await run('send_sms', { session_id: sessionId, to: callerId, body: rec.compose.json.body }, { chain: false });
+    textedNow = rec.sms.status === 200 && rec.sms.json?.sent === true;
+  }
   if (inSequence) {
     const placeIds = new Map((rec.recommend?.json?.places ?? []).map((p) => [p.name, p.entity_id]));
     rec.texted = textedNow ? [...new Set((rec.compose?.submitted ?? []).map((n) => placeIds.get(n)).filter(Boolean))] : [];
@@ -218,13 +225,20 @@ export function sequencePlays(sequences, library, { canAdvance = false } = {}) {
 
 /** Live upstream requests this scenario spent (cache misses only). */
 export const liveSpend = (rec) => rec.trace.filter((t) => t.mode === 'live' && t.cache === 'miss').length;
-const rateLimited = (rec) => rec.rateLimited === true || rec.statuses.includes(429) || rec.trace.some((t) => t.error === 'rate_limited');
+const rateLimited = (rec) => rec.rateLimited === true || rec.trace.some((t) => t.source === 'qloo' && t.error === 'rate_limited');
+
+/** True only when the answer is Qloo's own rate limit, by the error's service or a Qloo trace entry. */
+export const qlooLimited = (res) => (res?.json?.error?.code === 'rate_limited' && res.json.error.service === 'qloo')
+  || (res?.json?.trace ?? []).some((t) => t.source === 'qloo' && t.error === 'rate_limited');
 
 /**
  * Run scenarios in order, stopping early on a 429 or when the next scenario could pass the cap.
  * @returns {Promise<{ records: any[], skipped: string[], liveUsed: number, stoppedBy: string|null }>}
  */
-export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 14, onRecord = () => {},
+// The reserve covers one caller's worst case: the taste call, the no-taste call, a relaxed retry,
+// two per-person scoring calls, two per-cuisine cover calls, the reduced rerun, cross_domain, the
+// tag lookups, and the init and memory probes of a sequence call. Was 14 before the cover calls.
+export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 18, onRecord = () => {},
   sequences = [], library = scenarios, drivers = null }) {
   const records = [];
   const skipped = [];
