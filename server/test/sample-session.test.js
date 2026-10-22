@@ -72,7 +72,7 @@ test('every panel counts calls from one set of numbers, and says when nothing re
 
   const s = await get('/api/properties/demo/sessions');
   const fp = await get('/api/properties/demo/fingerprint');
-  assert.deepEqual(s.tastes, { calls: 1, signal: 1, resolved: 0 });
+  assert.deepEqual(s.tastes, { calls: 1, signal: 0, resolved: 0 }, 'a call that resolved nothing sends no taste the floor counts');
   assert.equal(s.tastes.signal, fp.gate.count, 'the floor counts the same calls the dashboard shows');
   assert.equal(s.tastes.calls, s.total);
   assert.equal(fp.basis, 'none', 'the five-call floor is untouched');

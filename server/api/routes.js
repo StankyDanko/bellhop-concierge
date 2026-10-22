@@ -23,7 +23,7 @@ import { recommendNearby } from '../tools/recommend-nearby.js';
 import { resolveTaste } from '../tools/resolve-taste.js';
 import { excludeTestSql, readTrace } from '../lib/sessions.js';
 import { withTrace } from '../lib/upstream.js';
-import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, parseIds } from '../lib/fingerprint.js';
+import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, parseIds, resolvedATaste } from '../lib/fingerprint.js';
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { locationParams } from '../tools/places.js';
 import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
@@ -158,7 +158,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const signal = callerFingerprint(propertyId).sessions;
     if (!sessionsAvailable()) return { calls, signal, resolved: 0 };
     const ids = sdb.prepare(`SELECT id FROM sessions WHERE property_id = ?${notTest()}`).all(propertyId).map((r) => r.id);
-    const resolved = ids.filter((sid) => traceOf(sid).trace.some((e) => e.tool === 'resolve_taste' && e.results > 0)).length;
+    const resolved = ids.filter((sid) => resolvedATaste(traceOf(sid).trace)).length;
     return { calls, signal, resolved };
   };
 

@@ -27,6 +27,21 @@ const ROOM = /\b(room|rm|suite|unit|apt)\s*#?\s*\d+/i;
 export const isTagId = (id) => id.startsWith('urn:tag:');
 
 /**
+ * A bare place category ('urn:tag:genre:place:restaurant'): what the agent sends when the
+ * guest named nothing it could resolve. It says nothing about a guest, so it is never a taste
+ * id and never counts toward the five-call floor. A specific tag under it still counts.
+ * @param {string} id
+ */
+export const isCategoryTag = (id) => /^urn:tag:genre:place:[^:]+$/.test(id);
+
+/**
+ * True when one of the session's own resolve_taste requests came back with something. A call
+ * where every lookup came back empty named no taste, whatever the agent sent afterwards.
+ * @param {Array<{ tool?: string, results?: number }>} trace
+ */
+export const resolvedATaste = (trace) => (Array.isArray(trace) ? trace : []).some((e) => e?.tool === 'resolve_taste' && Number(e.results) > 0);
+
+/**
  * The resolved taste ids a session sent to Qloo, in first-seen order, deduplicated.
  * Read from the session's own persisted trace, so it is exactly what Qloo received.
  * Requests with no signal (the popularity counterfactual) contribute nothing.
@@ -41,7 +56,7 @@ export function entityIdsFromTrace(trace) {
       if (typeof v !== 'string') continue;
       for (const raw of v.split(',')) {
         const id = raw.trim();
-        if (id && ID_SHAPE.test(id) && seen.size < MAX_IDS_PER_SESSION) seen.add(id);
+        if (id && ID_SHAPE.test(id) && !isCategoryTag(id) && seen.size < MAX_IDS_PER_SESSION) seen.add(id);
       }
     }
   }
@@ -58,7 +73,7 @@ export function parseIds(json) {
   if (typeof json !== 'string') return null;
   try {
     const v = JSON.parse(json);
-    return Array.isArray(v) ? v.filter((id) => typeof id === 'string' && ID_SHAPE.test(id)).slice(0, MAX_IDS_PER_SESSION) : null;
+    return Array.isArray(v) ? v.filter((id) => typeof id === 'string' && ID_SHAPE.test(id) && !isCategoryTag(id)).slice(0, MAX_IDS_PER_SESSION) : null;
   } catch {
     return null;
   }

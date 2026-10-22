@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import { createHmac } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { entityIdsFromTrace } from './fingerprint.js';
+import { entityIdsFromTrace, resolvedATaste } from './fingerprint.js';
 
 export const SESSIONS_SCHEMA = `
   CREATE TABLE IF NOT EXISTS sessions (
@@ -205,8 +205,10 @@ export class SessionStore {
       // Links the row to its call trace: how many upstream requests were recorded under this id.
       trace_count: trace.length,
       // The guest taste fingerprint's raw material: the resolved Qloo ids this call sent as
-      // signal.interests.entities / .tags, read from its own trace. Ids only.
-      entity_ids_json: JSON.stringify(entityIdsFromTrace(trace)),
+      // signal.interests.entities / .tags, read from its own trace. Ids only. A call where
+      // nothing the guest named resolved stores none: it named no taste, so it never counts
+      // toward the five-call floor, whatever the agent sent afterwards.
+      entity_ids_json: JSON.stringify(resolvedATaste(trace) ? entityIdsFromTrace(trace) : []),
       // A test harness or probe call: stored for inspection, invisible to every dashboard read.
       is_test: isTestSessionId(s.id) ? 1 : 0,
     };
