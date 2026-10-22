@@ -4,8 +4,8 @@
 //   demographics  which age / gender groups lean toward the given interests
 //   compare       how two interest groups differ (Qloo /v2/analysis/compare)
 //
-// Each section succeeds or degrades on its own. `urn:demographics` availability on
-// the hackathon host is unverified, so a failure there marks that section
+// Each section succeeds or degrades on its own. `urn:demographics` answered on the
+// hackathon host on key day; a failure there still marks just that section
 // "degraded" instead of failing the whole call. Nothing here is per-guest.
 
 import { UpstreamError } from '../lib/errors.js';

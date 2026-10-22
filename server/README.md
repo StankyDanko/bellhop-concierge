@@ -281,13 +281,12 @@ question when the guest is clearly not alone: "And one thing your plus-one loves
 counts toward the stop rule (two named things from the guest plus one from the plus-one is
 three, and the game stops). This section is how the tools score each pick per person.
 
-> **Shape unverified until the live key arrives.** The param that restricts insights results
-> to a list of ids is sent as `filter.results.entities`, the spelling in Qloo's Deep Dive
-> docs. Another public entry describes the same move as `filter.entities`. The PII guard
-> accepts both (as entity-id lists only), and `npm run probe:qloo` tries both side by side in
-> its "companion scoring" probe. If the live API wants the other spelling, change
-> `PER_PERSON_FILTER` in `tools/recommend-nearby.js`. The scale of `query.affinity` on a
-> filtered call, and so the thresholds below, are also unverified.
+> **Checked live on key day.** The param that restricts insights results to a list of ids
+> is sent as `filter.results.entities`, the spelling in Qloo's Deep Dive docs. On the live
+> host it returns only the listed ids, with affinities, highest first; the bare
+> `filter.entities` spelling behaves the same. The PII guard accepts both (as entity-id
+> lists only). On a filtered call the affinities came back in a narrow, high band, so the
+> thresholds below have not yet been tuned against live scores.
 
 **Inputs.**
 
@@ -642,11 +641,13 @@ most-named ids to Qloo directly. No name is re-resolved through `/search`.
 | Who shares these tastes | `GET /v2/insights` `filter.type=urn:demographics` | `signal.interests.entities`, `signal.interests.tags` |
 | Your callers vs. your town | `GET /v2/analysis/compare` | `a.signal.interests.entities` = the fingerprint's entity ids; `b.signal.interests.entities` = the top 5 places from an unsignaled `GET /v2/insights` `filter.type=urn:entity:place` near the inn |
 
-**Shape unverified until the live key:** the compare call (a = fingerprint, b = top local
-places). Qloo documents compare for interest groups; whether it accepts place entities in a
-group, and what comes back, is untested. `npm run probe:qloo` runs exactly this call
-("compare: callers vs town"). If places are refused, the panel shows as delayed and the
-other panels are unaffected.
+**Checked live on key day:** the compare call (a = fingerprint, b = top local places).
+The live API accepts place ids in a group. It answers with each group's tags (`results.a`,
+`results.b`), each counting how many of that group's entities carry the tag, plus a list of
+linking tags. The panel shows, per tag, the share of each group that carries it and the
+difference. A music fingerprint and a set of places share few tags, so most rows lean
+clearly one way. If the call fails, the panel shows as delayed and the other panels are
+unaffected.
 
 Every panel in the insights response carries `basis` (`callers`, `sample`, or `area` when no
 guest signal was sent; `none` on a gated panel) and `sample_size`, and the top level repeats

@@ -25,8 +25,8 @@ const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|spe
 
 /**
  * The insights param that restricts results to given entity ids. Documented spelling in
- * the Qloo Deep Dive; SHAPE UNVERIFIED until the live key arrives (the probe script
- * tries this and the bare `filter.entities` spelling side by side).
+ * the Qloo Deep Dive, checked live on key day: only the listed ids come back, with
+ * affinities (the bare `filter.entities` spelling behaves the same).
  */
 export const PER_PERSON_FILTER = 'filter.results.entities';
 
