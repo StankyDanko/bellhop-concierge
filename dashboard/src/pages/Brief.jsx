@@ -8,7 +8,7 @@ import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { RoomCard } from '../components/brief-room-card.jsx';
 import { formatPhone, SampleBadge } from '../components/ui.jsx';
-import { FingerprintSizeLine } from '../components/Fingerprint.jsx';
+import { FingerprintSizeLine, inWords } from '../components/Fingerprint.jsx';
 // Fallback only, for when /api/guardrails cannot be reached: the same module the server
 // serves, so the printed list can never drift from the enforced one.
 import { LOCKED_RULES } from '../../../server/api/guardrails.js';
@@ -80,7 +80,10 @@ function GuestTastes({ sessions }) {
         <ol className="brief-ranked">
           {SAMPLE_TASTES.map((t) => <li key={t}><span>{t}</span></li>)}
         </ol>
-        <p className="brief-note">Shown as an example until five guests have called. <span className="tnum">{d.gate.count}</span> of {d.gate.min} so far.</p>
+        <div className="brief-gate">
+          <span className="brief-bricks" aria-hidden="true">{Array.from({ length: d.gate.min }, (_, i) => <span key={i} className={i < d.gate.count ? 'on' : ''} />)}</span>
+          <p className="brief-note">An example until {inWords(d.gate.min)} calls name a taste, so no single guest can be picked out. <span className="tnum">{d.gate.count}</span> of {d.gate.min} so far.</p>
+        </div>
       </>
     );
   }
@@ -178,6 +181,18 @@ function AreaStrengths({ ins, inn }) {
 
 // ---- page -------------------------------------------------------------------------------------
 
+/** (e) How picks are made, as three numbered stations. Words and numerals carry it, so it reads in grayscale. */
+const STATIONS = ['The guest names things', 'Qloo ranks places near the inn', 'One text with the reasons'];
+function PickRail() {
+  return (
+    <ol className="brief-rail" aria-label="How picks are made, in three steps">
+      {STATIONS.map((s, i) => (
+        <li key={s}><span className="brief-rail-n tnum" aria-hidden="true">{i + 1}</span><span>{s}</span></li>
+      ))}
+    </ol>
+  );
+}
+
 export default function Brief({ id, health }) {
   const prop = useApiOnce(`/properties/${id}`);
   const sessions = useApiOnce(`/properties/${id}/sessions`);
@@ -190,7 +205,11 @@ export default function Brief({ id, health }) {
     // The title doubles as the file name when the innkeeper saves the page as a PDF.
     if (name) document.title = `Innkeeper brief, ${name}`;
   }, [name]);
+  return <BriefView id={id} health={health} prop={prop} sessions={sessions} ins={ins} fp={fp} rails={rails} />;
+}
 
+/** The sheet over already-fetched states; exported so a check can render it with no browser. */
+export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
   if (prop.state === 'loading') return <div className="brief-screen"><div className="brief-page skeleton" style={{ minHeight: '40rem' }} aria-busy="true" aria-label="Loading the brief" /></div>;
   if (prop.state === 'error') {
     return (
@@ -215,7 +234,7 @@ export default function Brief({ id, health }) {
   return (
     <div className="brief-screen">
       <div className="brief-toolbar" role="toolbar" aria-label="Brief actions">
-        <Link to={`/property/${id}`} className="btn btn-text"><span aria-hidden="true" className="brief-back">&larr;</span>Back to the front desk</Link>
+        <Link to={`/property/${id}`} className="btn btn-text"><span aria-hidden="true" className="brief-back">&larr;</span>Back to the dashboard</Link>
         <button type="button" className="btn btn-primary" onClick={() => window.print()} disabled={!ready}>Print or save as PDF</button>
       </div>
 
@@ -238,14 +257,14 @@ export default function Brief({ id, health }) {
           <Section title="What it does" className="brief-span">
             <p className="brief-prose">
               Guests call the front desk concierge from their own phone, wherever they are.
-              They name three things they love, like a band, a film, or a kind of food.
-              They get one text with three places nearby and the reason for each.
+              They name up to three things they love, like a band, a film, or a kind of food.
+              They get one text with up to three places nearby, each with its reason when it fits.
             </p>
           </Section>
 
           <Section title="What guests asked for" aside={sampleTastes ? <SampleBadge /> : null}>
             <GuestTastes sessions={sessions} />
-            <FingerprintSizeLine fp={fp} />
+            {!sampleTastes && <FingerprintSizeLine fp={fp} />}
           </Section>
 
           <Section title="What the area is strong in" className="brief-span2" aside={<Src>Qloo</Src>}>
@@ -253,6 +272,7 @@ export default function Brief({ id, health }) {
           </Section>
 
           <Section title="How picks are made" className="brief-span">
+            <PickRail />
             <ul className="brief-sources">
               <li><Src>Qloo</Src> The taste graph matches what a guest names to nearby places that people with that taste love, each with a reason.</li>
               <li><Src>Ticketmaster</Src> Live music and events near the inn, tonight or this weekend.</li>

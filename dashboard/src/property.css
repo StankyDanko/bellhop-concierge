@@ -37,3 +37,66 @@ main .mock-note { max-width: none; }
 .sample-signed-line svg { width: 1.125rem; height: 1.125rem; flex: none; margin-top: 0.15em; color: var(--color-success-text); }
 .sample-signed code { font-family: var(--font-mono); font-size: 0.92em; background: var(--color-surface-2); padding: 0 0.25em; border-radius: 4px; overflow-wrap: anywhere; }
 main .sample-sms { max-width: 24rem; }
+
+/* ---- the Apple-clean pass: one idea per section, same type scale as the landing ---------- */
+
+/* Header: who this page is for, the inn, one sentence on what it shows, then the plain chips. */
+.property .prop-head { display: grid; gap: var(--space-2); min-width: 0; }
+.property .prop-head h1 { width: auto; }
+.prop-lede { font-size: var(--text-lg); line-height: 1.4; color: var(--color-text-dim); }
+main .prop-lede { max-width: var(--measure-lead); }
+.prop-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); min-width: 0; }
+.prop-chips > * { min-width: 0; }
+.btn.prop-print { min-height: var(--touch-min); padding-inline: var(--space-2); }
+
+/* How to read this page: three rows, each a marker and one sentence. */
+.reading-key { margin-top: var(--space-6); container-type: inline-size; }
+.key-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.key-list li { display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr); align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
+main .key-list li { max-width: none; }
+.key-list li > :first-child { justify-self: start; }
+@container (min-width: 60rem) {
+  .key-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+  .key-list li { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+}
+.key-bricks { display: inline-flex; gap: 3px; padding-top: 0.35em; }
+.key-bricks span { width: 1rem; height: 0.5rem; border-radius: 2px; border: 1px solid var(--color-field-border); }
+.key-bricks span.on { background: var(--color-accent); border-color: var(--color-accent); }
+
+/* Jump nav at phone width: the row still scrolls, the native bar does not show (audit P2-9). */
+@media (max-width: 47.99rem) {
+  .property .jump { scrollbar-width: none; }
+  .property .jump::-webkit-scrollbar { display: none; }
+}
+
+/* Section head: headline sentence + supporting line on the left, controls on the right. */
+.part-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-5); min-width: 0; }
+.part-title { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 20rem; }
+.part-title h2 { font-size: var(--text-xl); letter-spacing: var(--tracking-display); }
+.part-line { color: var(--color-text-dim); }
+main .part-line { max-width: var(--measure-lead); }
+.part-aside { min-width: 0; }
+.part-controls { flex-wrap: wrap; }
+
+/* Callers: the area card, then the two lists and the named areas on two columns. */
+.callers-grid { display: grid; gap: var(--space-4); min-width: 0; container-type: inline-size; }
+.callers-map { min-width: 0; }
+.callers-pair { display: grid; gap: var(--space-4); min-width: 0; }
+.callers-pair > * { min-width: 0; }
+@container (min-width: 48rem) {
+  .callers-pair { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .callers-pair > :only-child { grid-column: 1 / -1; }
+}
+.callers-asof { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.btn.gate-preview { min-height: var(--touch-min); margin-top: var(--space-2); padding-inline: 0; }
+
+/* Calls */
+.calls-empty, .calls-list, .calls-sample { margin-top: var(--space-4); }
+.call-tastes { font-size: var(--text-sm); margin-top: var(--space-1); }
+
+/* The text */
+.text-note { font-size: var(--text-sm); margin-top: var(--space-3); }
+.text-why { margin-top: var(--space-5); display: grid; gap: var(--space-2); min-width: 0; }
+
+/* More: one panel, kept to a readable width on wide screens (a box, not prose). */
+.more-grid { display: grid; min-width: 0; max-width: 44rem; }

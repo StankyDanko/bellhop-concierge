@@ -1,24 +1,89 @@
-// `/property/:id`: sessions (aggregate only), the text a guest gets, area insights with
-// every degraded and gated state, and suggestions derived from the insights.
+// `/property/:id`: the innkeeper dashboard. One idea per section, in the order an innkeeper
+// asks them (DESIGN-BRIEF section 4): what my callers love, every call and what it asked Qloo,
+// the text a guest gets, who shares these tastes nearby, and what to stock or partner with.
+// The page opens with a short key: what is sample, what is real, and the five-call floor,
+// said once. Panels below point back to it instead of repeating it.
 import { Fragment, useCallback, useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
-import { Counterfactual, MockNote, SampleSessionCard, SessionTrace, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
-import { BasisTag, FingerprintCard, HotAreas, LeanPanel, tasteCountText } from '../components/Fingerprint.jsx';
+import { Counterfactual, MockNote, SampleSessionCard, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
+import { BasisTag, HotAreas, inWords, LeanPanel, tasteCountText } from '../components/Fingerprint.jsx';
+import { AreaCard } from '../components/AreaCard.jsx';
+import { WhyPick } from '../components/WhyPick.jsx';
 import '../property.css';
+
+/**
+ * Call limits per line, in plain words. Mirrors TRUST_LIMITS in compiler/compile.js
+ * (grep -n "daily_limit" compiler/compile.js: test 20, suggest 100, live 300).
+ */
+const TRUST_WORDS = {
+  test: 'Test line, 20 calls a day',
+  suggest: 'Suggest line, 100 calls a day',
+  live: 'Live line, 300 calls a day',
+};
 
 /** What the guest named, or a muted "none resolved" rather than a blank. */
 function Tastes({ entities }) {
   return entities.length ? entities.join(', ') : <span className="none-resolved">none resolved</span>;
 }
 
-/** One Calls table row plus its expandable Qloo trace row. */
+const SOURCE_NAME = { qloo: 'Qloo', ticketmaster: 'Ticketmaster' };
+/** "Requests (9): 8 Qloo, 1 Ticketmaster", counted from the trace's own source field. */
+function requestsLabel(trace) {
+  const t = trace ?? [];
+  const by = new Map();
+  for (const e of t) { const k = SOURCE_NAME[e.source] ?? 'other'; by.set(k, (by.get(k) ?? 0) + 1); }
+  const parts = [...by.entries()].map(([k, n]) => `${n} ${k}`);
+  return `Requests (${t.length})${parts.length ? `: ${parts.join(', ')}` : ''}`;
+}
+
+/** The toggle both call layouts share: every request for one call, exactly as sent. */
+function CallTraceToggle({ trace, open, onToggle, controls }) {
+  return (
+    <button type="button" className="trace-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
+      <span className="tnum">{requestsLabel(trace)}</span><Icon name="chev" className="chev" />
+    </button>
+  );
+}
+
+function CallTraceBody({ s, mock }) {
+  return (
+    <div className="trace-body">
+      {mock && <MockNote />}
+      <p className="micro">Every request, exactly as sent</p>
+      <TraceTable trace={s.trace} />
+      <Counterfactual cf={s.counterfactual} mentions={s.entities} />
+    </div>
+  );
+}
+
+/** One call as a card (narrow layouts). */
+function SessionCard({ s }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const mock = unresolvedInMock(s.trace);
+  return (
+    <li>
+      <p className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="tnum">{clock(s.started_at)}</span>
+        <span className={`chip ${s.sms_sent ? 'chip-success' : ''}`}>{s.sms_sent ? 'Plan texted' : 'No text needed'}</span>
+      </p>
+      <p className="dim call-tastes">Tastes named: <Tastes entities={s.entities} /></p>
+      {mock && <MockNote />}
+      <div className="session-trace">
+        <CallTraceToggle trace={s.trace} open={open} onToggle={() => setOpen((o) => !o)} controls={id} />
+        <div id={id} hidden={!open}><CallTraceBody s={s} /></div>
+      </div>
+    </li>
+  );
+}
+
+/** One Calls table row plus its expandable trace row. */
 function SessionTableRow({ s }) {
   const [open, setOpen] = useState(false);
   const id = useId();
-  const n = s.trace?.length ?? 0;
   const mock = unresolvedInMock(s.trace);
   return (
     <Fragment>
@@ -29,17 +94,11 @@ function SessionTableRow({ s }) {
         <td className="n">{s.picks_count}</td>
         <td className="n">{s.events_count}</td>
         <td>{s.sms_sent ? 'Yes' : 'No'}</td>
-        <td>
-          <button type="button" className="trace-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-            <span>Qloo calls (<span className="num">{n}</span>)</span><Icon name="chev" />
-          </button>
-        </td>
+        <td><CallTraceToggle trace={s.trace} open={open} onToggle={() => setOpen((o) => !o)} controls={id} /></td>
       </tr>
       {mock && <tr className="note-row"><td colSpan={7}><MockNote /></td></tr>}
       <tr id={id} hidden={!open}>
-        <td colSpan={7} className="trace-cell">
-          <div className="trace-body">{mock && <MockNote />}<TraceTable trace={s.trace} /><Counterfactual cf={s.counterfactual} /></div>
-        </td>
+        <td colSpan={7} className="trace-cell"><CallTraceBody s={s} /></td>
       </tr>
     </Fragment>
   );
@@ -57,7 +116,7 @@ function useApi(path) {
   return [s, load];
 }
 
-// ---- geometry for the heatmap ---------------------------------------------------------------
+// ---- geometry for the suggestions ----------------------------------------------------------------
 
 const toRad = (d) => (d * Math.PI) / 180;
 function milesBetween(a, b) {
@@ -76,7 +135,23 @@ function direction(a, b) {
 const AGE = { '24_and_younger': '24 and under', '25_to_29': '25 to 29', '30_to_34': '30 to 34', '35_to_44': '35 to 44', '45_to_54': '45 to 54', '55_and_older': '55 and over' };
 const signed = (n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}`;
 
-// ---- panels -------------------------------------------------------------------------------------
+// ---- layout pieces -------------------------------------------------------------------------------
+
+/** A dashboard section: headline sentence, one supporting line, then the visual. */
+function Part({ id, title, line, aside, children }) {
+  return (
+    <section id={id} className="section part" aria-labelledby={`${id}-h`}>
+      <div className="part-head">
+        <div className="part-title">
+          <h2 id={`${id}-h`}>{title}</h2>
+          {line && <p className="part-line">{line}</p>}
+        </div>
+        {aside && <div className="part-aside">{aside}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function PanelShell({ title, source = 'Qloo', meta, sample, basis, children, footer }) {
   return (
@@ -92,12 +167,13 @@ function PanelShell({ title, source = 'Qloo', meta, sample, basis, children, foo
   );
 }
 
+/** A dark panel: the bricks, and a pointer to the floor stated once at the top. */
 function GateCard({ count, min, onSample, tastes }) {
   return (
     <div>
       <div className="gate-bricks" aria-hidden="true">{Array.from({ length: min }, (_, i) => <span key={i} className={i < count ? 'on' : ''} />)}</div>
-      <p>Taste insights switch on after {min} calls that name a taste. {tasteCountText(tastes, count)} This keeps any single guest from being picked out of the numbers.</p>
-      {onSample && <button type="button" className="btn btn-text" onClick={onSample} style={{ marginTop: 'var(--space-2)', paddingInline: 0 }}>Preview what it will look like</button>}
+      <p>Opens at {inWords(min)} calls that name a taste. {tasteCountText(tastes, count)}</p>
+      {onSample && <button type="button" className="btn btn-text gate-preview" onClick={onSample}>Preview it with sample callers</button>}
     </div>
   );
 }
@@ -116,43 +192,6 @@ function SectionState({ sec, asOf, onRetry, onSample, demographics, skippedText,
   if (sec.status === 'degraded') return <Degraded asOf={asOf} onRetry={onRetry} demographics={demographics} />;
   if (sec.status === 'skipped') return <Banner tone="info">{skippedText}</Banner>;
   return null;
-}
-
-function Heatmap({ data, inn, onRetry }) {
-  const sec = data.heatmap;
-  const cells = sec.cells ?? [];
-  const meta = `Radius ${data.area.radius_miles} mi, ${{ callers: "by your callers' tastes", sample: "by sample callers' tastes" }[sec.basis] ?? 'area-wide, no guest data'}`;
-  let body;
-  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} />;
-  else if (!cells.length) body = <p className="dim" style={{ marginTop: 'var(--space-3)' }}>Not enough overlap in what your guests named to draw a map yet. It tends to sharpen after a few more calls.</p>;
-  else {
-    const pts = [...cells, inn];
-    const lats = pts.map((p) => p.lat); const lngs = pts.map((p) => p.lng);
-    const pad = 0.15;
-    const [minLat, maxLat, minLng, maxLng] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
-    const x = (lng) => `${(pad + ((lng - minLng) / ((maxLng - minLng) || 1)) * (1 - 2 * pad)) * 100}%`;
-    const y = (lat) => `${(pad + ((maxLat - lat) / ((maxLat - minLat) || 1)) * (1 - 2 * pad)) * 100}%`;
-    const ranked = cells.slice(0, 3);
-    body = (
-      <>
-        <div className="heat" role="img" aria-label={`Map of ${cells.length} areas around the inn, shaded by taste affinity. The list below has the same information.`}>
-          {cells.map((c) => <span key={c.geohash ?? `${c.lat},${c.lng}`} className="cell" style={{ left: x(c.lng), top: y(c.lat), opacity: 0.2 + 0.7 * (c.affinity ?? 0) }} />)}
-          <span className="inn" style={{ left: x(inn.lng), top: y(inn.lat) }} />
-        </div>
-        <p className="legend"><span><span className="sw" />Darker means stronger taste affinity</span><span><span className="sw inn" />The inn</span></p>
-        <p className="micro" style={{ marginTop: 'var(--space-3)' }}>Hottest {ranked.length} areas</p>
-        <ol className="ranked">
-          {ranked.map((c) => (
-            <li key={c.geohash ?? `${c.lat},${c.lng}`}>
-              <span>{milesBetween(inn, c).toFixed(1)} mi {direction(inn, c)} of the inn</span>
-              <span className="num">affinity {(c.affinity ?? 0).toFixed(2)}{typeof c.quality_affinity === 'number' ? `, quality ${c.quality_affinity.toFixed(2)}` : ''}</span>
-            </li>
-          ))}
-        </ol>
-      </>
-    );
-  }
-  return <PanelShell title="Where tastes run hottest" meta={meta} sample={data.sample} basis={sec} footer="Aggregate, anonymous. Qloo heatmap.">{body}</PanelShell>;
 }
 
 function Diverging({ rows }) {
@@ -187,9 +226,9 @@ function Demographics({ data, onRetry, onSample, tastes }) {
     );
   }
   return (
-    <PanelShell title="Who shares these tastes" sample={data.sample} basis={sec}
+    <PanelShell title="Age and gender lean" sample={data.sample} basis={sec}
       meta={sec.status === 'ok' ? `Across ${sec.interests_counted} guest interest${sec.interests_counted === 1 ? '' : 's'}` : null}
-      footer={data.sample ? 'Shown with example data until 5 calls name a taste.'
+      footer={data.sample ? 'Fictional callers, to show how it looks.'
         : sec.status === 'gated' ? null
           : `Aggregate, anonymous. People who like these things around here, from the tastes of ${sec.sample_size} ${sec.sample_size === 1 ? 'call' : 'calls'}.`}>
       {body}
@@ -211,19 +250,59 @@ function deriveSuggestions(data, inn) {
   return out;
 }
 
+/**
+ * How to read this page: the sample marking, where Qloo data shows, and the five-call floor,
+ * said once and kindly. Dark panels below show their bricks and point back here.
+ */
+function ReadingKey({ gate, sample, tastes, qlooMode }) {
+  const min = gate?.min ?? 5;
+  const count = gate?.count ?? 0;
+  const open = Boolean(gate?.open);
+  return (
+    <aside className="card reading-key" aria-label="How to read this page">
+      <ul className="key-list">
+        <li>
+          <SampleBadge>Sample</SampleBadge>
+          <span>Fictional callers, to show how the page looks. Never mixed into your own numbers.</span>
+        </li>
+        <li>
+          <span className="chip chip-mono chip-qloo">Qloo</span>
+          <span>From Qloo's taste graph.{qlooMode ? ` On this server Qloo is ${qlooMode === 'live' ? 'live' : 'answering from sample fixtures'}.` : ''}</span>
+        </li>
+        <li>
+          <span className="key-bricks" aria-hidden="true">{Array.from({ length: min }, (_, i) => <span key={i} className={i < count ? 'on' : ''} />)}</span>
+          <span>
+            {open
+              ? `Your own taste panels are open: ${count} calls have named a taste.`
+              : `Your own taste panels open at ${inWords(min)} calls that name a taste, so no single guest can be picked out. ${tasteCountText(tastes, count)}${sample ? ' Until then the sample fills them.' : ''}`}
+          </span>
+        </li>
+      </ul>
+    </aside>
+  );
+}
+
 // ---- page ---------------------------------------------------------------------------------------
 
 export default function Property({ id, health }) {
   const [prop] = useApi(`/properties/${id}`);
   const [sessions, reloadSessions] = useApi(`/properties/${id}/sessions`);
   const [itin] = useApi(`/properties/${id}/itinerary-sample`);
+  const [pick] = useApi('/sample-pick');
   const [radius, setRadius] = useState(2);
   // The demo inn opens with the labeled sample on, so a first visit never lands on dark
   // panels. Every panel it fills carries the sample badge. Other inns start on their own data.
   const [sample, setSample] = useState(id === 'demo');
   const [ins, reloadIns] = useApi(`/properties/${id}/insights?radius=${radius}${sample ? '&sample=1' : ''}`);
   const [fp] = useApi(`/properties/${id}/fingerprint${sample ? '?sample=1' : ''}`);
+  return (
+    <PropertyView id={id} health={health} prop={prop} sessions={sessions} reloadSessions={reloadSessions} itin={itin} pick={pick}
+      ins={ins} reloadIns={reloadIns} fp={fp} radius={radius} setRadius={setRadius} sample={sample} setSample={setSample} />
+  );
+}
 
+/** The page body over already-fetched states; exported so a check can render it with no browser. */
+export function PropertyView({ id, health, prop, sessions, reloadSessions, itin, pick, ins, reloadIns, fp, radius, setRadius, sample, setSample }) {
   if (prop.state === 'loading') return <div className="container"><div className="skeleton" style={{ height: '6rem' }} aria-busy="true" aria-label="Loading the property" /></div>;
   if (prop.state === 'error') {
     return (
@@ -248,24 +327,78 @@ export default function Property({ id, health }) {
   const picks = list.reduce((n, s) => n + s.picks_count, 0);
   const panels = ins.state === 'ok' ? [ins.data.heatmap, ins.data.demographics, ins.data.compare] : [];
   const delayed = panels.filter((s) => s.status === 'degraded').length;
+  const gate = ins.state === 'ok' ? ins.data.gate : fp.state === 'ok' ? fp.data.gate : sessions.data?.gate;
+  const areaDark = fp.state === 'ok' && fp.data.basis === 'none';
+  const onSample = () => setSample(true);
+
+  // V3 for the Qloo line of the sample text: the same sample guest's pick, matched by name when
+  // the text's Qloo line is in the sample-pick list, otherwise the first sample pick, labeled so.
+  const qlooLine = itin.state === 'ok' ? itin.data.picks?.find((pk) => String(pk.source).toLowerCase() === 'qloo') : null;
+  const places = pick?.state === 'ok' ? pick.data.places ?? [] : [];
+  const matched = qlooLine ? places.find((pl) => pl.name === qlooLine.name) : null;
+  const whyPlace = matched ?? places[0] ?? null;
 
   return (
-    <div className="container">
+    <div className="container property">
       <header className="prop-head">
-        <p className="micro" style={{ width: '100%' }}>Innkeeper dashboard{isDemo ? ', sample inn' : ''}</p>
+        <p className="micro">Innkeeper dashboard{isDemo ? ', sample inn' : ''}</p>
         <h1>{cfg.property.name}</h1>
-        <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} />
-        <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Draft'}</span>
-        <span className="chip chip-mono">Trust: {cfg.trust_level}</span>
-        {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
-        <Link to={`/property/${id}/brief`} className="btn btn-text">Print the innkeeper brief</Link>
+        <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
+        <div className="prop-chips">
+          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} />
+          <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Not published'}</span>
+          <span className="chip">{TRUST_WORDS[cfg.trust_level] ?? `Line limits: ${cfg.trust_level}`}</span>
+          {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
+          <Link to={`/property/${id}/brief`} className="btn btn-text prop-print">Print the innkeeper brief <Icon name="arrow" /></Link>
+        </div>
       </header>
+
+      <ReadingKey gate={gate} sample={sample && !gate?.open} tastes={tastes} qlooMode={health.data?.tools?.qloo} />
+
       <nav className="jump" aria-label="Sections">
-        <a href="#calls">Calls</a><a href="#text">The text a guest gets</a><a href="#insights">Area insights</a><a href="#suggest">Suggestions</a>
+        <a href="#callers">Callers</a><a href="#calls">Calls</a><a href="#text">The text</a><a href="#more">More</a><a href="#suggest">Suggestions</a>
       </nav>
 
-      <section id="calls" className="section" aria-labelledby="calls-h">
-        <div className="section-head"><h2 id="calls-h">Calls</h2><span className="micro">Aggregate only. No names, numbers, or transcripts.</span></div>
+      {/* 1. V4: what the callers love, the two lists, and the named areas, on one grid. */}
+      <Part id="callers" title="What your callers love." line="The people who call this number, not the town."
+        aside={(
+          <div className="row part-controls">
+            <fieldset className="fieldset">
+              <legend className="visually-hidden">Radius</legend>
+              <div className="segmented">
+                {[1, 2, 5].map((r) => (
+                  <label key={r}><input type="radio" name="radius" checked={radius === r} onChange={() => setRadius(r)} />{r} mi</label>
+                ))}
+              </div>
+            </fieldset>
+            {ins.state === 'ok' && !ins.data.gate.open && (
+              <button type="button" className="chip-btn" aria-pressed={sample} onClick={() => setSample((s) => !s)}>{sample && <Icon name="check" />}Sample data</button>
+            )}
+          </div>
+        )}>
+        {(ins.state === 'loading' || fp.state === 'loading') && <div className="skeleton" style={{ height: '22rem' }} aria-busy="true" aria-label="Loading what your callers love" />}
+        {ins.state === 'error' && (
+          <Banner tone="danger" action={<button type="button" className="btn btn-text" onClick={reloadIns}>Try again</button>}>
+            We couldn't reach the insights service. Your concierge keeps answering calls as normal.
+          </Banner>
+        )}
+        {ins.state === 'ok' && fp.state !== 'loading' && (
+          <div className="callers-grid">
+            <section className="callers-map" aria-label="Your callers' taste fingerprint, on the map around the inn">
+              <AreaCard insights={ins.data} fingerprint={fp.state === 'ok' ? fp.data : null} />
+              {areaDark && !sample && <button type="button" className="btn btn-text gate-preview" onClick={onSample}>Preview it with sample callers</button>}
+            </section>
+            <div className="callers-pair">
+              <LeanPanel data={ins.data} tastes={tastes} onRetry={reloadIns} />
+              <HotAreas data={ins.data} onRetry={reloadIns} />
+            </div>
+            <p className="micro mono callers-asof">As of {new Date(ins.data.as_of).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} <ViaChip upstream={ins.data.upstream} /></p>
+          </div>
+        )}
+      </Part>
+
+      {/* 2. Calls: the own log, honest in mock and live, with every request behind each call. */}
+      <Part id="calls" title="Every call, and what it asked Qloo." line="Aggregate only. No names, numbers, or transcripts.">
         {sessions.state === 'loading' && <div className="skeleton" style={{ height: '8rem' }} aria-busy="true" aria-label="Loading calls" />}
         {sessions.state === 'error' && <Banner tone="danger" action={<button type="button" className="btn btn-text" onClick={reloadSessions}>Try again</button>}>We couldn't load your calls. The line is still answering.</Banner>}
         {sessions.state === 'ok' && (
@@ -276,41 +409,32 @@ export default function Property({ id, health }) {
               <Stat label="Picks given" value={picks} unit={picks === 1 ? 'pick' : 'picks'} source={capped ? `Own log, last ${list.length} calls` : 'Own log, all time'} />
             </div>
             {list.length === 0 ? (
-              <div className="card" style={{ marginTop: 'var(--space-4)' }}>
-                <p>No calls yet. Share your number on a room card, or make a preview call to see how a call looks here.</p>
-                <p style={{ marginTop: 'var(--space-3)' }}><Link to="/build" className="btn btn-secondary">Open the builder</Link></p>
+              <div className="card calls-empty">
+                <p>{isDemo ? 'No real calls on this line yet. The sample call below shows how each one will look.' : 'No calls yet. Share your number on a room card, or make a preview call to see how a call looks here.'}</p>
+                {!isDemo && <p style={{ marginTop: 'var(--space-3)' }}><Link to="/build" className="btn btn-secondary">Open the builder</Link></p>}
               </div>
             ) : (
-              <div className="sessions-wrap" style={{ marginTop: 'var(--space-4)' }}>
+              <div className="sessions-wrap calls-list">
                 <ul className="session-cards">
-                  {list.map((s) => (
-                    <li key={`${s.started_at}-${s.persona}`}>
-                      <p className="row" style={{ justifyContent: 'space-between' }}>
-                        <span className="tnum">{clock(s.started_at)}</span>
-                        <span className={`chip ${s.sms_sent ? 'chip-success' : ''}`}>{s.sms_sent ? 'Itinerary sent' : 'No text needed'}</span>
-                      </p>
-                      <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>Tastes named: <Tastes entities={s.entities} /></p>
-                      {unresolvedInMock(s.trace) && <MockNote />}
-                      <SessionTrace trace={s.trace} counterfactual={s.counterfactual} note={unresolvedInMock(s.trace)} />
-                    </li>
-                  ))}
+                  {list.map((s) => <SessionCard key={`${s.started_at}-${s.persona}`} s={s} />)}
                 </ul>
                 <table className="session-table">
                   <caption className="visually-hidden">Recent calls, newest first</caption>
-                  <thead><tr><th scope="col">Time</th><th scope="col">Voice</th><th scope="col">Tastes named</th><th scope="col">Picks</th><th scope="col">Events</th><th scope="col">Texted</th><th scope="col">Qloo trace</th></tr></thead>
+                  <thead><tr><th scope="col">Time</th><th scope="col">Voice</th><th scope="col">Tastes named</th><th scope="col">Picks</th><th scope="col">Events</th><th scope="col">Texted</th><th scope="col">Requests</th></tr></thead>
                   <tbody>
                     {list.map((s) => <SessionTableRow key={`${s.started_at}-${s.persona}`} s={s} />)}
                   </tbody>
                 </table>
               </div>
             )}
-            {(list.length === 0 || isDemo) && <SampleSessionCard session={sessions.data?.sample_session} />}
+            {(list.length === 0 || isDemo) && <div className="calls-sample"><SampleSessionCard session={sessions.data?.sample_session} /></div>}
           </>
         )}
-      </section>
+      </Part>
 
-      <section id="text" className="section" aria-labelledby="text-h">
-        <div className="section-head"><h2 id="text-h">The text a guest gets</h2><SampleBadge>Sample guest</SampleBadge></div>
+      {/* 3. The text, where each line came from, and V3 for the Qloo line. */}
+      <Part id="text" title="The text a guest gets." line="One pick from Qloo, one listing from Ticketmaster, and one of your favorites, in at most 320 characters."
+        aside={<SampleBadge>Sample guest</SampleBadge>}>
         <div className="grid grid-2">
           <div className="card">
             {itin.state === 'loading' && <div className="skeleton" style={{ height: '8rem' }} />}
@@ -324,62 +448,31 @@ export default function Property({ id, health }) {
                 {itin.data.picks.map((pk) => <li key={pk.name}><span>{pk.name}</span><SourceChip source={pk.source} /></li>)}
               </ol>
             )}
-            <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
-              Built by the compose_itinerary tool for the same sample guest as the demo page: one Qloo pick, one Ticketmaster listing, and your own first favorite. Links are https only, and the whole text stays at most 320 characters long.
+            <p className="dim text-note">
+              The same sample guest as the front page. Links are https only, and the whole text stays at most 320 characters long.
             </p>
             {itin.state === 'ok' && <p style={{ marginTop: 'var(--space-2)' }}><ViaChip upstream={itin.data.upstream} /></p>}
           </div>
         </div>
-      </section>
+        {whyPlace && (
+          <div className="text-why">
+            <p className="micro">{matched ? 'Why the Qloo line was picked' : 'Why a pick was made, for the same sample guest'}</p>
+            <WhyPick place={whyPlace} request={pick.data.request} />
+          </div>
+        )}
+      </Part>
 
-      <section id="insights" className="section" aria-labelledby="ins-h">
-        <div className="section-head">
-          <h2 id="ins-h">Area insights</h2>
-          <div className="row">
-            <fieldset className="fieldset">
-              <legend className="visually-hidden">Radius</legend>
-              <div className="segmented">
-                {[1, 2, 5].map((r) => (
-                  <label key={r}><input type="radio" name="radius" checked={radius === r} onChange={() => setRadius(r)} />{r} mi</label>
-                ))}
-              </div>
-            </fieldset>
-            {ins.state === 'ok' && !ins.data.gate.open && (
-              <button type="button" className="chip-btn" aria-pressed={sample} onClick={() => setSample((s) => !s)}>{sample && <Icon name="check" />}Sample data</button>
-            )}
-          </div>
-        </div>
-        <div style={{ marginBottom: 'var(--space-4)' }}><FingerprintCard fp={fp} tastes={tastes} onSample={() => setSample(true)} /></div>
-        {ins.state === 'ok' && <p className="micro mono" style={{ marginBottom: 'var(--space-3)' }}>As of {new Date(ins.data.as_of).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · <ViaChip upstream={ins.data.upstream} /></p>}
-        {ins.state === 'loading' && (
-          <div className="insights-top" aria-busy="true" aria-label="Loading insights">
-            <div className="skeleton" style={{ height: '18rem' }} /><div className="skeleton" style={{ height: '18rem' }} />
-          </div>
-        )}
-        {ins.state === 'error' && (
-          <Banner tone="danger" action={<button type="button" className="btn btn-text" onClick={reloadIns}>Try again</button>}>
-            We couldn't reach the insights service. Your concierge keeps answering calls as normal.
-          </Banner>
-        )}
-        {ins.state === 'ok' && (
-          <div className="stack">
-            {ins.data.sample && <Banner tone="info">Showing sample callers' tastes ({ins.data.interests.join(', ')}). Shown with example data until 5 calls name a taste.</Banner>}
-            <div className="insights-top">
-              <Heatmap data={ins.data} inn={inn} onRetry={reloadIns} />
-              <Demographics data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={() => setSample(true)} />
-            </div>
-            <HotAreas data={ins.data} onRetry={reloadIns} />
-            <LeanPanel data={ins.data} tastes={tastes} onRetry={reloadIns} />
-          </div>
-        )}
-      </section>
+      {/* 4. More: who shares these tastes nearby (not a description of the guests). */}
+      <Part id="more" title="Who shares these tastes nearby." line="What Qloo knows about people with these tastes around the inn. Not a description of your guests.">
+        {ins.state === 'ok' && <div className="more-grid"><Demographics data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={onSample} /></div>}
+      </Part>
 
-      <section id="suggest" className="section" aria-labelledby="sg-h">
-        <div className="section-head"><h2 id="sg-h">What to stock or partner with</h2><span className="micro">A suggestion, not a forecast</span></div>
+      {/* 5. Suggestions. */}
+      <Part id="suggest" title="What to stock or partner with." line="A suggestion from the panels above, not a forecast.">
         {ins.state === 'ok' && (() => {
           const guestOpen = ins.data.gate.open || ins.data.sample;
           const items = guestOpen ? deriveSuggestions(ins.data, inn) : [];
-          if (!guestOpen) return <div className="card"><GateCard count={ins.data.gate.count} min={ins.data.gate.min} tastes={tastes} onSample={() => setSample(true)} /></div>;
+          if (!guestOpen) return <div className="card"><GateCard count={ins.data.gate.count} min={ins.data.gate.min} tastes={tastes} onSample={onSample} /></div>;
           if (!items.length) return <p className="dim">Nothing to suggest yet. Suggestions appear once the panels above have data.</p>;
           return (
             <div className="suggestions">
@@ -393,8 +486,8 @@ export default function Property({ id, health }) {
             </div>
           );
         })()}
-        <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>Each suggestion is written from the panels above by a fixed template. We do not predict revenue or reviews.</p>
-      </section>
+        <p className="dim text-note">Each suggestion is written from the panels above by a fixed template. We do not predict revenue or reviews.</p>
+      </Part>
     </div>
   );
 }

@@ -470,8 +470,8 @@ function PreviewStep({ ctx, preview, runPreview, onNext, goTo }) {
   const notes = findings.filter((f) => f.severity !== 'error').length;
   return (
     <section aria-labelledby="pv-h" className="stack">
-      <h2 id="pv-h" style={{ fontSize: 'var(--text-xl)' }}>Preview</h2>
-      <p className="prose dim">This compiles your answers into the exact instructions your concierge will follow, and checks them. Nothing is saved or published.</p>
+      <h2 id="pv-h" style={{ fontSize: 'var(--text-xl)' }}>What your concierge will be told.</h2>
+      <p className="prose dim">The opening line, the start of its instructions, and the tools it may use, compiled from your answers and checked. Nothing is saved or published.</p>
       <div className="row">
         <button type="button" className="btn btn-primary" onClick={runPreview} disabled={preview.state === 'loading'} aria-busy={preview.state === 'loading'}>
           {preview.state === 'loading' ? 'Building the preview' : r ? 'Build the preview again' : 'Build the preview'}
@@ -502,7 +502,6 @@ function PreviewStep({ ctx, preview, runPreview, onNext, goTo }) {
             <div className="row">
               {r.meta.errors === 0 ? <span className="chip chip-success"><Icon name="check" />Checks passed</span> : <span className="chip chip-danger">{r.meta.errors} problem{r.meta.errors === 1 ? '' : 's'} to fix</span>}
               {notes > 0 && <span className="chip chip-warning">{notes} note{notes === 1 ? '' : 's'}</span>}
-              <span className="micro mono tnum">About {r.meta.prompt_tokens_approx.toLocaleString()} tokens, compiler estimate</span>
             </div>
             {placeholders > 0 && <p className="dim" style={{ fontSize: 'var(--text-sm)' }}>{placeholders} deployment settings, such as the tool server address, are filled in when the hosted service deploys it.</p>}
             {findings.length > 0 && (
@@ -525,6 +524,10 @@ function PreviewStep({ ctx, preview, runPreview, onNext, goTo }) {
               <p className="micro">Tools it can use</p>
               <div className="row" style={{ marginTop: 'var(--space-2)' }}>{r.tools.map((t) => <span key={t} className="chip chip-mono">{t}</span>)}</div>
             </div>
+            <details className="pv-details">
+              <summary>Details</summary>
+              <p className="micro mono tnum" style={{ marginTop: 'var(--space-2)' }}>About {r.meta.prompt_tokens_approx.toLocaleString()} tokens, compiler estimate</p>
+            </details>
             <Banner tone="info">Preview calls ring through the hosted service. This public build shows exactly what your concierge will be told and which tools it has.</Banner>
           </div>
         )}
@@ -563,6 +566,12 @@ function PublishStep({ ctx, preview, publish, setPublish }) {
   return (
     <section aria-labelledby="pb-h" className="stack">
       <h2 id="pb-h" style={{ fontSize: 'var(--text-xl)' }}>Publish</h2>
+      <p className="prose dim">On a public demo with no admin key, publishing is turned off. On your own copy, publishing does three things, in order:</p>
+      <ol className="prose pub-rail" aria-label="What publishing does, in order">
+        <li>Your card becomes a voice agent.</li>
+        <li>The number answers.</li>
+        <li>Calls show on your dashboard.</li>
+      </ol>
       <fieldset className="fieldset">
         <legend>Who can reach it</legend>
         <div className="ladder">

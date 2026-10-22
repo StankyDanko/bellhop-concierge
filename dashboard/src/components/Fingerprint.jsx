@@ -106,7 +106,7 @@ const signed = (n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}`;
 /** One tag list, or the reason there is none. Tag names only: short words, no scores to decode. */
 function LeanList({ title, sec, empty, onRetry, tastes }) {
   let body;
-  if (sec?.status === 'gated') body = <p className="dim fp-line">Dark until {sec.min} calls name a taste. {tasteCountText(tastes, sec.count)}</p>;
+  if (sec?.status === 'gated') body = <p className="dim fp-line">Opens at {inWords(sec.min)} calls that name a taste. {tasteCountText(tastes, sec.count)}</p>;
   else if (sec?.status === 'degraded') body = <p className="dim fp-line">This list is taking longer than usual. {onRetry && <button type="button" className="btn btn-text fp-retry" onClick={onRetry}>Try again</button>}</p>;
   else if (!sec || sec.status === 'skipped' || !sec.tags?.length) body = <p className="dim fp-line">{empty}</p>;
   else {
