@@ -27,7 +27,7 @@ These change only with a commit, and the command shows the current value.
 | One text per call | privacy page (dashboard/src/legal-content.js) | `grep -n "ONE_PER_CALL_SAY\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
 | Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
-| Twenty calls a day on the test line | README | `grep -n "daily_limit" compiler/compile.js` (the demo inn is at trust level `test`) |
+| Calls a day by trust level: test 20, suggest 100, live 300 | README, the dashboard's line chip | `grep -n "daily_limit" compiler/compile.js` (`TRUST_LIMITS`; the demo inn is at trust level `test`); the chip labels are `grep -n "calls a day" dashboard/src/pages/Property.jsx` |
 | Fifteen battery callers, two two-call sequences, sixteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
 

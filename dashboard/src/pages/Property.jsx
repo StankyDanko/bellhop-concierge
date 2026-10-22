@@ -8,7 +8,7 @@ import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
-import { Counterfactual, MockNote, SampleSessionCard, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
+import { Counterfactual, MockNote, requestsLabel, SampleSessionCard, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
 import { BasisTag, HotAreas, inWords, LeanPanel, tasteCountText } from '../components/Fingerprint.jsx';
 import { AreaCard } from '../components/AreaCard.jsx';
 import { WhyPick } from '../components/WhyPick.jsx';
@@ -29,15 +29,6 @@ function Tastes({ entities }) {
   return entities.length ? entities.join(', ') : <span className="none-resolved">none resolved</span>;
 }
 
-const SOURCE_NAME = { qloo: 'Qloo', ticketmaster: 'Ticketmaster' };
-/** "Requests (9): 8 Qloo, 1 Ticketmaster", counted from the trace's own source field. */
-function requestsLabel(trace) {
-  const t = trace ?? [];
-  const by = new Map();
-  for (const e of t) { const k = SOURCE_NAME[e.source] ?? 'other'; by.set(k, (by.get(k) ?? 0) + 1); }
-  const parts = [...by.entries()].map(([k, n]) => `${n} ${k}`);
-  return `Requests (${t.length})${parts.length ? `: ${parts.join(', ')}` : ''}`;
-}
 
 /** The toggle both call layouts share: every request for one call, exactly as sent. */
 function CallTraceToggle({ trace, open, onToggle, controls }) {

@@ -85,7 +85,7 @@ try {
   check(fps.basis === 'sample' && fps.sessions >= 8 && fps.entities?.length > 0, `sample fingerprint has ${fps.sessions} sample calls`);
   const insS = await (await fetch(`${BASE}/api/properties/demo/insights?sample=1`)).json();
   check(insS.basis === 'sample' && insS.heatmap?.basis === 'sample' && insS.sample_size === fps.sessions, `insights panels carry basis ${insS.basis} and sample_size ${insS.sample_size}`);
-  check(bundle.includes("Your callers' taste fingerprint"), 'bundle carries the fingerprint card');
+  check(bundle.includes('What your callers love.'), 'bundle carries the callers section');
   // The privacy and terms pages: a carrier review looks for these two sentences word for word.
   check(bundle.includes('Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.'), 'bundle carries the privacy page SMS sentence');
   check(bundle.includes('Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.'), 'bundle carries the footer bridge sentence');
@@ -121,6 +121,11 @@ try {
   const landingFails = (landing.stdout ?? '').split('\n').filter((l) => l.startsWith('FAIL'));
   for (const l of landingFails) console.log(l);
   check(landing.status === 0, `landing checks pass (${((landing.stdout ?? '').match(/^ok /gm) ?? []).length} ok, ${landingFails.length} failed${landing.error ? `, ${landing.error.code}` : ''})`);
+  // The dashboard and brief checks (dashboard/scripts/check-dashboard.mjs), same server, same bound.
+  const dash = spawnSync(process.execPath, ['dashboard/scripts/check-dashboard.mjs', '--base', BASE], { cwd: ROOT, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL' });
+  const dashFails = (dash.stdout ?? '').split('\n').filter((l) => l.startsWith('FAIL'));
+  for (const l of dashFails) console.log(l);
+  check(dash.status === 0, `dashboard checks pass (${((dash.stdout ?? '').match(/^ok /gm) ?? []).length} ok, ${dashFails.length} failed${dash.error ? `, ${dash.error.code}` : ''})`);
 } finally {
   try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
   const exited = server.exitCode !== null || server.signalCode !== null || await new Promise((r) => { const t = setTimeout(() => r(false), 3000); server.once('exit', () => { clearTimeout(t); r(true); }); });

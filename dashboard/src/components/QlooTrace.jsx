@@ -3,7 +3,7 @@
 // TraceTable: every upstream request a call made (endpoint, the exact params sent, mock or
 // live, cache, time, result count). The API key is never in the data, so it cannot show.
 // Counterfactual: the places with no taste signal next to the places with it (whole lists).
-// SessionTrace: the expandable "Qloo calls (n)" block on a Calls row.
+// SessionTrace: the expandable "Requests (n): x Qloo, y Ticketmaster" block on a Calls row.
 // RequestBehind: the landing's "The request behind this pick".
 // CallRail: the call as numbered stations on one rail, grouped from the trace (V1).
 import { useEffect, useId, useRef, useState } from 'react';
@@ -342,15 +342,23 @@ export function CallRail({ trace, said, plusOne, textChars, header }) {
   );
 }
 
-/** "Qloo calls (n)" toggle with the trace and counterfactual inside. */
+/** "Requests (9): 8 Qloo, 1 Ticketmaster", counted from the trace's own source field. */
+export function requestsLabel(trace) {
+  const t = trace ?? [];
+  const by = new Map();
+  for (const e of t) { const k = SOURCE_LABEL[e.source] ?? 'other'; by.set(k, (by.get(k) ?? 0) + 1); }
+  const parts = [...by.entries()].map(([k, n]) => `${n} ${k}`);
+  return `Requests (${t.length})${parts.length ? `: ${parts.join(', ')}` : ''}`;
+}
+
+/** The call toggle, labelled like the dashboard rows, with the trace and counterfactual inside. */
 export function SessionTrace({ trace, counterfactual, defaultOpen = false, note = false, mentions }) {
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
-  const n = trace?.length ?? 0;
   return (
     <div className="session-trace">
       <button type="button" className="trace-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        <span>Qloo calls (<span className="num">{n}</span>)</span>
+        <span>{requestsLabel(trace)}</span>
         <Icon name="chev" className="chev" />
       </button>
       <div id={id} className="trace-body" hidden={!open}>
