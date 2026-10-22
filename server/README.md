@@ -762,7 +762,7 @@ card, and the fingerprint is a small, self-selected sample, always shown with it
 
 ## How Qloo is load-bearing
 
-Four of the eight tools call Qloo directly, and the rest exist to put Qloo's picks in
+Four of the nine tools (`curl -s localhost:8787/health`, under `tools`) call Qloo directly, and the rest exist to put Qloo's picks in
 front of the guest. Every capability below is
 called from `lib/qloo.js` and appears by endpoint in each response's `meta.upstream` and
 in the server log, one JSON line per call (endpoint and parameters, never the key).
