@@ -15,6 +15,7 @@
     "test": "/usr/bin/node --test server/ compiler/",
     "live": "/usr/bin/node --env-file=server/.env server/index.js",
     "probe:qloo": "/usr/bin/node --env-file=server/.env server/scripts/probe-qloo.js",
+    "battery": "/usr/bin/node server/scripts/battery.js",
     "compile": "/usr/bin/node bin/compile.js",
     "schema": "/usr/bin/node bin/compile.js --print-schema > config/schema.json",
     "build:dashboard": "vite build --config dashboard/vite.config.js && /usr/bin/node dashboard/scripts/build-legal.mjs",
