@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "windows": {
+    "harper": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
+    "maybelle": { "morning": "day", "afternoon": "afternoon", "evening": "evening", "late": "night" }
+  },
+  "plan_windows": { "morning": "today", "afternoon": "this afternoon", "evening": "tonight", "late": "tonight" },
+  "personas": {
+    "harper": {
+      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
+      "openers": [
+        { "id": "h-band", "anchor": "artist", "text": "Tell me one band you've had on repeat, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "h-song", "anchor": "artist", "text": "Name one song that's been stuck in your head, and I'll build the evening around it.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "h-movie", "anchor": "movie", "text": "Give me one movie you could watch again tonight, and I'll plan around it.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "h-drive", "anchor": "artist", "text": "Tell me one artist you'd drive an hour to see, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-album", "anchor": "artist", "text": "Name one album you'd want on a long drive, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-cuisine", "anchor": "cuisine", "text": "Tell me one cuisine you'd never turn down, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-show", "anchor": "tv_show", "text": "Name one show you'd happily binge, and I'll work from that.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-car", "anchor": "artist", "text": "Tell me what's been playing in your car this week, and I'll plan the rest.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-weekend", "anchor": "artist", "text": "It's the weekend, so tell me one band you'd stay up late for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "h-sunday", "anchor": "cuisine", "text": "Tell me one comfort meal you'd want on a Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+      ],
+      "returning": [
+        { "id": "h-r1", "text": "More like last time, or something new tonight?" },
+        { "id": "h-r2", "text": "Want more in the spirit of last time, or a change of pace?" },
+        { "id": "h-r3", "text": "Same direction as last time, or should I surprise you?" },
+        { "id": "h-r4", "text": "Shall I build on last time, or start fresh?" }
+      ],
+      "same_day": [
+        { "id": "h-s1", "text": "Want more like what I found earlier, or something different?" },
+        { "id": "h-s2", "text": "Did the plan hold up, or shall I find you a change?" },
+        { "id": "h-s3", "text": "Round two, more of the same, or something new?" }
+      ]
+    },
+    "maybelle": {
+      "greeting": { "new": "Hey there,", "returning": "Well, welcome back,", "same_day": "Well, hello again," },
+      "openers": [
+        { "id": "m-band", "anchor": "artist", "text": "Tell me a band you can't stop playing, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "m-supper", "anchor": "cuisine", "text": "Tell me a supper you still daydream about, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-windows", "anchor": "artist", "text": "Name a song you'd sing along to with the windows down, and I'll plan around it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-movie", "anchor": "movie", "text": "Tell me a movie you could watch a dozen times, and I'll build your <window> from it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-county", "anchor": "artist", "text": "Tell me one singer you'd cross the county to hear, and I'll do the rest.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-dish", "anchor": "cuisine", "text": "Name a dish you'd never pass up, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-radio", "anchor": "artist", "text": "Tell me what's been on your radio this week, and I'll put something together.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-porch", "anchor": "artist", "text": "Tell me one record you'd want on a porch on a slow evening, and I'll start there.", "dayparts": ["afternoon", "evening"], "days": ["any"] },
+        { "id": "m-weekend", "anchor": "artist", "text": "Well, it's the weekend, so tell me a band worth staying up for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "m-sunday", "anchor": "cuisine", "text": "Tell me a Sunday supper you'd never turn down, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+      ],
+      "returning": [
+        { "id": "m-r1", "text": "More like last time, or something new this evening?" },
+        { "id": "m-r2", "text": "Shall I pick up where we left off, or try something different?" },
+        { "id": "m-r3", "text": "Same road as last time, or a new one?" },
+        { "id": "m-r4", "text": "Want me to build on last time, or start fresh?" }
+      ],
+      "same_day": [
+        { "id": "m-s1", "text": "Well, more like what I found you earlier, or something different?" },
+        { "id": "m-s2", "text": "Did that plan treat you right, or shall I find a change?" },
+        { "id": "m-s3", "text": "Back for seconds, more of the same, or something new?" }
+      ]
+    }
+  },
+  "pairs": [
+    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper"] },
+    { "id": "p-lively", "text": "spicy and lively, or slow and candlelit", "sides": [["spicy", "lively"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["maybelle"] },
+    { "id": "p-adventure", "text": "adventurous and fun, or familiar and quiet", "sides": [["adventurous", "fun"], ["familiar", "quiet"]], "dayparts": ["any"], "enabled": true },
+    { "id": "p-noise", "text": "loud and fun, or quiet and candlelit", "sides": [["loud", "fun"], ["quiet", "candlelit"]], "dayparts": ["any"], "enabled": true },
+    { "id": "p-heat", "text": "spicy and adventurous, or slow and familiar", "sides": [["spicy", "adventurous"], ["slow", "familiar"]], "dayparts": ["any"], "enabled": true },
+    { "id": "p-patio", "text": "casual and outdoors, or cozy and candlelit", "sides": [["casual", "outdoors"], ["cozy", "candlelit"]], "dayparts": ["any"], "enabled": false },
+    { "id": "p-dress", "text": "upscale and quiet, or casual and loud", "sides": [["upscale", "quiet"], ["casual", "loud"]], "dayparts": ["any"], "enabled": false },
+    { "id": "p-light", "text": "fresh and light, or hearty and slow", "sides": [["fresh", "light"], ["hearty", "slow"]], "dayparts": ["any"], "enabled": false },
+    { "id": "p-view", "text": "scenic and slow, or lively and casual", "sides": [["scenic", "slow"], ["lively", "casual"]], "dayparts": ["any"], "enabled": false },
+    { "id": "p-share", "text": "casual and spicy, or upscale and candlelit", "sides": [["casual", "spicy"], ["upscale", "candlelit"]], "dayparts": ["any"], "enabled": false },
+    { "id": "p-cozy", "text": "outdoors and fun, or cozy and quiet", "sides": [["outdoors", "fun"], ["cozy", "quiet"]], "dayparts": ["afternoon"], "enabled": false },
+    { "id": "p-comfort", "text": "hearty and familiar, or fresh and adventurous", "sides": [["hearty", "familiar"], ["fresh", "adventurous"]], "dayparts": ["any"], "enabled": false }
+  ],
+  "bets": [
+    { "id": "b-film", "domain": "movie", "text": "a film or a director", "default": true, "enabled": true },
+    { "id": "b-tv", "domain": "tv_show", "text": "a TV show", "enabled": true },
+    { "id": "b-book", "domain": "book", "text": "a book or an author", "enabled": true },
+    { "id": "b-podcast", "domain": "podcast", "text": "a podcast", "enabled": true },
+    { "id": "b-album", "domain": "artist", "text": "an album from another decade", "enabled": true },
+    { "id": "b-place", "domain": "place", "text": "a city you'd fly to just for the food", "enabled": false }
+  ]
+}
