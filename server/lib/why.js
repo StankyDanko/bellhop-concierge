@@ -200,7 +200,8 @@ function spreadOf(values) {
  * Label every pick on the shortlist. A pick is "both" when each person ranks it in their top
  * half (ceil(n/2)); otherwise it goes to the person who ranks it higher. Equal ranks outside the
  * top half get no label (neither person stands out). When either person's spread is under
- * FLAT_SPREAD, every label is null. A pick only one person scored goes to that person.
+ * FLAT_SPREAD, every label is null. A pick only one person scored goes to that person. When
+ * either person has fewer than two scores (a one-place shortlist), a pick both scored gets none.
  * @param {Array<{ guest?: number|null, companion?: number|null }>} fits
  *   per-person affinities, one entry per shortlist pick, in shortlist order
  * @param {{ flatSpread?: number }} [opts]
@@ -215,10 +216,14 @@ export function favorsByRank(fits, { flatSpread = FLAT_SPREAD } = {}) {
   const gr = ranksOf(g);
   const cr = ranksOf(c);
   const half = Math.ceil(fits.length / 2);
+  // A rank needs at least two scores to be a rank. With one pick, or one person scoring a
+  // single pick, a pick both scored cannot be shown to be shared or to lean either way.
+  const ranked = gSpread !== null && cSpread !== null;
   return fits.map((_, i) => {
     if (g[i] === null && c[i] === null) return null;
     if (g[i] === null) return 'companion';
     if (c[i] === null) return 'guest';
+    if (!ranked) return null;
     if (gr[i] <= half && cr[i] <= half) return 'both';
     if (gr[i] === cr[i]) return null;
     return gr[i] < cr[i] ? 'guest' : 'companion';

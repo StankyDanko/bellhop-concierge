@@ -181,13 +181,17 @@ export function fingerprintSignals(fp, max = FINGERPRINT_SIGNAL_MAX) {
     .map(({ id, name }) => ({ id, name: name ?? '' }));
 }
 
+/** Hits asked for per swapped name, and the name match a hit needs (the resolve_taste threshold). */
+const LIVE_SEARCH_TAKE = 3;
+const LIVE_MATCH_MIN = 0.6;
+
 /** Ids that exist only in the hand-written mock fixtures. They mean nothing to the live API. */
 export const isFixtureId = (id) => /^fx-/.test(id);
 
 /**
  * The signals as they may go upstream. In mock mode they pass through. Live, a fixture id is
  * replaced by the entity Qloo's own /search returns for the sample's displayed name (one cached
- * request each, in order), and dropped when nothing resolves, so no fx- id ever leaves the
+ * request each, in order, the hit whose name matches), and dropped when nothing matches, so no fx- id ever leaves the
  * process. Real tag URNs are kept. Resolved ids live only in memory and the response cache.
  * @param {{ mode?: string, search: Function }} qloo
  * @param {Array<{ id: string, name: string }>} interests
@@ -199,10 +203,16 @@ export async function liveSignals(qloo, interests, calls = []) {
   for (const i of interests) {
     if (!isFixtureId(i.id)) { out.push(i); continue; }
     if (!i.name) continue;
-    const { entities, call } = await qloo.search({ query: i.name, take: 1 });
+    // /search is fuzzy: its first hit can be an album or a namesake. Take the hit whose name
+    // matches the displayed name, or none at all.
+    const { entities, call } = await qloo.search({ query: i.name, take: LIVE_SEARCH_TAKE });
     calls.push(call);
-    const id = entities[0]?.entity_id;
-    if (id && !isFixtureId(id)) out.push({ id, name: i.name });
+    let best = null;
+    for (const e of entities) {
+      const score = similarity(i.name, e.name ?? '');
+      if (e.entity_id && !isFixtureId(e.entity_id) && score >= LIVE_MATCH_MIN && (!best || score > best.score)) best = { e, score };
+    }
+    if (best) out.push({ id: best.e.entity_id, name: i.name });
   }
   return out;
 }

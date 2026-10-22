@@ -68,7 +68,7 @@ export function assertNoPii(endpoint, params) {
       for (const id of value.split(',')) if (!ENTITY_ID.test(id)) fail('not an entity id');
       continue;
     }
-    if (EXACT_VALUES[key]?.has(value)) continue;
+    if (Object.hasOwn(EXACT_VALUES, key) && EXACT_VALUES[key].has(value)) continue;
     if (TAG_LIST.test(key)) {
       for (const id of value.split(',')) if (!TAG_URN.test(id)) fail('not a tag URN');
       continue;
