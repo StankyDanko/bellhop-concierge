@@ -3,6 +3,9 @@
 Small, honest, and readable cold. Every commit here should make sense to someone who opens
 `git log` a year from now with no context and a cup of coffee.
 
+New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how a call moves through the
+code, and [docs/TESTING.md](docs/TESTING.md) for what each test layer proves.
+
 ## Turn the checks on
 
 ```bash
@@ -17,7 +20,8 @@ That points git at `scripts/githooks/`. Two hooks live there, and every commit p
   visual gate artifacts in `gates/`, `server/.env`, and `*.sqlite`.
 - Reads the words a judge, an innkeeper, or a guest sees (`dashboard/src`, `server/tools`,
   `server/api`, `template`, `personas`, `compiler/tools.js`, and the Markdown at the root)
-  and stops on an em dash, on "AI", or on a word from the local denylist.
+  and stops on an em dash, on "AI", or on a word from the local denylist. The Markdown in
+  `docs/` and `dashboard/` follows the same rules, held by review for now.
 - Reads every line the commit adds, looking for anything that looks like a key, a real
   `X-Api-Key` value, a server address, a login, a home directory, a phone number, or an email.
   The public demo numbers and the support address are allowed.
@@ -38,10 +42,24 @@ When a hook stops you, it says why in one sentence. Fix the thing. Don't skip th
 npm test                  # the offline suite, all green
 npm run build:dashboard   # the dashboard builds
 npm run smoke:dashboard   # the pages a judge opens load
+npm run battery -- --mock # fifteen simulated callers, offline
 ```
 
 The hooks run the copy and leak greps for you, and the tests when code changed. Build and smoke
-are on you when you touch the dashboard or the server's routes.
+are on you when you touch the dashboard or the server's routes. The battery is on you when you
+touch a tool, the text composer, or the agent's tool contracts.
+
+Two more need a Qloo key in `server/.env` and spend quota, so run them on purpose:
+
+- `npm run battery -- --live --port <free port>` when a change could move what Qloo is asked.
+  It stops on the first rate limit and never sends a text.
+- `npm run probe:qloo` when a request or response shape changes. It prints to the terminal
+  only; redirect it outside the repo.
+
+**Fixtures.** Everything in `server/fixtures/` is written by hand, with `fx-` ids and fictional
+places. Never paste a real response in, not even a trimmed one. And mind one naming trap: the
+mock transport reads any `qloo.insights.<something>.json` as an overlay on every insights answer,
+so give a new fixture a name outside that pattern.
 
 ## Commit style
 

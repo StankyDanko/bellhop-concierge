@@ -1,7 +1,18 @@
 # Bellhop Concierge: DESIGN-LANGUAGE
 
-Edition of Bellhop (SouthernSky). Public AGPL reference dashboard. Written 2026-10-15 for the Oct 28 ship.
-Precedence: this file > register > brand constants > `~/tools/design/DESIGN-DOCTRINE.md`. Rule IDs in brackets (H1, C7, MB8...) are doctrine rules; cite them in review.
+Edition of Bellhop (SouthernSky). Public AGPL reference dashboard. Written 2026-10-15 as the design spec, and kept as the record of why the pages look the way they do.
+Precedence: this file > register > brand constants > the house design doctrine. Rule IDs in brackets (H1, C7, MB8...) are doctrine rules; cite them in review.
+
+## As built (2026-10-22)
+
+The spec ran ahead of the build in a few places. Where this file and the running pages differ, the pages are the truth, and this list says where:
+
+- **The demo inn is The Juniper House,** Savannah, GA. The test line is (706) 810-9262, Harper answering, capped at twenty calls a day. Earlier drafts below used a placeholder inn name and a different number.
+- **Guests name three things,** not two. Every "two things" in the original copy now reads "three things" on the site and on the room cards.
+- **No ring-back or in-browser call.** The landing offers the number to call. Sections 5.1 and 5.9 describe a flow that was designed and not built.
+- **Two sources besides the innkeeper: Qloo and Ticketmaster.** No other place source is used, so the blue source chip only ever says Ticketmaster.
+- **Light is the default theme,** with dark a full toggle, as recommended in section 1.
+- **Landing layout** follows section 9's order of volume; its exact copy lives in `dashboard/src/pages/Landing.jsx`.
 Token files: `concierge.tokens.css` (this edition) layered over `tokens.css` (verbatim copy of the house sheet, so the public repo is self-contained). Components reference semantic tokens only [C1].
 
 ---
@@ -10,7 +21,7 @@ Token files: `concierge.tokens.css` (this edition) layered over `tokens.css` (ve
 
 **Name: FRONT DESK.** A fourth register, derived, not blended: the calm density of the tool register slowed down to a hospitality pace, with one marketing-grade moment (the number) and nothing else loud.
 
-**Why (README step 1: how long is a visit, who is it for).** Two audiences, one surface: a judge or investor who spends 40 seconds deciding whether this is real (marketing instinct), and an inn owner who spends 20 minutes once to build their concierge and then 2 minutes a week reading it (tool instinct). Neither wants the neon marketing register (it reads as a game, and a boutique owner will not trust their front door to it) or the dankMire tool register (dense, mono, terminal; it reads as a developer product, and it is dark-only). Torn rule says "pick tool"; we pick tool's calm and discard its density. Feel target: *a well-run small hotel's front desk: warm paper, one brass bell, nothing out of place, staff who say exactly what they know and where they learned it.* Deadpan-premium, legibility-first.
+**Why (README step 1: how long is a visit, who is it for).** Two audiences, one surface: a judge who spends 40 seconds deciding whether this is real (marketing instinct), and an inn owner who spends 20 minutes once to build their concierge and then 2 minutes a week reading it (tool instinct). Neither wants the neon marketing register (it reads as a game, and a boutique owner will not trust their front door to it) or the house tool register (dense, mono, terminal; it reads as a developer product, and it is dark-only). Torn rule says "pick tool"; we pick tool's calm and discard its density. Feel target: *a well-run small hotel's front desk: warm paper, one brass bell, nothing out of place, staff who say exactly what they know and where they learned it.* Deadpan-premium, legibility-first.
 
 **What Front Desk keeps from the brand constants [brand section 1-8]:**
 - Green means ALIVE (the line is answering). It is the only thing that pulses. [brand 1, 5]
@@ -20,7 +31,7 @@ Token files: `concierge.tokens.css` (this edition) layered over `tokens.css` (ve
 - Color = meaning; short, quiet, verb-first copy. [brand 7, 8]
 
 **Deliberate deviations (flagged, not hidden):**
-1. **Light is the default theme; dark is a full toggle.** Brand says "dark-native, no light mode." Reasons: (a) the buyer is a hospitality operator opening a link on a phone in daylight; (b) a boutique-hospitality read is paper and brass, not terminal; (c) a Devpost judge arrives from a white page and a dark flash is a jolt. Dark ships and passes the same audits (judges can toggle; the tokens.css `prefers-color-scheme` path stays intact). This is a decision for Justin to veto; the cost of reverting is one attribute (`data-theme="dark"` on `<html>`).
+1. **Light is the default theme; dark is a full toggle.** Brand says "dark-native, no light mode." Reasons: (a) the buyer is a hospitality operator opening a link on a phone in daylight; (b) a boutique-hospitality read is paper and brass, not terminal; (c) a Devpost judge arrives from a white page and a dark flash is a jolt. Dark ships and passes the same audits (judges can toggle; the tokens.css `prefers-color-scheme` path stays intact). Decided: light default. The cost of reverting is one attribute (`data-theme="dark"` on `<html>`).
 2. **Accent is brass gold (`--gold-500` / `--gold-700`), not green, for "interactive."** This is the house `tokens.css` accent, so it is not a new hex. Green stays reserved for ALIVE so the one pulsing dot on the page can never be mistaken for a button. [C9]
 3. **Sans body, mono only for data.** Brand allows display-mono + sans; Front Desk uses sans for everything a human reads and mono only for numbers, IDs, timestamps, provenance labels. [T8]
 
@@ -39,13 +50,13 @@ Register law [R4]: one register per surface. The demo landing and the dashboard 
 | **Accent (brass)** | `--color-accent`, `-hover`, `-tint`, `--color-focus` | interactive: buttons, links, selected, focus ring | success, decoration |
 | **Live (green)** | `--color-live`, `--color-success` | the line is answering right now; a completed good thing | "go" buttons |
 | **Taste (purple)** | `--color-taste`, `-tint` | data that came from Qloo's taste graph; the persona's character | primary actions |
-| Info (blue) | `--color-info` | a non-Qloo external source (Ticketmaster, Places); neutral notices | links |
+| Info (blue) | `--color-info` | a non-Qloo external source (Ticketmaster); neutral notices | links |
 | Warning (amber) | `--color-warning` | degraded, partial, "you should look at this" | errors |
 | Danger (red) | `--color-danger` | failed, destructive confirm, locked-out | locks (locks are neutral) |
 
 Locked guardrails are NEUTRAL (hatched surface + lock icon), never red or amber: a lock is a promise, not a problem.
 
-Source coloring is a feature: every number and pick carries a source chip. Purple chip = "Qloo". Blue chip = "Ticketmaster" / "Google Places". Neutral chip = "you said it" / "typed" / "default". A judge learns in one glance what Qloo contributed.
+Source coloring is a feature: every number and pick carries a source chip. Purple chip = "Qloo". Blue chip = "Ticketmaster". Neutral chip = "you said it" / "typed" / "default". A judge learns in one glance what Qloo contributed.
 
 ### 2.2 Values and measured contrast (WCAG 2.x ratios computed 2026-10-15)
 
@@ -121,7 +132,7 @@ Input and textarea font-size is `max(16px, var(--text-md))` [MB7]. Tabular-nums 
 All components are designed in the states: rest, hover (`@media (hover:hover) and (pointer:fine)` only, one wrapper project-wide [MB6]), focus-visible (`--ring`), active (one step deeper), disabled (reduced opacity, `not-allowed`, still >=3:1). Hit areas >=48px on coarse pointers via `--touch-min` [MB1].
 
 ### 5.1 PhoneNumberCard ("Call your concierge")
-The one focal point of the landing [H1]. Layout: Micro eyebrow `CALL OR TEXT-BACK, FREE FOR JUDGES` (replace with the true statement at ship) -> number in `--text-number`, `font-variant-numeric: tabular-nums`, `<a href="tel:...">` wrapping the whole number -> one line under it in Lead size: "Tell it two things you love. It texts you three places, with the reason for each." -> LiveBadge row (see below) -> actions.
+The one focal point of the landing [H1]. Layout: Micro eyebrow naming the demo inn -> number in `--text-number`, `font-variant-numeric: tabular-nums`, `<a href="tel:...">` wrapping the whole number -> one line under it in Lead size: "Tell it three things you love. It texts you three places nearby, with the reason for each." -> LiveBadge row (see below) -> actions.
 - Phone (coarse pointer): the number is a 56-64px tall full-width brass button ("Call now") pinned in the bottom thumb zone with `--pad-safe-bottom` as a sticky bar once the card scrolls out of view [MB2, MB5]; the number text stays in the card.
 - Desktop (hover+fine): `tel:` is useless on a laptop, so the card offers "Copy number" and "Ring my phone" (opens the ring-back sheet, 5.9). Both are real buttons, same size as each other, "Ring my phone" is the brass primary.
 - States: hover = border to `--color-accent`; focus ring around the whole card link; **offline** (agent unreachable) = badge flips to amber `Line busy, try again in a minute` and the number stays visible and tappable; never remove the number.
@@ -191,7 +202,7 @@ Presented as a bottom sheet on phone, a centered dialog on desktop (`--z-modal`,
 ### 5.10 WhyChip and PickCard (the explainability atom)
 The most important small component in the product [Qloo is load-bearing].
 - **PickCard**: name (UI weight 600), meta line (distance, price, rating, each with a unit), then the **WhyChip**, then a SourceChip. Max 4 lines at 390.
-- **WhyChip**: full-width-in-card, purple tint (`--color-taste-tint`) with `--color-taste-text`, 12px radius control, leading "why" glyph (a small branching-node icon), text is `place.why` verbatim from the server ("Fans of Thai food and Sturgill Simpson love it"). Tap/click expands in place (280ms height by transform-safe grid-rows trick or a cut) to show **drivers as bars**: one row per `why_trace.drivers` with the input's name and a bar proportional to `score`, labeled with the score as a number. Footer in Micro: `QLOO EXPLAINABILITY, AFFINITY 0.91`.
+- **WhyChip**: full-width-in-card, purple tint (`--color-taste-tint`) with `--color-taste-text`, 12px radius control, leading "why" glyph (a small branching-node icon), text is `place.why` verbatim from the server ("Fans of Sturgill Simpson love it; tagged Thai"). Tap/click expands in place (280ms height by transform-safe grid-rows trick or a cut) to show **drivers as bars**: one row per `why_trace.drivers` with the input's name and a bar proportional to `score`, labeled with the score as a number. Footer in Micro: `QLOO EXPLAINABILITY, AFFINITY 0.91`.
 - **Honest fallback**: when `why_trace.basis` is `affinity`, the chip renders "Strong match for your overall taste" in neutral (not purple), with a Micro `QLOO AFFINITY, NO PER-INPUT REASON`. We never dress an unexplained result as explained.
 - **SourceChip**: `QLOO` (purple outline) for places/cross-domain picks, `TICKETMASTER` (info blue outline) for events (event cards have no taste why; they show "Live listing, Fri 8pm" in the chip slot). Never a logo; a text chip with the service name.
 - Expanded and collapsed are both keyboard operable (`button`, `aria-expanded`).
@@ -213,7 +224,7 @@ Maps to server `status`:
 | Skipped | `status: skipped` | neutral info row, not an error | "Add a few things your guests love and this section fills in." with "Add interests" action |
 | Degraded | `status: degraded` + `reason` | amber tint banner on the panel only, other panels unaffected, last good data kept visible with an `AS OF <time>` Micro | "Qloo didn't answer this time, so we're showing what we had at 4:12 pm. We'll try again in a minute." Action: "Try again now" |
 | Error (whole call) | 5xx / network | danger tint (restrained), no raw error | "We couldn't reach the insights service. Your concierge keeps answering calls as normal." Action: "Try again" |
-| Demographics unavailable | `demographics.status: degraded` with host not supporting it | panel shows the amber state, not hidden | "Age and gender lean isn't available for this area right now." |
+| Demographics unavailable | `demographics.status: degraded` with the API host not supporting it | panel shows the amber state, not hidden | "Age and gender lean isn't available for this area right now." |
 
 A degraded section never blanks its siblings; the page header shows at most ONE amber summary chip ("1 of 3 panels delayed").
 
@@ -258,28 +269,28 @@ Publish success is the biggest motion allowed: the LiveBadge changes to `Answeri
 
 ## 8. Voice of the interface (copy)
 
-Warm, concrete, never cute. Hotel-staff register: first names, plain verbs, no exclamation marks, no jokes in errors, no emoji, no em dashes (use a period, comma, or colon), no "oops", no "AI". Vocabulary: **"your concierge"**, **"the taste graph"**, **"intelligent software"** only if a noun is truly needed; never "AI", "bot", "assistant" in UI copy. (The concierge still says it is an automated assistant to callers, per the locked rule; that is spoken, owned by the prompt template, not by this UI.) Every number: unit and source adjacent.
+Warm, concrete, never cute. Hotel-staff register: first names, plain verbs, no exclamation marks, no jokes in errors, no emoji, no em dashes (use a period, comma, or colon), no "oops", never the two-letter abbreviation for the field. Vocabulary: **"your concierge"**, **"the taste graph"**, **"intelligent software"** only if a noun is truly needed; never that abbreviation, "bot", or "assistant" in UI copy. (The concierge still says it is an automated assistant to callers, per the locked rule; that is spoken, owned by the prompt template, not by this UI.) Every number: unit and source adjacent.
 
 Pattern: *what happened, in human words. What is safe. What to do next (one action).*
 
 | Situation | Copy |
 |---|---|
-| Landing h1 | "Call the front desk at The Alder House." (the demo inn name, real once chosen) |
-| Landing lead | "Tell it two things you love. It texts you three places nearby, with the reason for each." |
+| Landing h1 | "Call the front desk at The Juniper House." |
+| Landing lead | "Tell it three things you love. It texts you three places nearby, with the reason for each." |
 | Qloo explainer | "Every pick comes from Qloo's taste graph or a live Ticketmaster listing. The concierge never makes up a place." |
 | Empty sessions | "No calls yet. Share your number on a room card, or make a preview call to see how a call looks here." |
 | Empty insights (gate) | "Taste insights switch on after 5 guest sessions. You have 2." |
 | Mic denied | "Your browser can't use the microphone here. Type your answers and we'll build the same thing." |
 | Autofill failed | "We couldn't open that link. Check it's public, or skip this and tell us about the place." |
 | Preview first | "Make one preview call first. Then you can go live." |
-| Publish confirm | "Publish The Alder House? Guests who call this number will reach your concierge. You can pause it any time." Buttons: "Publish concierge" / "Not yet" |
+| Publish confirm | "Publish The Juniper House? Guests who call this number will reach your concierge. You can pause it any time." Buttons: "Publish concierge" / "Not yet" |
 | Pause | "Pause the line? Callers will hear that the front desk is closed and your handoff number." |
 | Qloo down | "Qloo didn't answer this time. The concierge still takes calls, and falls back to the innkeeper's own picks." |
 | Server error | "Something broke on our side. Nothing you entered was lost." |
 | Success toast | "Saved." / "Published. The line is answering." |
 | Locked-rule why | one clause, causal: "Because...", never "For security reasons" |
 
-Never: "Oops!", "Awesome!", "Magic", "Seamless", "Powered by AI", "Unlock", "Supercharge", "Just". Never blame the user ("Invalid input"): say what is needed ("US numbers need ten digits").
+Never: "Oops!", "Awesome!", "Magic", "Seamless", "Powered by" anything, "Unlock", "Supercharge", "Just". Never blame the user ("Invalid input"): say what is needed ("US numbers need ten digits").
 
 ---
 
@@ -289,7 +300,7 @@ In the first 5 seconds, at 390x844 and at 1440x900, **without scrolling or tappi
 
 1. **The number** (largest element on the page, `--text-number`, tappable). *Volume 1.*
 2. **It is live** (LiveBadge `Answering now`, truthful per 5.2). *Volume 2, smallest bright thing on the page.*
-3. **What it does** (one Lead sentence: "Tell it two things you love. It texts you three places nearby, with the reason for each."). *Volume 2.*
+3. **What it does** (one Lead sentence: "Tell it three things you love. It texts you three places nearby, with the reason for each."). *Volume 2.*
 4. **Qloo is load-bearing** (a single quiet purple line directly under the sentence: "Picks from Qloo's taste graph, with the reason shown. Live events from Ticketmaster." plus the SourceChip row). On desktop the sample PickCard with expanded WhyChip is already visible to the right of the number card; on phone it is the first block below the fold and a peek of it shows at the fold edge. *Volume 3.*
 
 Squint test [H1]: exactly one thing survives, the number. Rules that follow:
@@ -314,11 +325,11 @@ Per screen the design must show: loading, empty, partial/degraded, error, succes
 - Tap targets >=44px (48 on coarse via token); adjacent targets >=8px apart [MB1]. Primaries in the bottom third on phone; destructive (End call, Pause line, Delete) out of it [MB2]. Safe-area padding on sticky bars [MB5].
 - Inputs >=16px; `viewport-fit=cover`; `color-scheme` set; selection and caret follow the accent [P3]; thin styled scrollbars in dark [P2].
 - Images: sample/persona art has alt; decorative empty alt. Reserve aspect-ratio boxes for the heatmap [P5].
-- Verify with the width-audit snippet from the `mobile-overflow-trilogy` skill at 390/768/1440; `RESPONSIVE-CHECKLIST.md` is the pre-ship gate [F02].
+- Verify with a width audit at 390/768/1440 (`scrollWidth <= clientWidth` on the root element); that audit is the pre-ship gate [F02].
 
 ---
 
-## 12. Review bar and build lints (cheap, mechanical, run before Oct 28)
+## 12. Review bar and build lints (cheap, mechanical, run before every ship)
 
 1. `grep -nE '#[0-9a-fA-F]{3,8}' src --include=*.css --include=*.tsx --include=*.jsx | grep -v tokens` = zero hits [C1].
 2. `grep -n 'outline: *none'` = zero without a replacement [ST1].
@@ -333,9 +344,9 @@ Self-assessment of this design language against the polish bar: designed on pape
 
 ---
 
-## 13. Decisions that need Justin (or the orchestrator)
+## 13. Decisions, settled
 
-1. **Light-default vs brand dark-native** (section 1, deviation 1). Recommend light-default; a Figma or browser-whiteboard side-by-side of the landing in light vs dark takes five minutes and settles it by eye. Recommend the browser whiteboard.
-2. **Demo inn name and city** (must be a Qloo-coverage-tested city per R8). The h1 and the map depend on it.
-3. **The final toll-free number** (until verified, the page shows the 844 and says so in the footer line; a number swap is a config change, not a design change: the number lives in one env var).
-4. **Voice sample audio** for Harper and Maybelle (PersonaCard) must exist before Oct 25 or the audio button ships as text-only.
+1. **Light default vs brand dark-native** (section 1, deviation 1): light default, dark a full toggle.
+2. **Demo inn name and city:** The Juniper House, Savannah, GA.
+3. **The demo number:** (706) 810-9262, a test line. It lives in one config value, so a swap is a config change, not a design change.
+4. **Voice samples** for Harper and Maybelle: the builder shows a quoted sample line for each, and says the audio samples play in the hosted service.

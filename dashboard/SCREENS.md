@@ -1,6 +1,8 @@
 # Bellhop Concierge dashboard: SCREENS
 
 Companion to `DESIGN-LANGUAGE.md` (component names in CAPS refer to its section 5). Ship date **2026-10-28**; hackathon deadline Oct 30. Priority: **MUST** = the entry fails or looks fake without it; **SHOULD** = materially strengthens judging; **COULD** = cut first.
+
+This is the spec as written. What shipped differently (no "Ring my phone" or in-browser call: the number is called directly; the demo inn is The Juniper House) is listed under "As built" at the top of `DESIGN-LANGUAGE.md`. Where the two disagree, the running pages are the truth.
 Data contracts: `server/README.md` (tool responses; `area_insights` per-section `status`). Build order from R8: compiler + ConfigCard (typing alone works) -> concierge agent + tool server -> voice builder -> preview/ring-back -> insight panels.
 
 Global shell (all screens): 390 = single column, 16px gutters, bottom tab bar (4 slots) on dashboard screens only; 768 = 2-col card grids; 1440 = 1152px centered column, left rail on dashboard screens. Wordmark top-left, theme toggle and GitHub link top-right (text link, 48px target). Footer: "Bellhop Concierge, an edition of Bellhop by SouthernSky. AGPL-3.0. Source." and the sourcing line "Picks from Qloo taste graph and Ticketmaster."
@@ -29,8 +31,8 @@ If time runs out, cut in this order: Settings write paths, Compare panel, "what 
 
 **Layout at 390 (single column, in order):**
 1. Wordmark row (24px) + theme toggle + "GitHub" link.
-2. Eyebrow (Micro): `THE ALDER HOUSE, SAMPLE INN` (name TBD) and LiveBadge `Answering now` on the same row (wraps).
-3. h1 (Display): "Call the front desk." Lead sentence: "Tell it two things you love. It texts you three places nearby, with the reason for each."
+2. Eyebrow (Micro): `THE JUNIPER HOUSE, SAMPLE INN` and LiveBadge `Answering now` on the same row (wraps).
+3. h1 (Display): "Call the front desk." Lead sentence: "Tell it three things you love. It texts you three places nearby, with the reason for each."
 4. PhoneNumberCard: the number at `--text-number` (36px, fits on one line at 390 with tabular-nums; verify the width audit), caption "Free to call. The inn is fictional; the calls and texts are real."
 5. Qloo line (purple SourceChip + one sentence): "Picks come from Qloo's taste graph, with the reason shown. Live events from Ticketmaster."
 6. Sticky bottom bar (appears when card scrolls away): "Call now" brass button + number text, `--pad-safe-bottom`.
@@ -92,7 +94,7 @@ A single page with a stepper, not separate routes. Steps: **Autofill, Interview,
 
 ### 2.6 Publish **MUST**
 - **Primary action:** "Publish concierge".
-- Screen: summary of the ConfigCard (read-only, with a "changes since preview" diff chip), TrustLadder (default Test; innkeeper can choose Suggest or Live after the preview), a single confirm sheet ("Publish The Alder House? ..."), success state: LiveBadge flips and the PhoneNumberCard for THEIR number appears with "Put this on your room card" and a **Copy number** and **Print a room card** (COULD) action.
+- Screen: summary of the ConfigCard (read-only, with a "changes since preview" diff chip), TrustLadder (default Test; innkeeper can choose Suggest or Live after the preview), a single confirm sheet ("Publish The Juniper House? ..."), success state: LiveBadge flips and the PhoneNumberCard for THEIR number appears with "Put this on your room card" and a **Copy number** and **Print a room card** (COULD) action.
 - 390: single column, Publish button pinned in the thumb zone; 1440: summary left, ladder and publish right.
 - Failure: "We couldn't publish. Nothing changed and your answers are saved." Retry.
 
@@ -127,7 +129,7 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 
 - **Primary action:** "Print or save as PDF" (`window.print()`, disabled until every section has loaded). **Secondary:** "Back to the front desk".
 - **Content, top to bottom:** header (eyebrow `FRONT DESK CONCIERGE BRIEF`, inn name, town, date prepared, the number in tabular figures); What it does (three plain sentences); What guests asked for (top tastes from `/sessions`); What the area is strong in (ranked lists from `/insights`: taste affinity by block, ages leaning in, two kinds of guests); How picks are made (Qloo, Ticketmaster, the innkeeper's own picks, then the honest-limits line); What it will not do (the locked list from `/api/guardrails`); the room cards.
-- **Room cards:** a 3:2 card (4 by 6 proportions) and a 5:3 nightstand card (3 by 5 proportions), each inside a dashed cut line: inn name, "Need a plan tonight?", "Call the front desk concierge", the number, "Tell it two things you love. It texts you three places nearby." The large card adds "An automated line. Calls are recorded." Hairlines only, no fills: they survive a black and white printer.
+- **Room cards:** a 3:2 card (4 by 6 proportions) and a 5:3 nightstand card (3 by 5 proportions), each inside a dashed cut line: inn name, "Need a plan tonight?", "Call the front desk concierge", the number, "Tell it three things you love. It texts you three places nearby." The large card adds "An automated line. Calls are recorded." Hairlines only, no fills: they survive a black and white printer.
 - **Paper, in every theme:** the sheet uses the paper and slate tokens directly, so a dark-theme print is still black on white.
 - **Print:** `@page { size: letter; margin: 0.6in }`; topbar, footer and toolbar hidden; no section breaks across a page. Gate: one page in both the zero-session state and an eight-session state.
 - 390: single column, cards stacked full width, print button full width. 1440: the letter sheet centered on the page background.
