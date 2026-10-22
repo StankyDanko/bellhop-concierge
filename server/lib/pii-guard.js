@@ -16,6 +16,13 @@ const ENTITY_LIST = /^(signal\.interests\.entities|filter\.exclude\.entities|fil
 /** Params whose values must be lists of tag URNs. */
 const TAG_LIST = /^(signal\.interests\.tags|filter\.tags|filter\.exclude\.tags|filter\.tag\.types|filter\.parents\.types)$/;
 
+/**
+ * Exact values a list param may carry even though they are not tag URNs. Scoping a tag
+ * search to place tags (/v2/tags filter.parents.types) takes an entity type URN, and only
+ * this one is in use. Any other value on the key still has to be a tag URN.
+ */
+const EXACT_VALUES = Object.freeze({ 'filter.parents.types': new Set(['urn:entity:place']) });
+
 /** Every other param must be one of these, with a constrained value. */
 const ENUM_OR_NUMERIC = new Set([
   'filter.type', 'types', 'take', 'page', 'sort_by',
@@ -61,6 +68,7 @@ export function assertNoPii(endpoint, params) {
       for (const id of value.split(',')) if (!ENTITY_ID.test(id)) fail('not an entity id');
       continue;
     }
+    if (EXACT_VALUES[key]?.has(value)) continue;
     if (TAG_LIST.test(key)) {
       for (const id of value.split(',')) if (!TAG_URN.test(id)) fail('not a tag URN');
       continue;

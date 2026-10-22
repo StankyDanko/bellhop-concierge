@@ -186,9 +186,16 @@ export function createQlooClient({ config, cache, logger, transport }) {
       return { entities: entitiesOf(body).map(normalizeEntity), call };
     },
 
-    /** Find taste tags by keyword. @param {{ query: string, take?: number }} q */
-    async tags({ query, take = 3 }) {
+    /**
+     * Find taste tags by keyword. `parentsType` scopes the search to tags used by one entity
+     * type ('place' sends filter.parents.types=urn:entity:place), so a food or mood word lands
+     * on a place tag, never on a music or film genre of the same name.
+     * @param {{ query: string, take?: number, parentsType?: keyof typeof ENTITY_TYPES }} q
+     */
+    async tags({ query, take = 3, parentsType }) {
+      /** @type {Record<string,string>} */
       const params = { 'filter.query': query, 'feature.typo_tolerance': 'true', take: String(take) };
+      if (parentsType) params['filter.parents.types'] = ENTITY_TYPES[parentsType];
       const { body, call } = await get(ENDPOINTS.tags, params);
       return { tags: normalizeTags(body), call };
     },

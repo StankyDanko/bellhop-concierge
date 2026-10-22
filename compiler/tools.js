@@ -90,7 +90,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. It returns no cuisine, hours, or parking, so never state them or guess them from a name.',
+      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name.',
       timeout: 15,
       body: {
         type: 'object',

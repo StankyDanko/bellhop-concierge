@@ -17,14 +17,102 @@
 // back as preferences and are never sent upstream. A phrase holding both sides of one choice
 // ("adventurous or familiar") is the question said back, not an answer: nothing resolves and
 // nothing is sent, and the phrase comes back as preferences.undecided.
+//
+// Place-shaped mentions never go to /search either. A food word ("thai food", "sushi",
+// "bbq") or a place word ("jazz bars") asks /v2/tags scoped to place tags
+// (filter.parents.types=urn:entity:place), because unscoped the same word can come back as a
+// music or film genre ("italian food" as a folk music genre) or /search can return an album
+// called Sushi. A food mention asks for its bare cuisine word ("thai food" asks "thai") and
+// prefers the restaurant genre tag (urn:tag:genre:place:restaurant:...), which
+// recommend_nearby sends as a hard filter. Vibe words are always place-scoped too.
 
 import { arr, TASTE_MAX } from '../lib/validate.js';
 import { InputError } from '../lib/errors.js';
 import { withTraceNote } from '../lib/upstream.js';
+import { isCuisineTag } from './places.js';
 
 /** Words that mark a mention as a category (tag) rather than a named entity. */
 const CATEGORY_WORDS = /\b(food|cuisine|music|movies?|films?|restaurants?|bars?|places?|spots?|dining|vibes?|shows?|books?|podcasts?|style|scene)\b/i;
 const ENTITY_THRESHOLD = 0.6;
+
+/** Words that mark a category mention as a place (a tag on places, not on music or films). */
+const PLACE_WORDS = /\b(food|cuisine|restaurants?|bars?|places?|spots?|dining|vibes?|eats|joints?|pubs?|cafes?)\b/i;
+/** Words that say "food" without naming one, stripped to leave the cuisine word. */
+const FOOD_KIND_WORDS = /\b(food|cuisine|restaurants?|places?|spots?|dining|eats|joints?)\b/gi;
+const FOOD_MARK = /\b(food|cuisine|restaurants?|dining|eats)\b/i;
+const FOOD_KIND_SET = new Set(['food', 'cuisine', 'restaurant', 'restaurants', 'place', 'places', 'spot', 'spots', 'dining', 'eats', 'joint', 'joints']);
+
+/**
+ * Cuisine and dish words a guest says on their own ("sushi", "bbq", "thai"). A mention made
+ * only of these (and food kind words) is a food mention, never a name to search. Kept to
+ * words that are rarely a band or film title on their own.
+ */
+export const FOOD_WORDS = Object.freeze(new Set([
+  'thai', 'italian', 'mexican', 'chinese', 'japanese', 'korean', 'vietnamese', 'indian', 'french', 'greek',
+  'spanish', 'mediterranean', 'ethiopian', 'peruvian', 'cuban', 'caribbean', 'lebanese', 'turkish', 'german',
+  'cajun', 'creole', 'lowcountry', 'tex', 'mex',
+  'sushi', 'ramen', 'pho', 'tacos', 'taco', 'pizza', 'burgers', 'burger', 'bbq', 'barbecue', 'barbeque',
+  'steakhouse', 'steak', 'seafood', 'oysters', 'oyster', 'tapas', 'dumplings', 'noodles', 'curry',
+  'brunch', 'breakfast', 'diner', 'deli', 'bakery', 'vegan', 'vegetarian', 'wings', 'shrimp', 'crab',
+]));
+
+/**
+ * How a mention should resolve, from its words alone.
+ *   'food'   a cuisine or dish, asked of place tags by its bare cuisine word
+ *   'place'  a kind of place ("jazz bars"), asked of place tags as said
+ *   null     anything else (names, music or film categories)
+ * @param {string} mention
+ * @returns {'food'|'place'|null}
+ */
+export function placeShape(mention) {
+  const words = tokens(mention);
+  if (!words.length) return null;
+  if (FOOD_MARK.test(mention)) return 'food';
+  const foodish = (w) => FOOD_WORDS.has(w) || FOOD_KIND_SET.has(w);
+  if (words.every(foodish) && words.some((w) => FOOD_WORDS.has(w))) return 'food';
+  return PLACE_WORDS.test(mention) ? 'place' : null;
+}
+
+/**
+ * Cuisine words asked under another spelling, because the place genre tag a guest means is
+ * filed under it. "bbq" finds a genre tag that no place near the demo inn carries, while
+ * "barbecue" finds the one barbecue places carry (measured on key day plus one, counts only).
+ */
+const CUISINE_ALIASES = Object.freeze({ bbq: 'barbecue', barbeque: 'barbecue' });
+
+/** "thai food" -> "thai"; "italian restaurants" -> "italian"; "bbq" -> "barbecue". The mention itself when nothing is left. */
+export function cuisineCore(mention) {
+  const core = mention.replace(FOOD_KIND_WORDS, ' ').replace(/\s+/g, ' ').trim();
+  return CUISINE_ALIASES[core.toLowerCase()] ?? (core || mention.trim());
+}
+
+const squash = (s) => tokens(s).join('');
+
+/**
+ * How well a tag name matches the word asked: 1 when they are the same letters ("steakhouse"
+ * and "Steak house"), else the word overlap. Typo tolerance can put a near miss first ("Tea
+ * house" for "steakhouse"), so a cuisine is chosen by this, not by position.
+ */
+export function nameMatch(query, name) {
+  return squash(query) === squash(name) ? 1 : similarity(query, name);
+}
+
+/**
+ * The tag a food mention resolves to: the restaurant genre tag whose name best matches the
+ * cuisine word; if none matches, Qloo's first hit when it is a restaurant genre tag (a
+ * misspelling); otherwise the first tag, which is not a cuisine and never becomes a filter.
+ * @param {string} query @param {Array<{ tag_id: string, name: string }>} tags
+ */
+export function pickCuisineTag(query, tags) {
+  let best = null;
+  for (const t of tags) {
+    if (!isCuisineTag(t.tag_id)) continue;
+    const score = nameMatch(query, t.name);
+    if (!best || score > best.score) best = { t, score };
+  }
+  if (best && best.score >= 0.5) return best;
+  return { t: tags[0], score: nameMatch(query, tags[0].name) };
+}
 
 /** Kind words a guest puts after a name, each with the entity types that name may be. */
 const TRAILING_KINDS = [
@@ -164,7 +252,7 @@ export async function resolveTaste(body, { qloo }) {
   const tagAsks = new Map();
   const askTags = (query, phrase) => {
     if (!tagAsks.has(query)) {
-      tagAsks.set(query, withTraceNote({ mapped_from: phrase }, () => qloo.tags({ query, take: 3 }))
+      tagAsks.set(query, withTraceNote({ mapped_from: phrase }, () => qloo.tags({ query, take: 3, parentsType: 'place' }))
         .then(({ tags, call }) => { calls.push(call); return tags; }));
     }
     return tagAsks.get(query);
@@ -193,8 +281,25 @@ export async function resolveTaste(body, { qloo }) {
   const resolveOne = async (mention, who) => {
     const vibe = vibeOf(mention);
     if (vibe) return resolveVibe(mention, vibe, who);
-    const one = await resolveNamed(mention);
+    const shape = placeShape(mention);
+    const one = shape ? await resolvePlaceShaped(mention, shape) : await resolveNamed(mention);
     return one ? { items: [one], say: one.name } : null;
+  };
+
+  /**
+   * A food or place mention: place-scoped /v2/tags only, never /search. A food mention asks
+   * for its cuisine word with room to look past dish and menu tags, and takes the restaurant
+   * genre tag when one comes back; otherwise the first place tag.
+   */
+  const resolvePlaceShaped = async (mention, shape) => {
+    const query = shape === 'food' ? cuisineCore(mention) : mention;
+    const { tags, call } = await qloo.tags({ query, take: shape === 'food' ? 10 : 3, parentsType: 'place' });
+    calls.push(call);
+    if (!tags.length) return null;
+    const { t, score } = shape === 'food' ? pickCuisineTag(query, tags) : { t: tags[0], score: nameMatch(query, tags[0].name) };
+    const confidence = Math.max(0.5, score);
+    return { mention, kind: 'tag', id: t.tag_id, entity_id: null, tag_id: t.tag_id,
+      name: sentenceCase(mention), type: 'tag', confidence: round2(confidence) };
   };
 
   const resolveNamed = async (mention) => {

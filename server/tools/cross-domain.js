@@ -7,7 +7,7 @@ import { buildWhy } from '../lib/why.js';
 import { InputError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
-import { locationParams, shapePlace, signalParams } from './places.js';
+import { locationParams, placeInsights, placeTasteParams, shapePlace, signalParams } from './places.js';
 
 export const TARGETS = /** @type {const} */ (['artist', 'movie', 'book', 'podcast', 'place', 'tv_show']);
 
@@ -20,8 +20,11 @@ export async function crossDomain(body, { qloo, toolSecret }) {
   const target = oneOf(body?.target, 'target', TARGETS);
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
 
+  // Toward places, a stated cuisine is a hard filter like in recommend_nearby; toward films,
+  // books, or music every taste stays a signal (a restaurant tag would filter them all away).
+  const shaped = target === 'place' ? placeTasteParams(taste) : { params: signalParams(taste), cuisine: [] };
   /** @type {Record<string,string>} */
-  const params = { 'filter.type': ENTITY_TYPES[target], ...signalParams(taste), take: String(take) };
+  const params = { 'filter.type': ENTITY_TYPES[target], ...shaped.params, take: String(take) };
 
   let origin = null;
   if (target === 'place') {
@@ -30,9 +33,9 @@ export async function crossDomain(body, { qloo, toolSecret }) {
     Object.assign(params, locationParams(origin.lat, origin.lng, num(body?.radius_miles ?? 5, 'radius_miles', { min: 0.25, max: 25 })));
   }
 
-  const { entities, call } = await qloo.insights(params);
-  // Never hand back an input as its own recommendation.
   const inputIds = new Set(taste.entityIds);
+  const { entities, calls, cuisine_filter: cuisineFilter } = await placeInsights(qloo, params, shaped.cuisine, (e) => !inputIds.has(e.entity_id));
+  // Never hand back an input as its own recommendation.
   const results = entities.filter((e) => !inputIds.has(e.entity_id)).slice(0, take).map((e) => {
     if (origin) return shapePlace(e, taste.signals, origin);
     const why = buildWhy(e, taste.signals);
@@ -43,5 +46,6 @@ export async function crossDomain(body, { qloo, toolSecret }) {
   // pick_token signs each result's name (a result has no favors or when_label), so a pick the
   // agent passes on to compose_itinerary carries a token this tool issued, not one it made up.
   const signed = toolSecret ? results.map((r) => ({ ...r, pick_token: signPick(toolSecret, { name: r.name }) })) : results;
-  return { status: signed.length ? 'ok' : 'empty', target, results: signed, calls: [call] };
+  return { status: signed.length ? 'ok' : 'empty', target, results: signed,
+    ...(cuisineFilter ? { cuisine_filter: cuisineFilter } : {}), calls };
 }

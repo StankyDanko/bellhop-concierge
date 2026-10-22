@@ -3,7 +3,7 @@
 
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
-import { locationParams, shapePlace, signalParams } from './places.js';
+import { locationParams, placeInsights, placeTasteParams, shapePlace, signalParams } from './places.js';
 import { popularityCounterfactual } from './counterfactual.js';
 import { classifyFavors, FAVORS_LINES } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
@@ -95,22 +95,26 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
   const partySize = optNum(c.party_size, 'constraints.party_size', { min: 1, max: 30 });
   const kids = c.kids === true;
 
+  // A stated cuisine is a hard filter; every other taste is a signal (see places.js).
+  const shaped = placeTasteParams(signalsIn);
   /** @type {Record<string,string>} */
-  const params = {
+  const firstParams = {
     'filter.type': ENTITY_TYPES.place,
-    ...signalParams(signalsIn),
+    ...shaped.params,
     ...locationParams(origin.lat, origin.lng, radius),
     sort_by: 'affinity',
     take: String(Math.min(20, take * 3)), // headroom for the kids filter
   };
-  if (budget !== undefined) params['filter.price_level.max'] = String(Math.round(budget));
-  if (minRating !== undefined) params['filter.rating.min'] = String(minRating);
+  if (budget !== undefined) firstParams['filter.price_level.max'] = String(Math.round(budget));
+  if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
 
-  const { entities, call } = await qloo.insights(params);
+  const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
+  const first = await placeInsights(qloo, firstParams, shaped.cuisine, kidSafe);
+  const { entities, params } = first;
 
   let filteredOut = 0;
   const candidates = entities.filter((e) => {
-    if (kids && e.tags.some((t) => ADULTS_ONLY.test(t.name))) { filteredOut += 1; return false; }
+    if (!kidSafe(e)) { filteredOut += 1; return false; }
     return true;
   });
 
@@ -139,7 +143,7 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
   } : undefined;
 
   // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----
-  const cf = await popularityCounterfactual(qloo, params, places, (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name))));
+  const cf = await popularityCounterfactual(qloo, params, places, kidSafe);
   // ---- end counterfactual ----
 
   return {
@@ -148,10 +152,14 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
     // value this tool returned from one the model wrote (lib/pick-token.js).
     places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
     applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
-      party_size: partySize ?? null, kids, filtered_for_kids: filteredOut },
+      party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
+      // 'hard': every pick is one of the guest's cuisines; 'relaxed': none fit nearby, so the
+      // cuisine only steered the ranking; null: no cuisine was said.
+      cuisine_filter: first.cuisine_filter,
+      cuisine: shaped.cuisine.length ? signalsIn.signals.filter((s) => shaped.cuisine.includes(s.id)).map((s) => s.name) : [] },
     companion: companionSummary,
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
     counterfactual: cf.counterfactual,
-    calls: [call, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
+    calls: [...first.calls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
   };
 }

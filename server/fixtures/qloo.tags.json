@@ -240,6 +240,190 @@
       }
     },
     {
+      "match": {
+        "filter.query": "italian",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_italian_plate",
+              "name": "Italian Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_italian",
+              "name": "Italian",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "mexican",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_mexican_plate",
+              "name": "Mexican Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_mexican",
+              "name": "Mexican",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "barbecue",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_bbq_plate",
+              "name": "Barbecue Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_barbecue",
+              "name": "Barbecue",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "sushi",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_sushi_plate",
+              "name": "Sushi Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_sushi",
+              "name": "Sushi",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "pizza",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_pizza_plate",
+              "name": "Pizza Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_pizza",
+              "name": "Pizza",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "seafood",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_seafood_plate",
+              "name": "Seafood Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_seafood",
+              "name": "Seafood",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "steakhouse",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_steakhouse_plate",
+              "name": "Steakhouse Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_steakhouse",
+              "name": "Steakhouse",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "thia",
+        "filter.parents.types": "urn:entity:place"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_thia_plate",
+              "name": "Thai Plate",
+              "type": "urn:tag:specialty_dish:place"
+            },
+            {
+              "id": "urn:tag:genre:place:restaurant:fx_thai",
+              "name": "Thai",
+              "type": "urn:tag:genre:place:restaurant"
+            }
+          ]
+        }
+      }
+    },
+    {
       "match": {},
       "response": {
         "success": true,

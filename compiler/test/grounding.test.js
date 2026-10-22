@@ -22,8 +22,9 @@ for (const persona of ['harper', 'maybelle']) {
   });
 }
 
-// A fact the tool did not return is not listed, never inferred. recommend_nearby returns no
-// tags or cuisine field (server/tools/places.js shapePlace), so its description says so.
+// A fact the tool did not return is not listed, never inferred. recommend_nearby returns each
+// place's own cuisine and feel tag names and nothing about hours or parking
+// (server/tools/places.js shapePlace).
 for (const persona of ['harper', 'maybelle']) {
   test(`${persona}: a fact the tool did not return is "not listed", never guessed from a name`, () => {
     const r = compile(demo(), { ...OPTS, persona });
@@ -33,13 +34,20 @@ for (const persona of ['harper', 'maybelle']) {
     // The sentences the guardrail already had are still there, whole.
     assert.match(p, /Describe a place only with the words in its tool result or its reason line\. If the result does not say what a place feels like, do not say what it feels like\./);
     assert.match(p, /never "the name suggests Thai"/);
-    assert.match(tool(r, 'recommend_nearby').description, /It returns no cuisine, hours, or parking, so never state them or guess them from a name\./);
+    assert.match(tool(r, 'recommend_nearby').description, /Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name\./);
   });
 }
 
-test('a shaped place carries no tags or cuisine field, so the description above stays true', () => {
+test('a shaped place names only its own cuisine and feel tags, and no hours or parking', () => {
   const entity = { name: 'Fx Place', entity_id: 'fx-place', address: '1 Sample Sq', price_level: 2, rating: 4.5,
-    location: { lat: 32.08, lng: -81.09 }, affinity: 0.9, tags: [{ tag_id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai' }] };
+    location: { lat: 32.08, lng: -81.09 }, affinity: 0.9, tags: [
+      { tag_id: 'urn:tag:genre:place:restaurant:fx_thai', name: 'Fx Thai' },
+      { tag_id: 'urn:tag:ambience:qloo:fx_cozy', name: 'Fx Cozy' },
+      { tag_id: 'urn:tag:parking:place:fx_lot', name: 'Fx Lot' },
+    ] };
   const place = shapePlace(entity, [], { lat: 32.08, lng: -81.09 });
-  for (const key of ['tags', 'cuisine', 'hours', 'parking']) assert.equal(key in place, false, key);
+  assert.deepEqual(place.tags, ['Fx Thai', 'Fx Cozy']);
+  for (const key of ['cuisine', 'hours', 'parking']) assert.equal(key in place, false, key);
+  // No tags of its own, nothing named: the list is never filled in from the place's name.
+  assert.deepEqual(shapePlace({ ...entity, name: 'Fx Thai Kitchen', tags: [] }, [], { lat: 32.08, lng: -81.09 }).tags, []);
 });

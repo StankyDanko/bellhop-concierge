@@ -51,3 +51,18 @@ test('the Qloo client enforces the guard before any request leaves', async () =>
   await assert.rejects(qloo.insights({ 'filter.type': 'urn:entity:place', 'signal.interests.entities': 'Room 12 guest' }), PiiViolation);
   assert.equal(sent, 0, 'nothing was sent');
 });
+
+test('place-scoped tag search and a cuisine hard filter pass; nothing else rides along', () => {
+  assert.doesNotThrow(() => assertNoPii('/v2/tags', { 'filter.query': 'thai', 'filter.parents.types': 'urn:entity:place', take: '10' }));
+  assert.doesNotThrow(() => assertNoPii('/v2/insights', {
+    'filter.type': 'urn:entity:place', 'filter.tags': 'urn:tag:genre:place:restaurant:fx_thai,urn:tag:genre:place:restaurant:fx_sushi',
+  }));
+  // Only the one exact entity type is allowed on filter.parents.types, and only on that key.
+  assert.throws(() => assertNoPii('/v2/tags', { 'filter.parents.types': 'urn:entity:artist' }), /tag URN/);
+  assert.throws(() => assertNoPii('/v2/tags', { 'filter.parents.types': 'urn:entity:place,Pat Smith' }), /tag URN/);
+  assert.throws(() => assertNoPii('/v2/insights', { 'filter.tags': 'urn:entity:place' }), /tag URN/);
+  assert.throws(() => assertNoPii('/v2/insights', { 'filter.tags': 'thai food' }), /tag URN/);
+  // An unknown parameter is still refused, whatever its value.
+  assert.throws(() => assertNoPii('/v2/tags', { 'filter.parents.names': 'urn:entity:place' }), /allowlist/);
+  assert.throws(() => assertNoPii('/v2/insights', { 'filter.tags.guest': 'urn:tag:genre:place:restaurant:fx_thai' }), /allowlist/);
+});
