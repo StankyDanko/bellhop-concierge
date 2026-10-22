@@ -343,7 +343,8 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const radius = [1, 2, 5].includes(Number(c.req.query('radius'))) ? Number(c.req.query('radius')) : 2;
     const fp = fingerprintFor(id, c.req.query('sample') === '1');
     const sample = fp.basis === 'sample';
-    // The fingerprint's ids go to Qloo as they are: no names are re-resolved through search.
+    // A caller's own ids go to Qloo as they are. Live, the labeled sample's fixture ids are
+    // swapped for ids /search returns on their displayed names (insightsFor, liveSignals).
     const interests = fingerprintSignals(fp);
     const guestPanels = fp.basis !== 'none' && interests.length > 0;
     try {
@@ -352,25 +353,30 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
       const { count, min } = fp.gate;
       const gated = { status: 'gated', count, min, basis: 'none', sample_size: 0 };
       // Every panel says what it describes: the inn's callers (CALLERS n), the labeled
-      // sample (SAMPLE n), or the area with no guest signal at all (AREA).
-      const label = guestPanels ? { basis: fp.basis, sample_size: fp.sessions } : { basis: 'area', sample_size: 0 };
+      // sample (SAMPLE n), or the area with no guest signal at all (AREA). When no taste
+      // survived the live swap (the search failed, or no name matched), the panels that need
+      // one degrade on their own and the rest are labeled AREA, never SAMPLE.
+      const usable = guestPanels && out.signals_used > 0;
+      const label = usable ? { basis: fp.basis, sample_size: fp.sessions } : { basis: 'area', sample_size: 0 };
+      const lost = { status: 'degraded', reason: out.signals_failure ?? 'no_taste_resolved', basis: 'none', sample_size: 0 };
+      const guestPanel = (panel) => (usable ? { ...panel, ...label } : guestPanels ? lost : gated);
       return c.json({
         ok: true,
-        sample,
+        sample: sample && usable,
         basis: label.basis,
         sample_size: label.sample_size,
         as_of: out.as_of,
         area: out.area,
         gate: fp.gate,
-        interests: guestPanels ? out.interests : [],
+        interests: usable ? out.interests : [],
         heatmap: { ...out.heatmap, ...label },
         hot_areas: { ...out.hot_areas, ...label },
         // Two lists, not a difference score: what the callers lean toward (dark below the
         // floor) and what the town around the inn leans toward (no guest signal at all).
-        callers_lean: guestPanels ? { ...out.callers_lean, ...label } : gated,
+        callers_lean: guestPanel(out.callers_lean),
         town_lean: { ...out.town_lean, basis: 'area', sample_size: 0 },
-        demographics: guestPanels ? { ...out.demographics, ...label } : gated,
-        compare: guestPanels ? { ...out.compare, ...label } : gated,
+        demographics: guestPanel(out.demographics),
+        compare: guestPanel(out.compare),
         upstream: out.upstream,
       });
     } catch (err) {
@@ -488,8 +494,16 @@ const TOWN_PLACES = 5;
  */
 async function insightsFor(ctx, { lat, lng, radius, interests: shown }) {
   const calls = [];
-  // Live, sample fixture ids are swapped for ids Qloo resolves from the displayed names.
-  const interests = await liveSignals(ctx.qloo, shown, calls);
+  // Live, sample fixture ids are swapped for ids Qloo resolves from the displayed names. A
+  // failed search costs the taste panels only: the area panels still answer.
+  let interests = [];
+  let signalsFailure = null;
+  try {
+    interests = await liveSignals(ctx.qloo, shown, calls);
+  } catch (err) {
+    if (!(err instanceof UpstreamError)) throw err;
+    signalsFailure = err.code;
+  }
   const entityIds = interests.filter((i) => !isTagId(i.id));
   let compare;
   let compareFailure = null;
@@ -520,6 +534,8 @@ async function insightsFor(ctx, { lat, lng, radius, interests: shown }) {
     town_lean: res.town_lean,
     demographics: res.demographics,
     compare: cmp,
+    signals_used: interests.length,
+    signals_failure: signalsFailure,
     upstream: upstreamSummary(calls),
   };
 }

@@ -84,6 +84,28 @@ test('a misspelled cuisine keeps the genre tag Qloo ranked first, at low confide
   const out = await resolveTaste({ mentions: ['thia food'] }, { qloo });
   assert.equal(out.resolved[0].id, FX_THAI);
   assert.equal(out.resolved[0].confidence, 0.5);
+  assert.equal(out.resolved[0].filter_ok, false, 'a weak match is a signal only');
+});
+
+test('a cuisine that only weakly matches the guest word stays a signal, never a filter', async () => {
+  // The steak house tag is missing from the results, so the best cuisine is a near miss.
+  const { qloo } = fakeResolver({ tags: { steakhouse: [
+    { tag_id: 'urn:tag:genre:place:restaurant:fx_tea_house', name: 'Tea house' },
+    { tag_id: 'urn:tag:keyword:place:fx_steak', name: 'Fx steak cuts' },
+  ] } });
+  const out = await resolveTaste({ mentions: ['steakhouse'] }, { qloo });
+  assert.equal(out.resolved[0].id, 'urn:tag:genre:place:restaurant:fx_tea_house');
+  assert.equal(out.resolved[0].filter_ok, false);
+  const { transport, sent } = placesTransport();
+  const { app } = makeApp({ qlooTransport: transport });
+  const taste = out.resolved.map((r) => ({ id: r.id, name: r.name, filter_ok: r.filter_ok }));
+  const { json } = await callTool(app, 'recommend_nearby', { taste: [ARTIST, ...taste], ...PROPERTY });
+  assert.ok(sent.every((s) => s.params['filter.tags'] === undefined), 'no tea house filter');
+  assert.equal(sent[0].params['signal.interests.tags'], 'urn:tag:genre:place:restaurant:fx_tea_house', 'still a signal');
+  assert.equal(json.applied.cuisine_filter, null);
+  // A strong match keeps no flag and still filters.
+  const good = await resolveTaste({ mentions: ['steakhouse'] }, { qloo: fakeResolver({ tags: { steakhouse: [{ tag_id: 'urn:tag:genre:place:restaurant:fx_steak_house', name: 'Steak house' }] } }).qloo });
+  assert.equal(good.resolved[0].filter_ok, undefined);
 });
 
 test('bbq is asked as barbecue, the spelling barbecue places are filed under; the guest keeps their word', async () => {
@@ -274,4 +296,18 @@ test('one cuisine place when three are asked for relaxes once; the cuisine place
   assert.equal(tasteCalls.length, 2, 'exactly one retry');
   assert.equal(json.applied.cuisine_filter, 'relaxed');
   assert.deepEqual(json.places.map((p) => p.entity_id), ['fx-place-a', 'fx-place-c', 'fx-place-d']);
+});
+
+test('a relaxed cuisine filter tells the agent plainly, so it cannot claim the cuisine', async () => {
+  const none = placesTransport({ filtered: [] });
+  const a = await callTool(makeApp({ qlooTransport: none.transport }).app, 'recommend_nearby', { taste: [ARTIST, THAI], ...PROPERTY });
+  assert.equal(a.json.applied.cuisine_filter, 'relaxed');
+  assert.equal(a.json.say, 'Nothing close enough for thai food nearby, so these are the best matches overall.');
+  const one = placesTransport({ filtered: [THAI_PLACES[0]] });
+  const b = await callTool(makeApp({ qlooTransport: one.transport }).app, 'recommend_nearby', { taste: [ARTIST, THAI], ...PROPERTY, take: 3 });
+  assert.equal(b.json.say, 'Only one thai food place is close enough, so the rest are the best matches overall.');
+  const hard = placesTransport();
+  const c = await callTool(makeApp({ qlooTransport: hard.transport }).app, 'recommend_nearby', { taste: [ARTIST, THAI], ...PROPERTY, take: 2 });
+  assert.equal(c.json.applied.cuisine_filter, 'hard');
+  assert.equal(c.json.say, undefined);
 });

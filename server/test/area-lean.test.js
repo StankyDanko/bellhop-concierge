@@ -242,3 +242,30 @@ test('live mode: sample callers are resolved by name and no fx- id is ever sent 
   const sentValues = seen.flatMap((r) => Object.values(r.params));
   assert.ok(!sentValues.some((v) => /(^|,)fx-/.test(String(v))), 'no fixture id reaches upstream');
 });
+
+test('live mode: a failed sample search degrades the taste panels only, never the whole route, and drops SAMPLE', async () => {
+  const transport = async (endpoint, params) => {
+    if (endpoint === '/search') return { status: 503, body: {} };
+    if (endpoint === '/v2/analysis/compare') return { status: 200, body: { success: true, results: { a: [], b: [] } } };
+    if (params['filter.type'] === 'urn:heatmap') return { status: 200, body: { success: true, results: { heatmap: [] } } };
+    if (params['filter.type'] === 'urn:tag') return { status: 200, body: tagBody(tag('a', 'Alpha')) };
+    return { status: 200, body: { success: true, results: { entities: [{ entity_id: 'live999999abc', name: 'Fictional Spot' }], demographics: [] } } };
+  };
+  const cache = new ResponseCache({ path: ':memory:' });
+  const qloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: 'fx-test-key', mock: false, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger, transport });
+  const ticketmaster = createTicketmasterClient({ config: { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: '', mock: true, timeoutMs: 1000 }, cache, logger: silentLogger });
+  const sessions = new SessionStore({ path: ':memory:', hashKey: SECRET, now: () => FIXED_NOW });
+  const db = openDashboardDb({ path: ':memory:', now: () => FIXED_NOW });
+  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: 'America/New_York', logger: silentLogger,
+    sms: createSmsSender({ config: { mock: true }, logger: silentLogger }), sessions, now: () => FIXED_NOW,
+    dashboard: { db, env: {}, distDir: '/nonexistent-dist' } });
+  const res = await app.request('/api/properties/demo/insights?sample=1');
+  assert.equal(res.status, 200, 'not a 502');
+  const json = await res.json();
+  assert.equal(json.sample, false);
+  assert.equal(json.basis, 'area');
+  assert.equal(json.heatmap.basis, 'area', 'no SAMPLE badge over an area-only view');
+  for (const k of ['callers_lean', 'demographics', 'compare']) assert.equal(json[k].status, 'degraded', k);
+  assert.equal(json.town_lean.basis, 'area');
+  assert.ok(json.town_lean.tags.length > 0, 'the town list still answers');
+});

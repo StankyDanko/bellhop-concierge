@@ -43,12 +43,14 @@ export function signalParams({ entityIds, tagIds }) {
 export const isCuisineTag = (id) => /^urn:tag:genre:place:restaurant:[^:]+/.test(String(id));
 
 /**
- * Place request params from resolved taste: every taste as a signal, cuisines also as filter.tags.
- * @param {{ entityIds: string[], tagIds: string[] }} taste
+ * Place request params from resolved taste: every taste as a signal, cuisines also as filter.tags,
+ * except a cuisine resolve_taste marked filter_ok: false (a weak name match), which stays a signal.
+ * @param {{ entityIds: string[], tagIds: string[], noFilterIds?: string[] }} taste
  * @returns {{ params: Record<string,string>, cuisine: string[] }}
  */
 export function placeTasteParams(taste) {
-  const cuisine = taste.tagIds.filter(isCuisineTag);
+  const weak = new Set(taste.noFilterIds ?? []);
+  const cuisine = taste.tagIds.filter((id) => isCuisineTag(id) && !weak.has(id));
   const params = signalParams(taste);
   if (cuisine.length) params['filter.tags'] = cuisine.join(',');
   return { params, cuisine };

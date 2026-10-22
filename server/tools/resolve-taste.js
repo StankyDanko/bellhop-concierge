@@ -103,6 +103,9 @@ export function nameMatch(query, name) {
  * misspelling); otherwise the first tag, which is not a cuisine and never becomes a filter.
  * @param {string} query @param {Array<{ tag_id: string, name: string }>} tags
  */
+/** Below this name match a resolved cuisine is a signal only, never a hard filter. */
+export const CUISINE_FILTER_MIN = 0.5;
+
 export function pickCuisineTag(query, tags) {
   let best = null;
   for (const t of tags) {
@@ -298,8 +301,12 @@ export async function resolveTaste(body, { qloo }) {
     if (!tags.length) return null;
     const { t, score } = shape === 'food' ? pickCuisineTag(query, tags) : { t: tags[0], score: nameMatch(query, tags[0].name) };
     const confidence = Math.max(0.5, score);
+    // A cuisine whose name barely matches the guest's word (a misspelling, or a near miss such
+    // as "Tea house" for "steakhouse") stays a signal: filter_ok false keeps it out of the hard
+    // cuisine filter, so a weak guess can never decide which places come back.
+    const weakCuisine = shape === 'food' && isCuisineTag(t.tag_id) && score < CUISINE_FILTER_MIN;
     return { mention, kind: 'tag', id: t.tag_id, entity_id: null, tag_id: t.tag_id,
-      name: sentenceCase(mention), type: 'tag', confidence: round2(confidence) };
+      name: sentenceCase(mention), type: 'tag', confidence: round2(confidence), ...(weakCuisine ? { filter_ok: false } : {}) };
   };
 
   const resolveNamed = async (mention) => {

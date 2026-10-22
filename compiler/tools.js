@@ -54,6 +54,7 @@ const TASTE = {
     properties: {
       id: s('The id from resolve_taste, for example fx-artist-sturgill-simpson or urn:tag:genre:place:restaurant:thai'),
       name: s('The name from resolve_taste, for example Sturgill Simpson'),
+      filter_ok: b('Copy it when resolve_taste returned it (false on a weak cuisine match); leave it out otherwise.'),
     },
   },
 };
@@ -90,7 +91,7 @@ function serverToolSpecs(property, { propertyId, persona }) {
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name.',
+      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met.',
       timeout: 15,
       body: {
         type: 'object',

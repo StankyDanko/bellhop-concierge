@@ -220,3 +220,22 @@ test('the variety actually varies: many callers see many openers, pairs and bets
   assert.equal(p.size, 5);
   assert.ok(b.size >= 4, `bets seen: ${b.size}`);
 });
+
+test('an empty pool for a daypart falls back to the persona default and never throws', () => {
+  const pools = structuredClone(POOLS);
+  for (const p of Object.values(pools.personas)) {
+    p.returning = [];
+    for (const o of p.openers) o.dayparts = ['morning'];
+  }
+  for (const p of pools.pairs) p.enabled = false;
+  for (const b of pools.bets) b.enabled = false;
+  for (const [persona, opener, pair] of [['harper', 'h-band', 'p-spicy'], ['maybelle', 'm-band', 'p-lively']]) {
+    for (const status of ['new', 'returning']) {
+      const { vars, ids } = choose({ persona, status, now: WED.evening, rng: seeded(3), pools });
+      assert.equal(ids.opener, opener, `${persona} ${status}`);
+      assert.equal(ids.pair, pair);
+      assert.equal(ids.bet, 'b-film');
+      assert.ok(vars.opener_hook && vars.choice_pair && vars.bet_domain);
+    }
+  }
+});

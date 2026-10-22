@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 
 export const POOLS = Object.freeze(JSON.parse(readFileSync(new URL('./pools.json', import.meta.url), 'utf8')));
+const POOLS_FILE = POOLS;
 
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const FALLBACK_PERSONA = 'harper';
@@ -79,9 +80,16 @@ function avoidRecent(list, recent = []) {
   return one.length ? one : list;
 }
 
-function pick(list, rng) {
+/** One entry at random; an empty list gives the fallback instead, so call setup never throws. */
+function pick(list, rng, fallback) {
+  if (!list.length) return fallback;
   const i = Math.min(list.length - 1, Math.max(0, Math.floor(rng() * list.length)));
   return list[i];
+}
+
+/** The persona's default entry (the frozen prompt's own line), whatever the daypart or switches. */
+function defaultOf(list, persona) {
+  return defaultsFirst(list ?? [], persona)[0];
 }
 
 const sideKey = (side) => [...side].sort().join('+');
@@ -94,9 +102,10 @@ const sideKey = (side) => [...side].sort().join('+');
  * @param {string} [a.timezone] the inn's IANA timezone
  * @param {LastCall} [a.last] this caller's previous call; omit for no history (withheld number, unknown agent)
  * @param {() => number} [a.rng] uniform in [0, 1); inject for exact tests
+ * @param {typeof POOLS} [a.pools] the pools to choose from; tests pass edited copies
  * @returns {{ vars: Record<string, string|number>, ids: { opener: string, pair: string, bet: string, bet_domain: string, daypart: Daypart, weekday: string } }}
  */
-export function choose({ persona = FALLBACK_PERSONA, status, now = new Date(), timezone = FALLBACK_TZ, last = {}, rng = Math.random } = {}) {
+export function choose({ persona = FALLBACK_PERSONA, status, now = new Date(), timezone = FALLBACK_TZ, last = {}, rng = Math.random, pools: POOLS = POOLS_FILE } = {}) {
   const key = Object.hasOwn(POOLS.personas, persona) ? persona : FALLBACK_PERSONA;
   const pool = POOLS.personas[key];
   const { hour, weekday } = localParts(now, timezone);
@@ -106,7 +115,8 @@ export function choose({ persona = FALLBACK_PERSONA, status, now = new Date(), t
   // The line that follows the greeting: a first-time hook, or the returning and same-day question.
   const hookPool = state === 'returning' ? pool.returning : state === 'same_day' ? pool.same_day
     : pool.openers.filter((o) => fits(o.dayparts, daypart) && fits(o.days, weekday));
-  const hook = pick(avoidRecent(defaultsFirst(hookPool, key), last.openerIds), rng);
+  // An empty pool for this daypart or status falls back to the persona's default opener.
+  const hook = pick(avoidRecent(defaultsFirst(hookPool, key), last.openerIds), rng, defaultOf(pool.openers, key));
   const window = (POOLS.windows[key] ?? POOLS.windows[FALLBACK_PERSONA])[daypart];
   const opener_hook = hook.text.replaceAll('<window>', window);
 
@@ -116,12 +126,12 @@ export function choose({ persona = FALLBACK_PERSONA, status, now = new Date(), t
   const pairPool = POOLS.pairs.filter((p) => p.enabled && fits(p.dayparts, daypart)
     && !(lastPair && (p.id === lastPair.id || p.sides.some((s) => lastSides.has(sideKey(s))))));
   const base = POOLS.pairs.filter((p) => p.enabled && fits(p.dayparts, daypart));
-  const pair = pick(avoidRecent(defaultsFirst(pairPool.length ? pairPool : base, key), last.pairIds), rng);
+  const pair = pick(avoidRecent(defaultsFirst(pairPool.length ? pairPool : base, key), last.pairIds), rng, defaultOf(POOLS.pairs, key));
 
   // The bet: never a domain the opener already leaned on (a band opener does not get an album bet).
   const betsOn = POOLS.bets.filter((b) => b.enabled);
   const fresh = betsOn.filter((b) => b.domain !== hook.anchor);
-  const bet = pick(avoidRecent(defaultsFirst(fresh.length ? fresh : betsOn, key), last.betIds), rng);
+  const bet = pick(avoidRecent(defaultsFirst(fresh.length ? fresh : betsOn, key), last.betIds), rng, defaultOf(POOLS.bets, key));
 
   return {
     vars: {

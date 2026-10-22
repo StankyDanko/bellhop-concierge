@@ -49,11 +49,13 @@ export function tasteSignals(v, name = 'taste') {
     const id = typeof item === 'string' ? item : item?.id ?? item?.entity_id ?? item?.tag_id;
     if (typeof id !== 'string' || !id.trim()) throw new InputError(`${name}[${i}] needs an id`);
     const label = typeof item === 'object' && typeof item?.name === 'string' ? item.name.slice(0, 60) : '';
-    return { id: id.trim(), name: label };
+    // resolve_taste marks a weakly matched cuisine filter_ok: false: a signal, never a filter.
+    return { id: id.trim(), name: label, ...(typeof item === 'object' && item?.filter_ok === false ? { filter_ok: false } : {}) };
   });
   const isTag = (id) => id.startsWith('urn:tag:');
   return {
     signals,
+    noFilterIds: signals.filter((s) => s.filter_ok === false).map((s) => s.id),
     entityIds: signals.filter((s) => !isTag(s.id)).map((s) => s.id),
     tagIds: signals.filter((s) => isTag(s.id)).map((s) => s.id),
   };

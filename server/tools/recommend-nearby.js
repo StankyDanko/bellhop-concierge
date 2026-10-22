@@ -78,6 +78,9 @@ async function scoreForTwo(qloo, candidates, guest, companion, take) {
  * @param {any} body
  * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string }} ctx
  */
+/** "Thai food" -> "thai food"; two cuisines join with "or". */
+const spokenCuisine = (names) => names.map((n) => n.toLowerCase()).join(' or ') || 'that cuisine';
+
 export async function recommendNearby(body, { qloo, toolSecret }) {
   const taste = tasteSignals(body?.taste);
   const companion = companionSignals(body?.companion_taste);
@@ -147,15 +150,29 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
     { ranked: candidates, signalEffects: readSignalEffects(tasteBody, signalsIn.signals) });
   // ---- end counterfactual ----
 
+  // A relaxed cuisine filter is said plainly, so the agent never claims the cuisine for picks
+  // that are not of it.
+  let say;
+  if (first.cuisine_filter === 'relaxed' && places.length) {
+    const words = spokenCuisine(signalsIn.signals.filter((s) => shaped.cuisine.includes(s.id)).map((s) => s.name));
+    const fitting = new Set(candidates.filter((e) => (e.tags ?? []).some((t) => shaped.cuisine.includes(t.tag_id))).map((e) => e.entity_id));
+    const n = places.filter((p) => fitting.has(p.entity_id)).length;
+    say = n === 0
+      ? `Nothing close enough for ${words} nearby, so these are the best matches overall.`
+      : `Only ${n === 1 ? 'one' : n === 2 ? 'two' : n} ${words} ${n === 1 ? 'place is' : 'places are'} close enough, so the rest are the best matches overall.`;
+  }
+
   return {
     status: places.length ? 'ok' : 'empty',
+    ...(say ? { say } : {}),
     // pick_token signs each place's name and favors, so compose_itinerary can tell a favors
     // value this tool returned from one the model wrote (lib/pick-token.js).
     places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
     applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
-      // 'hard': every pick is one of the guest's cuisines; 'relaxed': none fit nearby, so the
-      // cuisine only steered the ranking; null: no cuisine was said.
+      // 'hard': every pick is one of the guest's cuisines; 'relaxed': fewer than three fit
+      // nearby, so the ones that fit come first and the rest are the best matches overall
+      // (`say` tells the agent); null: no cuisine was said or it matched too weakly to filter.
       cuisine_filter: first.cuisine_filter,
       cuisine: shaped.cuisine.length ? signalsIn.signals.filter((s) => shaped.cuisine.includes(s.id)).map((s) => s.name) : [] },
     companion: companionSummary,
