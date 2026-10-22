@@ -168,9 +168,16 @@ Errors are never reported as success:
 
 ### `resolve_taste`
 
-Turns what the guest said into Qloo ids. Named things go through Qloo `/search`.
-Category-shaped mentions ("thai food", "jazz bars") go through `/v2/tags`, as do names
-that do not match closely. Each result carries a `confidence` (word overlap between the
+Turns what the guest said into Qloo ids. Named things (an artist, a director, a film) go
+through Qloo `/search`. Food and place mentions never do: a cuisine or dish ("thai food",
+"sushi", "bbq") or a kind of place ("jazz bars") goes to `/v2/tags` with
+`filter.parents.types=urn:entity:place`, so a food word lands on a place tag and never on a
+music or film genre of the same name, or on an album called Sushi. A food mention asks for
+its bare cuisine word ("thai food" asks "thai", "bbq" asks "barbecue") with `take=10`, and
+takes the restaurant genre tag (`urn:tag:genre:place:restaurant:...`) whose name best matches
+the word, because typo tolerance can rank a near miss first. Other categories ("jazz music")
+and names that do not match closely go to unscoped `/v2/tags` as before. Each result carries
+a `confidence` (1 when the tag name is the same word, otherwise word overlap between the
 mention and the matched name), so the agent can confirm a weak match out loud.
 
 ```json
@@ -202,7 +209,7 @@ The `resolved` items are the `taste` input of the next three tools: pass them ba
 are (`{ id, name }` is enough; bare id strings also work).
 
 A vibe phrase, the guest's answer to a two way food choice such as "spicy and loud", never
-goes to `/search`. Each taste word goes to `/v2/tags` on its own, under the tag words in
+goes to `/search`. Each taste word goes to `/v2/tags` on its own, scoped to place tags, under the tag words in
 `VIBE_PHRASES` (`server/tools/resolve-taste.js`), and each of those trace entries carries
 `mapped_from: "spicy and loud"`. The say-back line repeats the guest's words, and budget
 words ("splurge", "easy") come back as `preferences: { "budget": "splurge" }` without
@@ -214,7 +221,7 @@ Places near the property, ranked by Qloo affinity for this guest's taste.
 
 | Field | Type | Notes |
 |---|---|---|
-| `taste` | `{id, name}[]`, 1-8 | from `resolve_taste`; ids starting `urn:tag:` are sent as tag signals |
+| `taste` | `{id, name}[]`, 1-8 | from `resolve_taste`; ids starting `urn:tag:` are sent as tag signals, and a cuisine (`urn:tag:genre:place:restaurant:...`) is also sent as a hard `filter.tags` |
 | `lat`, `lng` | number | the property |
 | `radius_miles` | number, default 3 | 0.25-25 |
 | `take` | number, default 3 | 1-10 |
@@ -228,7 +235,16 @@ Places near the property, ranked by Qloo affinity for this guest's taste.
 Qloo request: `GET /v2/insights` with `filter.type=urn:entity:place`,
 `signal.interests.entities`, `signal.interests.tags`, `filter.location=POINT(lng lat)`,
 `filter.location.radius` (meters), price and rating filters, `sort_by=affinity`,
-`feature.explainability=true`.
+`feature.explainability=true`, and `filter.tags` when the guest named a cuisine.
+
+**A stated cuisine is a requirement.** As a signal alone a cuisine tag barely moves the
+ranking: a guest who said "thai" got no thai place. So the cuisine also goes out as a hard
+`filter.tags`, and every pick is a place of that cuisine. Two cuisines (the guest's and the
+plus-one's) come back as places of either. If nothing nearby fits the filter (after the kids
+filter), the tool asks once more without it, with the cuisine still steering the ranking, and
+says so: `applied.cuisine_filter` is `"hard"`, `"relaxed"`, or `null` when no cuisine was
+said, and `applied.cuisine` lists the cuisines in the guest's words. Vibe tags stay signals.
+Per-person scoring for a plus-one is unchanged (signals only, on the shortlist).
 
 ```json
 // request
@@ -247,13 +263,22 @@ Qloo request: `GET /v2/insights` with `filter.type=urn:entity:place`,
     "why_trace": { "basis": "explainability", "drivers": [
       { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food", "score": 0.88 },
       { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "score": 0.61 } ] },
+    "tags": ["Thai"],
     "source": "Qloo" } ],
   "applied": { "radius_miles": 3, "budget": 3, "min_rating": 4, "when": "tonight",
-               "party_size": 2, "kids": false, "filtered_for_kids": 0 },
+               "party_size": 2, "kids": false, "filtered_for_kids": 0,
+               "cuisine_filter": "hard", "cuisine": ["Thai food"] },
   "meta": { "upstream": [ { "service": "qloo", "endpoint": "/v2/insights", "via": "mock", "ms": 4 } ] } }
 ```
 
 `url` is the place's website when it is https, otherwise an https map search link.
+
+Each place also carries `tags`: up to eight of its own tag names that say what it is and how
+it feels (cuisine, ambience, noise level), the guest's own matches first. They come from the
+place's Qloo record, never from its name. When a place carries a tag the guest asked for,
+`why_trace.drivers` lists it with `"source": "tag_match"` and `"score": null`: Qloo's
+explainability never attributes tags, so the match is read from the place's own tag list,
+and `basis` still says whether Qloo itself named a driver.
 
 **The counterfactual.** After the taste call, `recommend_nearby` makes one more cached
 `GET /v2/insights` with the same `filter.type`, `filter.location`, radius, price and rating
@@ -375,6 +400,10 @@ books, and so on. `target` is one of `artist`, `movie`, `book`, `podcast`, `plac
 `tv_show`. A `place` target also needs `lat` and `lng` (and takes `radius_miles`). The
 guest's own inputs are never returned as recommendations. Each result carries a `pick_token`
 signed over its name alone, so `compose_itinerary` can tell it from one the model made up.
+
+Toward places, a cuisine works as in `recommend_nearby` (hard `filter.tags`, one relaxed
+retry, `cuisine_filter` on the response, `tags` on each place). Toward films, books, music,
+podcasts, and shows every taste stays a signal.
 
 ```json
 // request
@@ -685,7 +714,7 @@ in the server log, one JSON line per call (endpoint and parameters, never the ke
 | # | Qloo capability | Endpoint and key parameters | Used by | What it does for the guest or innkeeper |
 |---|---|---|---|---|
 | 1 | Entity search | `GET /search` `query`, `take` | `resolve_taste` | "Sturgill Simpson" becomes an artist id |
-| 2 | Tag search | `GET /v2/tags` `filter.query`, `feature.typo_tolerance` | `resolve_taste` | "thai food" becomes a cuisine tag |
+| 2 | Tag search | `GET /v2/tags` `filter.query`, `feature.typo_tolerance`, `filter.parents.types=urn:entity:place` for food, place, and vibe words | `resolve_taste` | "thai food" becomes the thai restaurant genre tag |
 | 3 | Location-scoped insights | `GET /v2/insights` `filter.type=urn:entity:place`, `filter.location`, `filter.location.radius`, `filter.price_level.max`, `filter.rating.min`, `sort_by=affinity` | `recommend_nearby` | places near the inn ranked for this guest's taste and budget |
 | 4 | Cross-domain affinity | `GET /v2/insights` with signals from one domain and `filter.type` of another | `cross_domain`, `recommend_nearby` | a music taste picks a restaurant; a director picks a book |
 | 5 | Explainability | `feature.explainability=true` on every insights call | all recommendation tools | the per-pick "why", traced to the guest's own inputs |

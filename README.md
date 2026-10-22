@@ -49,7 +49,7 @@ from mock fixtures), and the dashboard shows the request behind each pick.
 | Qloo capability | The call | What it does here | Today |
 |---|---|---|---|
 | Entity search | `GET /search` | "Sturgill Simpson" becomes an artist id | mock fixtures until the hackathon key arrives |
-| Tag search | `GET /v2/tags` | "thai food" becomes a cuisine tag | mock fixtures until the key arrives |
+| Tag search | `GET /v2/tags` | "thai food" becomes the thai restaurant genre tag, which filters the picks | mock fixtures until the key arrives |
 | Insights near the inn | `GET /v2/insights`, `filter.type=urn:entity:place`, `filter.location`, radius, price, rating, `sort_by=affinity` | places near the inn, ranked for this guest | mock fixtures until the key arrives |
 | Explainability | `feature.explainability=true` on every insights call | the reason line: "Fans of Thai food and Sturgill Simpson love it." When Qloo doesn't attribute a pick, the reason says so, and nothing is made up | mock fixtures until the key arrives |
 | Cross-domain affinity | insights with signals from one domain and `filter.type` of another | a band picks a restaurant; a director picks a book | mock fixtures until the key arrives |
