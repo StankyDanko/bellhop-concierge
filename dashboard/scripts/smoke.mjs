@@ -6,13 +6,15 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APP_ROUTES } from '../../server/api/static.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const PORT = 8800 + Math.floor(Math.random() * 150);
+// A port the system says is free: a random pick once landed on another local server.
+const PORT = await new Promise((r) => { const n = createServer(); n.listen(0, '127.0.0.1', () => { const p = n.address().port; n.close(() => r(p)); }); });
 const BASE = `http://127.0.0.1:${PORT}`;
 const tmp = mkdtempSync(join(tmpdir(), 'bc-smoke-'));
 let failures = 0;
@@ -106,6 +108,11 @@ try {
   }
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
+  // The landing's own checks (dashboard/scripts/verify-landing.mjs) against this same server.
+  const landing = spawnSync(process.execPath, ['dashboard/scripts/verify-landing.mjs', '--base', BASE], { cwd: ROOT, encoding: 'utf8' });
+  const landingFails = (landing.stdout ?? '').split('\n').filter((l) => l.startsWith('FAIL'));
+  for (const l of landingFails) console.log(l);
+  check(landing.status === 0, `landing checks pass (${(landing.stdout.match(/^ok /gm) ?? []).length} ok, ${landingFails.length} failed)`);
 } finally {
   try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
   const exited = server.exitCode !== null || server.signalCode !== null || await new Promise((r) => { const t = setTimeout(() => r(false), 3000); server.once('exit', () => { clearTimeout(t); r(true); }); });

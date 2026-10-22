@@ -262,8 +262,8 @@ Per-person scoring for a plus-one is unchanged (signals only, on the shortlist).
     "url": "https://example.com/lemongrass-lantern", "affinity": 0.91,
     "why": "Fans of Sturgill Simpson love it; tagged Thai",
     "why_trace": { "basis": "explainability", "drivers": [
-      { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food", "score": 0.88 },
-      { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "score": 0.61 } ] },
+      { "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "score": 0.61 },
+      { "id": "urn:tag:genre:place:restaurant:thai", "name": "Thai food", "score": null, "source": "tag_match" } ] },
     "tags": ["Thai"],
     "source": "Qloo" } ],
   "applied": { "radius_miles": 3, "budget": 3, "min_rating": 4, "when": "tonight",

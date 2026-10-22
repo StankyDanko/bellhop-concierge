@@ -200,6 +200,8 @@ Presented as a bottom sheet on phone, a centered dialog on desktop (`--z-modal`,
 - Publish is disabled until a preview (either kind) completed.
 
 ### 5.10 WhyChip and PickCard (the explainability atom)
+
+As built, the landing renders this atom as `WhyPick` (`dashboard/src/components/WhyPick.jsx`); PickCard and WhyChip were retired. Tag matches carry no score, because Qloo's explainability never attributes tags.
 The most important small component in the product [Qloo is load-bearing].
 - **PickCard**: name (UI weight 600), meta line (distance, price, rating, each with a unit), then the **WhyChip**, then a SourceChip. Max 4 lines at 390.
 - **WhyChip**: full-width-in-card, purple tint (`--color-taste-tint`) with `--color-taste-text`, 12px radius control, leading "why" glyph (a small branching-node icon), text is `place.why` verbatim from the server ("Fans of Sturgill Simpson love it; tagged Thai"). Tap/click expands in place (280ms height by transform-safe grid-rows trick or a cut) to show **drivers as bars**: one row per `why_trace.drivers` with the input's name and a bar proportional to `score`, labeled with the score as a number. Footer in Micro: `QLOO EXPLAINABILITY, AFFINITY 0.91`.
@@ -308,6 +310,15 @@ Squint test [H1]: exactly one thing survives, the number. Rules that follow:
 - Wordmark (Bellhop Concierge, 24px) and a "GitHub" text link are the only chrome in the first screen. "AGPL-3.0" appears in the footer and the repo link, not the hero.
 - Honesty line near the fold: "The demo inn is fictional. Calls and texts are real." Plain, factual, one sentence; the claim must be true at ship.
 - The 3-minute make-your-own path is a secondary CTA beside the number card ("Build your own concierge"), never competing in volume.
+
+**As built (2026-10-22).** The landing is seven sections, one H1 and six H2s, readable top to bottom without a call:
+1. Hero: "The front desk concierge for small inns.", the product sentence, and the number card naming the sample inn (no `tel:` link and an honest pending line while no number is set).
+2. "What your words changed.": the no-taste list and the guest's list side by side, with lines joining the places on both (`QlooTrace.jsx` `Counterfactual`).
+3. "How a call becomes a plan.": every request one call makes, in order, with a stepper the reader starts (`CallRail`).
+4. "Why this pick.": the reason, the named drivers, tag matches as "matches your words" with no score, and the exact request behind a disclosure (`WhyPick.jsx`).
+5. "What your callers love.": the area card, labeled with its sample size and badge, dark below five calls (`AreaCard.jsx`).
+6. "Safe by default." and 7. "Run your own concierge."
+The checks for all of it ship as `npm run verify:landing`, which `npm run smoke:dashboard` also runs.
 
 ---
 

@@ -9,7 +9,6 @@
           "properties": { "address": "112 Fictional Ln", "price_level": 2, "business_rating": 4.6, "website": "https://example.com/lemongrass-lantern" },
           "tags": [ { "tag_id": "urn:tag:genre:place:restaurant:thai", "name": "Thai", "type": "urn:tag:genre:place:restaurant" } ],
           "query": { "affinity": 0.91, "explainability": {
-            "signal.interests.tags": [ { "tag_id": "urn:tag:genre:place:restaurant:thai", "score": 0.88 } ],
             "signal.interests.entities": [ { "entity_id": "fx-artist-sturgill-simpson", "score": 0.61 } ] } } },
         { "name": "The Low Lantern Listening Room", "entity_id": "fx-place-low-lantern", "type": "urn:entity", "subtype": "urn:entity:place",
           "location": { "lat": 32.0811, "lon": -81.0978 },

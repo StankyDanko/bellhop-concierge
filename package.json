@@ -22,6 +22,7 @@
     "build:dashboard": "vite build --config dashboard/vite.config.js && /usr/bin/node dashboard/scripts/build-legal.mjs",
     "dev:dashboard": "vite --config dashboard/vite.config.js",
     "smoke:dashboard": "/usr/bin/node dashboard/scripts/smoke.mjs",
+    "verify:landing": "/usr/bin/node dashboard/scripts/verify-landing.mjs",
     "hooks": "git config core.hooksPath scripts/githooks"
   },
   "dependencies": {

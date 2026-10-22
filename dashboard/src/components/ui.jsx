@@ -1,6 +1,6 @@
-// Shared bricks: LiveBadge, chips, Stat, PickCard with WhyChip, SmsPreview, banners.
+// Shared bricks: LiveBadge, chips, Stat, SmsPreview, banners. The pick and its reason live in WhyPick.jsx.
 // Component names follow DESIGN-LANGUAGE.md section 5.
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 
@@ -107,69 +107,6 @@ export function Stat({ label, value, unit, source }) {
       <p className="value">{value}{unit && <span className="unit">{unit}</span>}</p>
       <p className="micro mono source">{source}</p>
     </div>
-  );
-}
-
-// ---- PickCard + WhyChip ------------------------------------------------------------------
-
-export function WhyChip({ place, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const id = useId();
-  const trace = place.why_trace ?? { basis: 'affinity', drivers: [] };
-  const explained = trace.basis === 'explainability' && trace.drivers?.length > 0;
-  const max = Math.max(1, ...(trace.drivers ?? []).map((d) => d.score ?? 0));
-  return (
-    <div className={`why${explained ? '' : ' neutral'}`}>
-      <button type="button" className="why-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        <Icon name="why" />
-        <span>{explained ? place.why : 'Strong match for your overall taste'}</span>
-        <Icon name="chev" className="chev" />
-      </button>
-      <div id={id} className="why-body" hidden={!open}>
-        {explained ? (
-          <>
-            <p className="micro" style={{ color: 'inherit' }}>Why Qloo picked it, by what you said</p>
-            {trace.drivers.map((d) => (d.source === 'tag_match' ? (
-              <div className="driver" key={d.id}>
-                <span className="driver-name" title={d.name}>{d.name}</span>
-                <span className="micro">matches your words</span>
-              </div>
-            ) : (
-              <div className="driver" key={d.id}>
-                <span className="driver-name" title={d.name}>{d.name}</span>
-                <span className="bar" aria-hidden="true"><span style={{ transform: `scaleX(${(d.score ?? 0) / max})` }} /></span>
-                <span className="num">{(d.score ?? 0).toFixed(2)}</span>
-              </div>
-            )))}
-            <p className="micro mono why-foot" style={{ color: 'inherit' }}>
-              Qloo explainability, affinity {typeof place.affinity === 'number' ? place.affinity.toFixed(2) : 'n/a'}
-            </p>
-          </>
-        ) : (
-          <p className="micro mono">Qloo affinity, no per-input reason</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const PRICE = ['', '$', '$$', '$$$', '$$$$'];
-
-export function PickCard({ place, defaultOpen }) {
-  const meta = [
-    typeof place.distance_miles === 'number' ? `${place.distance_miles.toFixed(1)} mi away` : null,
-    place.price_level ? `${PRICE[place.price_level]} price` : null,
-    typeof place.rating === 'number' ? `${place.rating.toFixed(1)} of 5 rating` : null,
-  ].filter(Boolean);
-  return (
-    <article className="pick">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h3 className="pick-name">{place.name}</h3>
-        <SourceChip source={place.source ?? 'Qloo'} />
-      </div>
-      {meta.length > 0 && <p className="pick-meta tnum">{meta.join(' · ')}</p>}
-      <WhyChip place={place} defaultOpen={defaultOpen} />
-    </article>
   );
 }
 
