@@ -296,12 +296,49 @@ export function renderScorecard({ records, skipped = [], liveUsed, stoppedBy, mo
     out.push(`| ${r.scenario.id} | ${['resolve_taste', 'recommend_nearby', 'events_nearby', 'cross_domain', 'compose_itinerary'].map((t) => ms(r, t)).join(' | ')} | ${r.tools.reduce((n, t) => n + t.ms, 0)} |`);
   }
   // Metrics that are not graded but move when the engine improves.
-  const withTag = records.filter((r) => (r.recommend?.json?.places?.length ?? 0) > 0 && [...(r.resolve?.json?.resolved ?? [])].some((x) => x.kind === 'tag'));
-  const tagDriven = withTag.filter((r) => r.recommend.json.places.some((p) => (p.why_trace?.drivers ?? []).some((d) => String(d.id).startsWith('urn:tag:'))));
+  const m = tagMeasures(records);
   out.push('', '## Ungraded measures', '',
-    `- scenarios with a tag among the guest's tastes and place picks: ${withTag.length}`,
-    `- of those, scenarios where a tag is named as a driver of any pick: ${tagDriven.length}`, '');
+    `- picks whose reason names a guest cuisine word: ${m.cuisine.named} of ${m.cuisine.picks} (${m.cuisine.scenarios} scenario(s) with a stated cuisine)`,
+    `- picks whose reason names a guest vibe word: ${m.vibe.named} of ${m.vibe.picks} (${m.vibe.scenarios} scenario(s) with a stated vibe)`,
+    `- canary, tag drivers Qloo attributed (expected 0): ${m.attributed}`, '');
   return out.join('\n');
+}
+
+const CUISINE_TAG = /^urn:tag:genre:place:restaurant:[^:]+/;
+const isTag = (id) => String(id).startsWith('urn:tag:');
+
+/**
+ * The tag measures, from what the tools returned. A pick's reason says "tagged" with at most two
+ * of the guest's tags, in the order the guest said them (lib/why.js): the tags the pick carries
+ * (drivers with source tag_match), then any tag Qloo attributed. A cuisine is a restaurant genre
+ * tag; every other tag counts as a vibe. The canary counts tag drivers without source tag_match:
+ * Qloo's explainability has never named a tag, so anything above 0 means that changed or the
+ * walker misread a response.
+ * @param {Array<any>} records
+ */
+export function tagMeasures(records) {
+  const cuisine = { named: 0, picks: 0, scenarios: 0 };
+  const vibe = { named: 0, picks: 0, scenarios: 0 };
+  let attributed = 0;
+  for (const r of records) {
+    const ps = Array.isArray(r.recommend?.json?.places) ? r.recommend.json.places : [];
+    const said = [...(r.resolve?.json?.resolved ?? []), ...(r.resolve?.json?.companion_resolved ?? [])]
+      .map((x) => x?.id).filter((id) => typeof id === 'string' && isTag(id));
+    const hasCuisine = said.some((id) => CUISINE_TAG.test(id));
+    const hasVibe = said.some((id) => !CUISINE_TAG.test(id));
+    if (ps.length && hasCuisine) { cuisine.scenarios += 1; cuisine.picks += ps.length; }
+    if (ps.length && hasVibe) { vibe.scenarios += 1; vibe.picks += ps.length; }
+    for (const p of ps) {
+      const drivers = (p.why_trace?.drivers ?? []).filter((d) => isTag(d?.id));
+      const qlooTags = drivers.filter((d) => d.source !== 'tag_match').map((d) => d.id);
+      attributed += qlooTags.length;
+      const carried = new Set(drivers.filter((d) => d.source === 'tag_match').map((d) => d.id));
+      const named = /\btagged\b/.test(String(p.why ?? '')) ? [...said.filter((id) => carried.has(id)), ...qlooTags].slice(0, 2) : [];
+      if (hasCuisine && named.some((id) => CUISINE_TAG.test(id))) cuisine.named += 1;
+      if (hasVibe && named.some((id) => !CUISINE_TAG.test(id))) vibe.named += 1;
+    }
+  }
+  return { cuisine, vibe, attributed };
 }
 
 // ---------------------------------------------------------------------------

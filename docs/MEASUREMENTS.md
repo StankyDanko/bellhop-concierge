@@ -23,7 +23,8 @@ These change only with a commit, and the command shows the current value.
 | Panels dark below five calls | README, ARCHITECTURE, PRIVACY | `grep -n "SESSION_GATE =" server/api/routes.js` |
 | Free-text taste capped at 80 characters | PRIVACY | `grep -n "MAX_FREE_TEXT =" server/lib/pii-guard.js` |
 | At most eight taste ids per place call | LEARNED | `grep -n "TASTE_MAX =" server/lib/validate.js` |
-| Eight tools | README, ARCHITECTURE | `ls server/tools/` (eight tool files plus the shared `places.js` and `counterfactual.js`) |
+| Nine tools | README | `curl -s localhost:8787/health` lists them under `tools` (eight in `TOOLS` plus `forget_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows nine tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
+| One text per call | privacy page (dashboard/src/legal-content.js) | `grep -n "ONE_PER_CALL_SAY\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
 | Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
 | Twenty calls a day on the test line | README | `grep -n "daily_limit" compiler/compile.js` (the demo inn is at trust level `test`) |

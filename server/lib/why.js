@@ -202,12 +202,46 @@ function spreadOf(values) {
  * top half get no label (neither person stands out). When either person's spread is under
  * FLAT_SPREAD, every label is null. A pick only one person scored goes to that person. When
  * either person has fewer than two scores (a one-place shortlist), a pick both scored gets none.
+ *
+ * Cuisine comes first. When each person named a cuisine and the two differ, a pick whose own tags
+ * carry one person's cuisine and not the other's is labelled for that person, whatever the ranks
+ * say: a place that serves only the guest's food is never "you both will like". This holds even
+ * when a ranking is flat, because it is a fact about the place, not a score. A pick that carries
+ * both cuisines, or neither, goes to the rank rule.
  * @param {Array<{ guest?: number|null, companion?: number|null }>} fits
  *   per-person affinities, one entry per shortlist pick, in shortlist order
- * @param {{ flatSpread?: number }} [opts]
+ * @param {{ flatSpread?: number, tags?: Array<string[]>, cuisine?: { guest?: string[], companion?: string[] } }} [opts]
+ *   tags: each pick's own tag ids, in shortlist order; cuisine: each person's stated cuisine tag ids
  * @returns {Array<'guest'|'companion'|'both'|null>}
  */
-export function favorsByRank(fits, { flatSpread = FLAT_SPREAD } = {}) {
+export function favorsByRank(fits, { flatSpread = FLAT_SPREAD, tags = [], cuisine = {} } = {}) {
+  const byCuisine = cuisineLeans(fits.length, tags, cuisine);
+  const byRank = rankLabels(fits, flatSpread);
+  return byRank.map((label, i) => byCuisine[i] ?? label);
+}
+
+/**
+ * The cuisine lean of each pick: 'guest' or 'companion' when the pick carries only that person's
+ * stated cuisine, null otherwise. All null unless both people named a cuisine.
+ * @param {number} n @param {Array<string[]>} tags @param {{ guest?: string[], companion?: string[] }} cuisine
+ * @returns {Array<'guest'|'companion'|null>}
+ */
+export function cuisineLeans(n, tags, cuisine) {
+  const gc = new Set(cuisine?.guest ?? []);
+  const cc = new Set(cuisine?.companion ?? []);
+  if (!gc.size || !cc.size) return Array.from({ length: n }, () => null);
+  return Array.from({ length: n }, (_, i) => {
+    const own = Array.isArray(tags[i]) ? tags[i] : [];
+    const g = own.some((id) => gc.has(id));
+    const c = own.some((id) => cc.has(id));
+    if (g && !c) return 'guest';
+    if (c && !g) return 'companion';
+    return null;
+  });
+}
+
+/** The rank rule alone (see favorsByRank). */
+function rankLabels(fits, flatSpread) {
   const g = fits.map((f) => (typeof f?.guest === 'number' ? f.guest : null));
   const c = fits.map((f) => (typeof f?.companion === 'number' ? f.companion : null));
   const gSpread = spreadOf(g);

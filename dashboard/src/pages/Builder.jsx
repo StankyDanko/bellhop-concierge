@@ -202,8 +202,8 @@ function questions(ctx) {
     },
     {
       title: 'The house',
-      ask: 'Your wifi details. Guests ask on every call; the concierge offers to text them instead of reading them out.',
-      body: <SecretField ctx={ctx} path="logistics.wifi_note" label="Wifi network and password" help="Stored as a secret. Sent by text to the booking phone only." />,
+      ask: 'Your wifi details. The concierge never says or texts them on a call; it points guests to their check-in message.',
+      body: <SecretField ctx={ctx} path="logistics.wifi_note" label="Wifi network and password" help="Stored as a secret. Never compiled into the concierge." />,
     },
     {
       title: 'House rules',

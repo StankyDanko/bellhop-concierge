@@ -45,13 +45,47 @@ function mergeTaste(a, b) {
   return { signals, entityIds: signals.filter((s) => !isTag(s.id)).map((s) => s.id), tagIds: signals.filter((s) => isTag(s.id)).map((s) => s.id) };
 }
 
+/** The pick's own tag ids. */
+const tagIdsOf = (e) => (e.tags ?? []).map((t) => t.tag_id);
+
+/**
+ * Each person's stated cuisine tag ids, when both named one and they are not the same set.
+ * Otherwise null: one cuisine (or one shared) needs no per-person cover.
+ * @returns {{ guest: string[], companion: string[] } | null}
+ */
+function twoCuisines(guest, companion) {
+  const g = placeTasteParams(guest).cuisine;
+  const c = placeTasteParams(companion).cuisine;
+  if (!g.length || !c.length) return null;
+  if (g.length === c.length && g.every((id) => c.includes(id))) return null;
+  return { guest: g, companion: c };
+}
+
+/**
+ * Picks that must be on the list so each person's cuisine is: the first shortlist place that
+ * carries the guest's cuisine, then the first that carries the plus-one's (when not the same place).
+ * @returns {number[]} shortlist indexes, guest first
+ */
+function cuisineCover(candidates, cuisine) {
+  if (!cuisine) return [];
+  const out = [];
+  for (const ids of [cuisine.guest, cuisine.companion]) {
+    const i = candidates.findIndex((e) => tagIdsOf(e).some((t) => ids.includes(t)));
+    if (i >= 0 && !out.includes(i)) out.push(i);
+  }
+  return out;
+}
+
 /**
  * Score the shortlist per person and pick `take` of them, keeping at least one pick for
- * both when the shortlist has one.
+ * both when the shortlist has one. With two stated cuisines, the first place of each cuisine is
+ * kept before the rest fill by combined affinity, and a pick carrying one person's cuisine only
+ * is labelled for that person (favorsByRank).
  * @param {import('../lib/qloo.js').QlooClient} qloo
  * @param {import('../lib/qloo.js').QlooEntity[]} candidates  shortlist, in combined-affinity order
+ * @param {{ guest: string[], companion: string[] } | null} [cuisine]  from twoCuisines
  */
-async function scoreForTwo(qloo, candidates, guest, companion, take) {
+async function scoreForTwo(qloo, candidates, guest, companion, take, cuisine = null) {
   const ids = candidates.map((e) => e.entity_id).filter(Boolean);
   const scoreFor = async (person) => {
     const { entities, call } = await qloo.insights({
@@ -64,13 +98,20 @@ async function scoreForTwo(qloo, candidates, guest, companion, take) {
   };
   const [g, c] = await Promise.all([scoreFor(guest), scoreFor(companion)]);
   const fits = candidates.map((e) => ({ guest: g.fit.get(e.entity_id) ?? null, companion: c.fit.get(e.entity_id) ?? null }));
-  const labels = favorsByRank(fits); // by rank across the whole shortlist (lib/why.js)
+  // By cuisine first, then by rank across the whole shortlist (lib/why.js).
+  const labels = favorsByRank(fits, cuisine ? { tags: candidates.map(tagIdsOf), cuisine } : {});
   const scored = candidates.map((e, i) => ({ e, fit: fits[i], favors: labels[i] }));
-  const chosen = scored.slice(0, take);
+  const must = cuisineCover(candidates, cuisine).slice(0, take);
+  const picked = new Set(must);
+  for (let i = 0; i < scored.length && picked.size < take; i++) picked.add(i);
+  const order = [...picked].sort((a, b) => a - b);
+  const chosen = order.map((i) => scored[i]);
   let promoted = null;
   if (take >= 2 && !chosen.some((s) => s.favors === 'both')) {
-    const shared = scored.slice(take).find((s) => s.favors === 'both');
-    if (shared) { chosen[chosen.length - 1] = shared; promoted = shared.e.name; }
+    const shared = scored.find((s, i) => !picked.has(i) && s.favors === 'both');
+    // The shared pick takes the last slot that is not holding a person's cuisine.
+    const slot = order.reduce((at, i, k) => (must.includes(i) ? at : k), -1);
+    if (shared && slot >= 0) { chosen[slot] = shared; promoted = shared.e.name; }
   }
   return { chosen, promoted, calls: [g.call, c.call] };
 }
@@ -168,11 +209,28 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
   // Companion scoring: two extra calls at most, and only with a plus-one and a shortlist.
   // If a scoring call fails upstream, the places still go out, just without favors.
   // Anything else (a refused param, a bug) is not swallowed.
+  // Two different cuisines in one filter.tags come back as places of either, so the shortlist
+  // can hold only one person's food. For each person whose cuisine no candidate carries, one more
+  // call asks for that cuisine alone and its best place joins the shortlist.
+  const cuisine = companion ? twoCuisines(taste, companion) : null;
+  const coverCalls = [];
+  let cuisineAdded = 0;
+  if (cuisine && candidates.length) {
+    for (const ids of [cuisine.guest, cuisine.companion]) {
+      if (candidates.some((e) => tagIdsOf(e).some((t) => ids.includes(t)))) continue;
+      const extra = await qloo.insights({ ...params, 'filter.tags': ids.join(',') });
+      coverCalls.push(extra.call);
+      const best = extra.entities.find((e) => kidSafe(e) && notTexted(e) && !candidates.some((x) => x.entity_id === e.entity_id)
+        && tagIdsOf(e).some((t) => ids.includes(t)));
+      if (best) { candidates.push(best); cuisineAdded += 1; }
+    }
+  }
+
   let two = null;
   let companionNote;
   if (companion && candidates.length) {
     try {
-      two = await scoreForTwo(qloo, candidates, taste, companion, take);
+      two = await scoreForTwo(qloo, candidates, taste, companion, take, cuisine);
     } catch (err) {
       if (!(err instanceof UpstreamError)) throw err;
       companionNote = `scoring unavailable: ${err.code}`;
@@ -186,6 +244,7 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
     scored: Boolean(two),
     shared_pick: places.some((p) => p.favors === 'both'),
     promoted_shared_pick: two?.promoted ?? null,
+    ...(cuisineAdded ? { cuisine_added: cuisineAdded } : {}),
     ...(companionNote ? { note: companionNote } : {}),
   } : undefined;
 
@@ -226,6 +285,6 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
     counterfactual: cf.counterfactual,
     ...(memoryRedact ? { memory_redact: memoryRedact } : {}),
-    calls: [...first.calls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
+    calls: [...first.calls, ...coverCalls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
   };
 }

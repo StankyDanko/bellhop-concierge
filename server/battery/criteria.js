@@ -28,6 +28,8 @@ import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
 import { vibeOf } from '../tools/resolve-taste.js';
 
+/** A restaurant genre tag (mirrors isCuisineTag in tools/places.js). */
+const CUISINE_TAG = /^urn:tag:genre:place:restaurant:[^:]+/;
 /** Mirrors ADULTS_ONLY in tools/recommend-nearby.js (not exported there). */
 const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|speakeasy|wine bar|tavern)s?\b/i;
 
@@ -127,7 +129,7 @@ export const CRITERIA = [
       return v('pass', 'counterfactual differs from the taste pick');
     } },
 
-  { id: 'C7', label: 'Plus-one labels: not every pick "both" when tastes differ',
+  { id: 'C7', label: 'Plus-one labels: not every pick "both" when tastes differ, never "both" on one cuisine',
     run(rec) {
       if (!rec.scenario.companion_mentions?.length) return na('no plus-one');
       if (!rec.recommend) return na('no recommend call');
@@ -137,6 +139,21 @@ export const CRITERIA = [
       if (!ps.length) return na('no picks');
       const both = ps.filter((p) => p.favors === 'both').length;
       const tally = ['guest', 'companion', 'both'].map((k) => `${k} ${ps.filter((p) => p.favors === k).length}`).join(', ');
+      // Sharper check: with a different cuisine each, a "both" pick that carries only one
+      // person's cuisine (its tag_match drivers) tells the couple a one-sided place suits both.
+      const cuisineOf = (list) => new Set((list ?? []).map((r) => r.id).filter((id) => CUISINE_TAG.test(String(id))));
+      const gc = cuisineOf(rec.resolve?.json?.resolved);
+      const cc = cuisineOf(rec.resolve?.json?.companion_resolved);
+      const sameCuisine = gc.size === cc.size && [...gc].every((id) => cc.has(id));
+      if (gc.size && cc.size && !sameCuisine) {
+        const carried = (p) => new Set((p.why_trace?.drivers ?? []).filter((d) => d.source === 'tag_match').map((d) => d.id));
+        const oneSided = ps.filter((p) => {
+          if (p.favors !== 'both') return false;
+          const own = carried(p);
+          return [...gc].some((id) => own.has(id)) !== [...cc].some((id) => own.has(id));
+        }).length;
+        if (oneSided) return v('fail', `${oneSided} pick(s) labelled both carry one person's cuisine only (${tally})`);
+      }
       if (rec.scenario.tastes_differ && ps.length >= 2 && both === ps.length) return v('fail', `all ${ps.length} picks labelled both (${tally})`);
       if (rec.scenario.tastes_differ && ps.length === 1 && both === 1) return v('warn', 'the only pick is labelled both');
       return v('pass', tally);

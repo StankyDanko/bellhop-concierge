@@ -59,7 +59,7 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 6. Ticketmaster adds what's on tonight or this weekend.
 7. One text, at most 320 characters, goes to the number that called, and only that number.
 
-The picture, the eight tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The picture, the nine tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Why Qloo is load-bearing
 
@@ -145,7 +145,7 @@ Qloo. What each layer checks and how to read a scorecard: [docs/TESTING.md](docs
 
 | Path | What it is |
 |---|---|
-| [`server/`](server/README.md) | The tool server the voice line calls: eight tools over Qloo, Ticketmaster, and Twilio, a PII guard, a private cache, the dashboard API, and the battery. |
+| [`server/`](server/README.md) | The tool server the voice line calls: nine tools over Qloo, Ticketmaster, and Twilio, a PII guard, a private cache, the dashboard API, and the battery. |
 | `dashboard/` | The landing page, the builder, the innkeeper dashboard, and the printable brief (React, Vite). |
 | [`compiler/`](compiler/README.md) | Turns an innkeeper's answers and a persona into a voice agent definition, then lints it. |
 | [`template/`](template/concierge.md) | The concierge prompt, with its locked rules. |
