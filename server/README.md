@@ -283,26 +283,45 @@ and `basis` still says whether Qloo itself named a driver.
 **The counterfactual.** After the taste call, `recommend_nearby` makes one more cached
 `GET /v2/insights` with the same `filter.type`, `filter.location`, radius, price and rating
 filters, and `take=5`, but no `signal.*` and no `sort_by`, so Qloo ranks by general
-popularity. The kids filter applies to both. The response gains:
+popularity. The kids filter applies to both lists. It compares the two lists, not just the two
+top picks: on live data the top pick sometimes matched while the rest of the list did not.
+The response gains (fake values):
 
 ```json
 "counterfactual": {
-  "without_qloo_taste": { "name": "Harborside Burger Hall", "reason": "most popular place nearby" },
-  "with_qloo": { "name": "Lemongrass Lantern", "why": "Fans of Thai food and Sturgill Simpson love it" },
+  "verdict": "moved",
   "same": false,
-  "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Thai food and Sturgill Simpson go there." }
+  "without_list": [{ "name": "Harborside Burger Hall", "entity_id": "fx-place-harborside-burger-hall" }],
+  "with_list": [{ "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern" }],
+  "overlap5": 1, "moved5": 4, "picks_outside": 2,
+  "popularity_mean": { "without": 0.95, "with": 0.75 },
+  "say": "Your tastes moved the answer: two of your three picks are not among the five most popular places nearby.",
+  "top1": { "same": false, "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Sturgill Simpson go there." },
+  "without_qloo_taste": { "name": "Harborside Burger Hall", "reason": "most popular place nearby" },
+  "with_qloo": { "name": "Lemongrass Lantern", "why": "Fans of Sturgill Simpson love it; tagged Thai" },
+  "signal_effects": [{ "id": "fx-artist-sturgill-simpson", "name": "Sturgill Simpson", "top3": 0.5, "top5": 0.4, "top10": null, "all": null }]
+}
 ```
 
-When both calls agree, `same` is true and `say` reads "Your tastes agree with the crowd on
-this one: X is both the most popular place nearby and your best match." If the extra call
-fails, `counterfactual` is `null` and the picks are unaffected. It is never put in the SMS
-body. In mock mode the unsignaled call answers from `fixtures/qloo.unsignaled-places.json`
+`with_list` is the picks the guest got, in order, then the rest of the taste-ranked shortlist,
+up to five. `overlap5` counts places on both lists, `moved5` the rest of `with_list`,
+`picks_outside` the picks that are not on the no-taste list. `verdict` is `agrees` only when
+every place in `with_list` is on the no-taste list; then `same` is true and `say` reads "Here
+your taste and the town agree: ...". `same` now means the whole list agrees; the old top-pick
+comparison is `top1.same` and `top1.say`. `signal_effects` comes from the response's top-level
+`query.explainability` (see QLOO-NOTES) and appears only when Qloo sent it. If the extra call
+fails, `counterfactual` is `null` and the picks are unaffected. It is never put in the SMS body.
+In mock mode the unsignaled call answers from `fixtures/qloo.unsignaled-places.json`
 (hand-made, not Qloo data).
 
 **The why trace.** `why_trace.basis` is `explainability` when Qloo attributed the result to
 specific inputs; the drivers are those inputs, strongest first. When Qloo ranked a result
 without attributing it, the basis is `affinity` and the reason says only "Strong match for
-your overall taste". The server never invents an attribution.
+your overall taste". The server never invents an attribution. The reason names the entity
+drivers Qloo attributed ("Fans of X love it") and then, when the pick's own tag list carries
+one of the guest's cuisine or vibe tags, "tagged Thai". That second part is a fact about the
+place, not an attribution: Qloo's explainability names entity signals only, so a tag is never
+said as "fans of".
 
 ### Companion scoring
 
@@ -315,8 +334,9 @@ three, and the game stops). This section is how the tools score each pick per pe
 > is sent as `filter.results.entities`, the spelling in Qloo's Deep Dive docs. On the live
 > host it returns only the listed ids, with affinities, highest first; the bare
 > `filter.entities` spelling behaves the same. The PII guard accepts both (as entity-id
-> lists only). On a filtered call the affinities came back in a narrow, high band, so the
-> thresholds below have not yet been tuned against live scores.
+> lists only). On a filtered call the affinities come back in a narrow, high band (0.78 to
+> 0.83 measured on nine-place shortlists), so the rule below works by rank, not by absolute
+> score.
 
 **Inputs.**
 
@@ -346,11 +366,12 @@ swallowed.
 **Per pick.** Each place gains `fit: { guest, companion }` (the two affinities), `favors`, and
 `favors_line`, the sentence the agent says after the reason:
 
-| `favors` | Rule (`lib/why.js`) | `favors_line` |
+| `favors` | Rule (`lib/why.js` `favorsByRank`) | `favors_line` |
 |---|---|---|
-| `both` | both affinities at least 0.5 and within 0.15 of each other | This one you both will like. |
-| `guest` | otherwise, the guest's is higher (ties go to the guest) | That one leans your way. |
-| `companion` | otherwise, the plus-one's is higher | That one is for your plus-one. |
+| `both` | each person ranks the place in their own top half of the shortlist (ceil(n/2)) | This one you both will like. |
+| `guest` | otherwise, the guest ranks it higher | That one leans your way. |
+| `companion` | otherwise, the plus-one ranks it higher | That one is for your plus-one. |
+| none | equal ranks outside the top half, or either person's scores spread less than 0.005 across the shortlist (`FLAT_SPREAD`) | no line |
 
 The lines never name the plus-one or guess who they are to the guest.
 
