@@ -46,7 +46,7 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/sessions.js').SessionStore} deps.sessions
  * @param {string} [deps.cacheMode]  'frozen' | 'only' | 'on' | 'off', reported by /health
  * @param {() => Date} [deps.now]
- * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the host dashboard (server/api/)
+ * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the innkeeper dashboard (server/api/)
  */
 export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard, cacheMode }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
@@ -86,7 +86,7 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
     });
   }
 
-  // Host dashboard: JSON under /api, the built React app at /, /build, /property/:id.
+  // Innkeeper dashboard: JSON under /api, the built React app at /, /build, /property/:id.
   // Optional, so the tool server runs without it (tests, a tools-only deploy).
   if (dashboard) mountDashboard(app, { ...dashboard, ctx, sessionsDb: dashboard.sessionsDb ?? sessions?.db, toolNames: Object.keys(TOOLS) });
 

@@ -1,4 +1,4 @@
-// area_insights: aggregate-only taste intelligence for the host dashboard.
+// area_insights: aggregate-only taste intelligence for the innkeeper dashboard.
 //
 //   heatmap       where around the property a taste is strongest (Qloo urn:heatmap)
 //   demographics  which age / gender groups lean toward the given interests

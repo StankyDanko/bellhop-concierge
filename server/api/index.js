@@ -1,4 +1,4 @@
-// Mounts the host dashboard on the tool server's Hono app: JSON under /api, the built
+// Mounts the innkeeper dashboard on the tool server's Hono app: JSON under /api, the built
 // React app at /, /build, and /property/:id.
 
 import { createApiRoutes } from './routes.js';

@@ -1,4 +1,4 @@
-// The compiler: { host config, persona, template } -> an ElevenLabs agent definition.
+// The compiler: { innkeeper config, persona, template } -> an ElevenLabs agent definition.
 //
 // It is plain code, not a language model. Host answers are validated against the schema,
 // cleaned for the voice, and slotted into a fixed template as quoted data. Nothing a host
@@ -235,7 +235,7 @@ export function fillSlots(text, slots) {
 // ---- compile -----------------------------------------------------------------
 
 /**
- * @param {any} config  a host config (validated here)
+ * @param {any} config  an innkeeper config (validated here)
  * @param {object} [opts]
  * @param {string} [opts.persona]        overrides config.voice.persona_id
  * @param {string} [opts.llm]

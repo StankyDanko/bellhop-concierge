@@ -28,7 +28,7 @@ const logger = jsonLogger;
 
 const sessions = new SessionStore({ path: config.sessionsPath, hashKey: config.toolSecret });
 const sms = createSmsSender({ config: config.sms, logger });
-// Host configs live in the same SQLite file as the session log (seeds the demo inn on first run).
+// Innkeeper configs live in the same SQLite file as the session log (seeds the demo inn on first run).
 const dashboardDb = openDashboardDb({ path: process.env.DASHBOARD_DB_PATH || config.sessionsPath });
 
 let app;

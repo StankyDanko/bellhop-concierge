@@ -1,5 +1,5 @@
 // Session log (better-sqlite3): one row per guest call, written by the log_session tool at
-// the end of a call and read by the host dashboard.
+// the end of a call and read by the innkeeper dashboard.
 //
 // Nothing in a row identifies a guest. The caller's number is stored ONLY as an
 // HMAC-SHA256 keyed by CONCIERGE_TOOL_SECRET, so repeat callers can be counted without the

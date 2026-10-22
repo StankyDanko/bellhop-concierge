@@ -1,5 +1,5 @@
 // log_session: the agent's last call on every guest call. Writes one aggregate row to the
-// session log for the host dashboard, including the resolved Qloo ids this call sent (read
+// session log for the innkeeper dashboard, including the resolved Qloo ids this call sent (read
 // from its own trace), which feed the inn's guest taste fingerprint. The caller id arrives
 // bound to the platform's system__caller_id and is hashed before storage; it is never
 // stored or echoed in the clear.

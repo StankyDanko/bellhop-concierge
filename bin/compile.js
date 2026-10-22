@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Compile a host config into an ElevenLabs agent definition.
+// Compile an innkeeper config into an ElevenLabs agent definition.
 //
 //   node bin/compile.js config/examples/demo-inn.json [--persona maybelle] [--out agent.json]
 //        [--tool-base-url https://tools.example.org] [--tool-secret-id <id>]
 //        [--llm <id>] [--voice-id <id>]
-//   node bin/compile.js --print-schema        the JSON Schema for host configs
+//   node bin/compile.js --print-schema        the JSON Schema for innkeeper configs
 //
 // Exit codes: 0 compiled with no lint errors, 1 lint errors (output still written),
 // 2 invalid config or bad arguments.
