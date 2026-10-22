@@ -20,6 +20,17 @@
 
 import { secretTokens } from '../config/schema.js';
 
+/**
+ * Dynamic variables the conversation initiation webhook fills per call
+ * (server/hooks/conversation-init.js). Their compiled placeholders are today's lines, so a call
+ * without the webhook (a browser test, a webhook that is switched off) sounds exactly as before.
+ */
+export const RUNTIME_VARIABLES = Object.freeze(['greeting', 'opener_hook', 'choice_pair', 'bet_domain', 'plan_window',
+  'caller_status', 'memory_line', 'stay_line', 'texted_count']);
+
+/** What the first message must always say, compiled in, never supplied at call time. */
+export const DISCLOSURE_PHRASES = Object.freeze(['automated concierge', 'this call is recorded']);
+
 export const RULES = {
   em_dash: /[–—]/,
   forbidden_word: /\bA\.?I\b|artificial intelligence/i,
@@ -28,7 +39,7 @@ export const RULES = {
   heteronym_live: /\blives?\b/i,
   heteronym: /\b(close|read|lead|wind|tear|bass|wound)\b/i,
   punctuation: /;|\.\.\.|…|[()]/,
-  unfilled_slot: /\{\{(?!system__)[^}]*\}\}/,
+  unfilled_slot: new RegExp(`\\{\\{(?!system__|(?:${RUNTIME_VARIABLES.join('|')})\\}\\})[^}]*\\}\\}`),
 };
 
 /** Split into sentences on . ! ? followed by space or end. */
@@ -91,6 +102,12 @@ export function lintCompiled({ prompt, firstMessage, tools, agent, secrets = {} 
 
   const n = sentences(firstMessage).length;
   if (n > 2) add('first_message', 'error', 'first_message', `${n} sentences; the opener allows two`);
+  // A first message assembled from runtime variables must still carry the disclosure itself.
+  if (/\{\{(greeting|opener_hook)\}\}/.test(firstMessage)) {
+    for (const phrase of DISCLOSURE_PHRASES) {
+      if (!firstMessage.toLowerCase().includes(phrase)) add('disclosure', 'error', 'first_message', `the compiled part no longer says "${phrase}"`);
+    }
+  }
 
   const everything = JSON.stringify({ agent, tools });
   for (const [field, note] of Object.entries(secrets)) {

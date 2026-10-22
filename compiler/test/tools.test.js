@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TOOLS } from '../../server/app.js';
+import { MEMORY_TOOLS, TOOLS } from '../../server/app.js';
 import { SECRET_HEADER as SERVER_HEADER } from '../../server/lib/auth.js';
 import { makeApp, callTool, SECRET } from '../../server/test/helpers.js';
 import { compile } from '../compile.js';
@@ -15,7 +15,8 @@ const r = compile(demo(), { toolBaseUrl: 'https://tools.example.org/', toolSecre
 const byName = Object.fromEntries(r.tools.map((t) => [t.tool_config.name, t.tool_config]));
 
 test('one webhook per server tool (send_sms and log_session included), and nothing else', () => {
-  assert.deepEqual(SERVER_TOOL_NAMES, Object.keys(TOOLS));
+  assert.deepEqual(SERVER_TOOL_NAMES, [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)]);
+  // Memory tools are compiled only with the memory webhook on (memory-webhook.test.js).
   assert.ok(SERVER_TOOL_NAMES.includes(SMS_TOOL_NAME));
   assert.ok(SERVER_TOOL_NAMES.includes('log_session'));
   assert.deepEqual(Object.keys(byName).sort(), Object.keys(TOOLS).sort());

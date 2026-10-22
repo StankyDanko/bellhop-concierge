@@ -10,17 +10,21 @@
 //   description       the language model fills it
 //   dynamic_variable  the platform fills it at call time (system__caller_id, system__conversation_id)
 //   constant_value    fixed at compile time (the inn's coordinates and timezone, property id, persona)
-// Only system__* variables are used: an inbound phone call supplies no custom variables, and a tool
-// that needs a missing variable is refused by the platform.
+// Tools bind only system__* variables. Custom variables (greeting, opener_hook and the rest in
+// RUNTIME_VARIABLES, compile.js) come from the conversation initiation webhook on a phone call and
+// from their compiled placeholders otherwise; no tool reads them. A tool that needs a missing
+// system variable is refused by the platform.
 // Binding a field to a variable or a constant takes it out of the model's hands entirely,
 // which is the structural version of a prompt rule.
 
-import { TOOLS } from '../server/app.js';
+import { MEMORY_TOOLS, TOOLS } from '../server/app.js';
 import { SECRET_HEADER } from '../server/lib/auth.js';
 import { TARGETS } from '../server/tools/cross-domain.js';
 import { CLASSIFICATIONS } from '../server/tools/events-nearby.js';
 
-export const SERVER_TOOL_NAMES = Object.freeze(Object.keys(TOOLS));
+/** Returning-guest memory tools: compiled only when the agent's memory webhook is on. */
+export const MEMORY_TOOL_NAMES = Object.freeze(Object.keys(MEMORY_TOOLS));
+export const SERVER_TOOL_NAMES = Object.freeze([...Object.keys(TOOLS), ...MEMORY_TOOL_NAMES]);
 export const SMS_TOOL_NAME = 'send_sms';
 /** The route the server mounts each tool on (server/app.js: app.post(`/tools/${name}`)). */
 export const toolPath = (name) => `/tools/${name}`;
@@ -66,7 +70,7 @@ const WHEN = s('tonight or weekend. Use tonight unless the guest said the weeken
  * @param {{ propertyId: string, persona: string }} ids
  * @returns {Record<string, { description: string, timeout: number, body: object }>}
  */
-function serverToolSpecs(property, { propertyId, persona }) {
+function serverToolSpecs(property, { propertyId, persona, memory = false }) {
   const LAT = { type: 'number', constant_value: property.lat };
   const LNG = { type: 'number', constant_value: property.lng };
   return {
@@ -227,6 +231,18 @@ function serverToolSpecs(property, { propertyId, persona }) {
           picks_count: n('How many places you recommended on this call, zero if none'),
           events_count: n('How many events you recommended on this call, zero if none'),
           sms_sent: b('True only if send_sms returned sent true on this call'),
+          ...(memory ? { nights: n('How many nights the guest said they are in town, only if they said. Leave out otherwise.') } : {}),
+        },
+      },
+    },
+    forget_guest: {
+      description: 'Deletes what the concierge remembers about this caller. Call it at once when the guest asks you to forget them, then say its say line. It needs nothing from you.',
+      timeout: 8,
+      body: {
+        type: 'object',
+        required: [],
+        properties: {
+          caller_id: { type: 'string', dynamic_variable: CALLER_ID_VAR },
         },
       },
     },
@@ -240,16 +256,17 @@ function serverToolSpecs(property, { propertyId, persona }) {
  * @param {string} p.persona      persona id for the session log
  * @param {string} p.baseUrl      where the tool server is reachable, https in production
  * @param {string} p.secretId     ElevenLabs workspace secret id holding CONCIERGE_TOOL_SECRET
+ * @param {boolean} [p.memory]    include the returning-guest memory tools (forget_guest)
  * @returns {Array<{ tool_config: object }>}
  */
-export function serverToolConfigs({ property, propertyId = 'property', persona = 'unknown', baseUrl, secretId }) {
-  const specs = serverToolSpecs(property, { propertyId, persona });
+export function serverToolConfigs({ property, propertyId = 'property', persona = 'unknown', baseUrl, secretId, memory = false }) {
+  const specs = serverToolSpecs(property, { propertyId, persona, memory });
   const missing = SERVER_TOOL_NAMES.filter((name) => !specs[name]);
   const extra = Object.keys(specs).filter((name) => !SERVER_TOOL_NAMES.includes(name));
   if (missing.length || extra.length) {
     throw new Error(`tool definitions out of sync with server/app.js: missing ${missing.join(',') || 'none'}, extra ${extra.join(',') || 'none'}`);
   }
-  return SERVER_TOOL_NAMES.map((name) => ({
+  return SERVER_TOOL_NAMES.filter((name) => memory || !MEMORY_TOOL_NAMES.includes(name)).map((name) => ({
     tool_config: {
       type: 'webhook',
       name,

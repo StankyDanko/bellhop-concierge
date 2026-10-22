@@ -8,8 +8,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { assertValidConfig } from '../config/schema.js';
-import { lintCompiled } from './lint.js';
+import { RUNTIME_VARIABLES, lintCompiled } from './lint.js';
 import { SMS_TOOL_NAME, serverToolConfigs } from './tools.js';
+import { defaultVars } from '../server/conversation/choose.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const TEMPLATE_PATH = `${ROOT}template/concierge.md`;
@@ -220,16 +221,39 @@ export const propertyIdOf = (property) => property.id ?? propertySlug(property.n
 
 // ---- template ----------------------------------------------------------------
 
+export { RUNTIME_VARIABLES };
+
 /**
- * Fill {{slot}} placeholders. ElevenLabs system variables ({{system__...}}) are left alone;
- * any other unknown slot is an error.
+ * Fill {{slot}} placeholders. ElevenLabs system variables ({{system__...}}) and the runtime
+ * variables above are left alone; any other unknown slot is an error.
  */
 export function fillSlots(text, slots) {
   return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (m, key) => {
-    if (key.startsWith('system__')) return m;
+    if (key.startsWith('system__') || RUNTIME_VARIABLES.includes(key)) return m;
     if (!(key in slots)) throw new Error(`template slot {{${key}}} has no value`);
     return slots[key];
   });
+}
+
+/**
+ * The persona's opener with the greeting and the hook handed to the webhook: the disclosure in
+ * between stays compiled, so no webhook bug can drop it. Throws unless the placeholders put
+ * back today's first message byte for byte.
+ * @param {string} opener  the persona opener, slots filled
+ * @param {string} personaId
+ * @returns {{ firstMessage: string, placeholders: Record<string, string|number> }}
+ */
+export function runtimeOpener(opener, personaId) {
+  const placeholders = defaultVars(personaId);
+  const { greeting, opener_hook: hook } = placeholders;
+  if (!opener.startsWith(`${greeting} `) || !opener.endsWith(` ${hook}`)) {
+    throw new Error(`persona ${personaId}: opener does not start with "${greeting}" and end with its default hook`);
+  }
+  const disclosure = opener.slice(greeting.length, opener.length - hook.length);
+  const firstMessage = `{{greeting}}${disclosure}{{opener_hook}}`;
+  const rebuilt = firstMessage.replace('{{greeting}}', greeting).replace('{{opener_hook}}', hook);
+  if (rebuilt !== opener) throw new Error(`persona ${personaId}: placeholders do not rebuild the opener`);
+  return { firstMessage, placeholders };
 }
 
 // ---- compile -----------------------------------------------------------------
@@ -271,7 +295,9 @@ export function compile(config, opts = {}) {
 
   const template = readFileSync(opts.templatePath ?? TEMPLATE_PATH, 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
   const prompt = fillSlots(template, slots).replace(/\n{3,}/g, '\n\n').trim();
-  const firstMessage = fillSlots(persona.opener, inner);
+  const memoryWebhook = opts.memoryWebhook === true;
+  const opened = memoryWebhook ? runtimeOpener(fillSlots(persona.opener, inner), persona.id) : null;
+  const firstMessage = opened ? opened.firstMessage : fillSlots(persona.opener, inner);
 
   const tools = serverToolConfigs({
     property: c.property,
@@ -279,6 +305,7 @@ export function compile(config, opts = {}) {
     persona: persona.id,
     baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
     secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
+    memory: memoryWebhook,
   }).filter((t) => c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME);
 
   const agent = {
@@ -288,6 +315,7 @@ export function compile(config, opts = {}) {
       agent: {
         first_message: firstMessage,
         language: c.voice.languages[0],
+        ...(opened ? { dynamic_variables: { dynamic_variable_placeholders: opened.placeholders } } : {}),
         prompt: {
           prompt,
           llm: opts.llm ?? DEFAULTS.llm,
@@ -337,7 +365,9 @@ export function compile(config, opts = {}) {
           tts: { voice_id: false, model_id: false },
           conversation: { text_only: false, max_duration_seconds: false },
         },
-        enable_conversation_initiation_client_data_from_webhook: false,
+        // On only with compile option memoryWebhook. The webhook URL itself is a workspace
+        // setting; every other agent in that workspace keeps its own toggle off.
+        enable_conversation_initiation_client_data_from_webhook: memoryWebhook,
       },
       evaluation: {
         criteria: [
