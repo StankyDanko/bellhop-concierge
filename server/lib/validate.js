@@ -35,13 +35,16 @@ export function latLng(body) {
   return { lat: num(body?.lat, 'lat', { min: -90, max: 90 }), lng: num(body?.lng, 'lng', { min: -180, max: 180 }) };
 }
 
+/** The most taste ids one recommend_nearby or cross_domain call takes. */
+export const TASTE_MAX = 8;
+
 /**
  * Taste signals as returned by resolve_taste: [{ id, name }] where id is a Qloo
  * entity id or a tag URN. Bare id strings are accepted too (name defaults to "").
  * @returns {{ signals: Array<{ id: string, name: string }>, entityIds: string[], tagIds: string[] }}
  */
 export function tasteSignals(v, name = 'taste') {
-  const list = arr(v, name, { min: 1, max: 8 });
+  const list = arr(v, name, { min: 1, max: TASTE_MAX });
   const signals = list.map((item, i) => {
     const id = typeof item === 'string' ? item : item?.id ?? item?.entity_id ?? item?.tag_id;
     if (typeof id !== 'string' || !id.trim()) throw new InputError(`${name}[${i}] needs an id`);

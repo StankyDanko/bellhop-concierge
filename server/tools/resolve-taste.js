@@ -16,7 +16,7 @@
 // records the phrase it came from. Budget words ("splurge", "easy") are not tastes: they come
 // back as preferences and are never sent upstream.
 
-import { arr } from '../lib/validate.js';
+import { arr, TASTE_MAX } from '../lib/validate.js';
 import { InputError } from '../lib/errors.js';
 import { withTraceNote } from '../lib/upstream.js';
 
@@ -227,7 +227,23 @@ export async function resolveTaste(body, { qloo }) {
     Promise.all(mentions.map((m) => resolveOne(m, 'guest'))),
     Promise.all(companionMentions.map((m) => resolveOne(m, 'companion'))),
   ]);
-  const itemsOf = (list) => list.filter(Boolean).flatMap((r) => r.items);
+  /**
+   * What recommend_nearby can take back. Every named mention keeps its own item, one per
+   * mention as before. A vibe phrase expands into one tag per taste word, so a tag already
+   * in the list is not added again, and tags past TASTE_MAX are dropped from the end
+   * (at most six mentions, so named things always fit).
+   */
+  const itemsOf = (list) => {
+    const seen = new Set();
+    const items = list.filter(Boolean).flatMap((r) => r.items)
+      .filter((r) => r.kind !== 'tag' || (seen.has(r.id) ? false : seen.add(r.id)));
+    let extra = items.length - TASTE_MAX;
+    for (let k = items.length - 1; extra > 0 && k >= 0; k -= 1) {
+      if (items[k].kind === 'tag') { items.splice(k, 1); extra -= 1; }
+    }
+    return items;
+  };
+
   /** The say-back: each mention once, in the guest's words for a vibe phrase. */
   const echoOf = (list) => spokenList([...new Set(list.filter(Boolean).map((r) => r.say).filter(Boolean))]);
   const resolved = itemsOf(results);
