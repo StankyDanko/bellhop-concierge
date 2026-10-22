@@ -68,7 +68,7 @@ test('send_sms: To is bound to the caller id, never filled by the model', () => 
   assert.equal(to.description, undefined);
   // It posts to our own server, which holds the sending number and checks the body again.
   assert.equal(sms.api_schema.url, 'https://tools.example.org/tools/send_sms');
-  assert.deepEqual(Object.keys(sms.api_schema.request_body_schema.properties).sort(), ['body', 'to']);
+  assert.deepEqual(Object.keys(sms.api_schema.request_body_schema.properties).sort(), ['body', 'session_id', 'to']);
 });
 
 test('log_session: caller and call id come from the platform, property and persona are constants', () => {

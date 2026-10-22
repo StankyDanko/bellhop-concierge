@@ -39,10 +39,9 @@ export const SESSION_TOOL_NAME = 'log_session';
 export const SESSION_ID_BINDING = Object.freeze({ type: 'string', dynamic_variable: CONVERSATION_ID_VAR });
 /**
  * Add the session_id binding to a tool body (the same shape log_session has always used).
- * send_sms is the one exception: it makes no traced call, and its body stays exactly { to, body }.
+ * send_sms carries it too: the server allows one text per call by it. It is never required.
  */
-const withSessionId = (name, body) => (name === SMS_TOOL_NAME ? body
-  : { ...body, properties: { session_id: { ...SESSION_ID_BINDING }, ...body.properties } });
+const withSessionId = (_name, body) => ({ ...body, properties: { session_id: { ...SESSION_ID_BINDING }, ...body.properties } });
 
 const s = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const n = (description) => ({ type: 'number', description });

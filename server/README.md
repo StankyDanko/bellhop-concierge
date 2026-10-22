@@ -152,9 +152,10 @@ made, in the order sent. It is what the dashboard's "Qloo calls (n)" view shows.
 | `ms`, `results` | time taken and how many items came back |
 | `error` | present only when the request failed (for example `upstream_error`) |
 
-Every tool except `send_sms` takes `session_id`, bound by the compiler to the platform's
-`system__conversation_id` (the same binding `log_session` uses). When it is present, the
-server files the tool's trace under it in the `session_traces` table, and `log_session`
+Every tool takes `session_id`, bound by the compiler to the platform's
+`system__conversation_id` (the same binding `log_session` uses); the model never fills it.
+`send_sms` uses it only to allow one text per call, kept in memory and never stored with the
+number. For the other tools, when it is present, the server files the tool's trace under it in the `session_traces` table, and `log_session`
 links the row by recording `trace_count`. An unfilled `{{system__conversation_id}}` stores
 nothing. A trace never holds a caller number, caller hash, name, or message body, and the
 dashboard API uses the conversation id only as a join key; it never returns it.
