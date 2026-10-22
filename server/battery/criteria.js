@@ -27,6 +27,8 @@ export const CHAIN_BUDGET_MS = 6000;
 const v = (verdict, reason) => ({ verdict, reason });
 const na = (reason) => v('na', reason);
 const places = (rec) => (Array.isArray(rec?.recommend?.json?.places) ? rec.recommend.json.places : []);
+/** A recommend_nearby that was called and failed: a fail for the place criteria, never "no picks". */
+const recommendFailed = (rec) => (rec?.recommend && rec.recommend.status !== 200 ? v('fail', `recommend_nearby http ${rec.recommend.status}`) : null);
 const allMentions = (s) => [...(s.mentions ?? []), ...(s.companion_mentions ?? [])];
 const key = (p) => p.entity_id ?? p.name;
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -62,6 +64,8 @@ export const CRITERIA = [
 
   { id: 'C3', label: 'Every place pick within the applied radius',
     run(rec) {
+      const failed = recommendFailed(rec);
+      if (failed) return failed;
       const ps = places(rec);
       if (!ps.length) return na('no place picks');
       const radius = rec.recommend.json.applied?.radius_miles;
@@ -75,6 +79,8 @@ export const CRITERIA = [
 
   { id: 'C4', label: 'Every pick has a why (explainability, or honest fallback)',
     run(rec) {
+      const failed = recommendFailed(rec);
+      if (failed) return failed;
       const ps = places(rec);
       if (!ps.length) return na('no place picks');
       const bad = ps.filter((p) => !p.why || !['explainability', 'affinity'].includes(p.why_trace?.basis)).length;

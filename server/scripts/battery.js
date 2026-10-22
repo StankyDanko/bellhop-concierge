@@ -13,18 +13,36 @@
 // Flags: --cap N   stop before exceeding N live upstream requests (default 150)
 //        --only id[,id]   run only those scenarios
 //        --strict   exit 1 when any criterion fails in any scenario (warns never fail the run)
+//        --pace-ms N   wait N ms between live tool calls (default 2000; 0 in mock). The upstream
+//                      rate limit is shared with every other process using the same key.
 
 import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { CRITERIA, CHAIN_BUDGET_MS, TOOL_BUDGET_MS, evaluate, tally } from '../battery/criteria.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = join(HERE, '..');
+const REPO_ROOT = join(SERVER_DIR, '..');
 export const DEFAULT_CAP = 150;
+export const DEFAULT_PACE_MS = 2000;
+
+/**
+ * Wrap a tool caller so consecutive calls are at least paceMs apart. The first call goes at once.
+ * @param {(tool: string, body: object) => Promise<any>} call
+ */
+export function pacedCall(call, paceMs, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  if (!paceMs) return call;
+  let first = true;
+  return async (tool, body) => {
+    if (!first) await sleep(paceMs);
+    first = false;
+    return call(tool, body);
+  };
+}
 
 export function loadScenarios(path = join(SERVER_DIR, 'battery', 'scenarios.json')) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -43,9 +61,13 @@ export async function playScenario(call, scenario, property) {
   const rec = { scenario, tools: [], trace: [], statuses: [], resolve: null, recommend: null, reduced: null,
     events: null, cross: null, compose: null, crossInputs: null };
   const run = async (tool, body, { chain = true } = {}) => {
+    // After a rate limit nothing more is sent, not even the rest of this caller.
+    if (rec.rateLimited) return { status: 0, json: null, ms: 0, skipped: true };
     const res = await call(tool, body);
     rec.statuses.push(res.status);
     rec.trace.push(...(res.json?.trace ?? []));
+    // An upstream 429 comes back as a 502 with code rate_limited and no trace at all.
+    if (res.status === 429 || res.json?.error?.code === 'rate_limited' || (res.json?.trace ?? []).some((t) => t.error === 'rate_limited')) rec.rateLimited = true;
     if (chain) rec.tools.push({ tool, ms: res.ms, status: res.status });
     return res;
   };
@@ -111,7 +133,7 @@ export async function playScenario(call, scenario, property) {
 
 /** Live upstream requests this scenario spent (cache misses only). */
 export const liveSpend = (rec) => rec.trace.filter((t) => t.mode === 'live' && t.cache === 'miss').length;
-const rateLimited = (rec) => rec.statuses.includes(429) || rec.trace.some((t) => t.error === 'rate_limited');
+const rateLimited = (rec) => rec.rateLimited === true || rec.statuses.includes(429) || rec.trace.some((t) => t.error === 'rate_limited');
 
 /**
  * Run scenarios in order, stopping early on a 429 or when the next scenario could pass the cap.
@@ -134,9 +156,15 @@ export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP,
   return { records, skipped, liveUsed, stoppedBy };
 }
 
-/** 1 when nothing ran, or (strict) any criterion failed in any scenario; warns never fail. */
-export function exitCodeFor(records, strict = false) {
+/**
+ * 1 when nothing ran, when a 429 stopped the run, or (strict) when the run stopped early,
+ * skipped a scenario, or any criterion failed in any scenario. Warns never fail.
+ * @param {{ stoppedBy?: string|null, skipped?: string[] }} [run]
+ */
+export function exitCodeFor(records, strict = false, { stoppedBy = null, skipped = [] } = {}) {
   if (!records.length) return 1;
+  if (stoppedBy && /429/.test(stoppedBy)) return 1;
+  if (strict && (stoppedBy || skipped.length)) return 1;
   if (strict && records.some((r) => Object.values(r.eval).some((e) => e.verdict === 'fail'))) return 1;
   return 0;
 }
@@ -193,13 +221,21 @@ async function mockCall() {
   };
 }
 
-async function startLiveServer({ port, runDir }) {
-  const secret = randomBytes(18).toString('hex');
-  const env = {
+/**
+ * The live server's environment. QLOO_RETRIES is 0: the quota rail is to stop on the first
+ * 429, and the server's own retries would send two more requests into it.
+ */
+export function liveEnv({ port, runDir, secret }) {
+  return {
     ...process.env,
-    PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', TICKETMASTER_MOCK: '1', SMS_MOCK: '1',
+    PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', QLOO_RETRIES: '0', TICKETMASTER_MOCK: '1', SMS_MOCK: '1',
     CACHE_PATH: join(runDir, 'cache.sqlite'), SESSIONS_PATH: join(runDir, 'sessions.sqlite'), DASHBOARD_DB_PATH: join(runDir, 'sessions.sqlite'),
   };
+}
+
+async function startLiveServer({ port, runDir }) {
+  const secret = randomBytes(18).toString('hex');
+  const env = liveEnv({ port, runDir, secret });
   const logPath = join(runDir, 'server.log');
   const child = spawn('/usr/bin/node', [`--env-file=${join(SERVER_DIR, '.env')}`, join(SERVER_DIR, 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.on('data', (d) => appendFileSync(logPath, d));
@@ -229,8 +265,8 @@ async function startLiveServer({ port, runDir }) {
   return { call, stop, pid: child.pid };
 }
 
-function parseArgs(argv) {
-  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false };
+export function parseArgs(argv) {
+  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--mock') a.mode = 'mock';
@@ -240,9 +276,19 @@ function parseArgs(argv) {
     else if (k === '--cap') a.cap = Number(argv[++i]);
     else if (k === '--only') a.only = argv[++i].split(',');
     else if (k === '--strict') a.strict = true;
+    else if (k === '--pace-ms') a.paceMs = Number(argv[++i]);
     else throw new Error(`unknown flag ${k}`);
   }
   if (!a.mode) throw new Error('pick a mode: --mock or --live');
+  if (a.paceMs === null) a.paceMs = a.mode === 'mock' ? 0 : DEFAULT_PACE_MS;
+  if (!Number.isInteger(a.paceMs) || a.paceMs < 0) throw new Error('--pace-ms must be a whole number of milliseconds, 0 or more');
+  if (!Number.isInteger(a.cap) || a.cap < 1) throw new Error('--cap must be a whole number of requests, 1 or more');
+  if (!Number.isInteger(a.port) || a.port < 1024 || a.port > 65535) throw new Error('--port must be a whole number from 1024 to 65535');
+  if (a.out) {
+    // raw.jsonl holds upstream response data, which never goes into version control.
+    const rel = relative(REPO_ROOT, resolve(a.out));
+    if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) throw new Error(`--out ${a.out} is inside the repo; pick a directory outside it`);
+  }
   return a;
 }
 
@@ -259,6 +305,7 @@ async function main() {
   let call;
   if (args.mode === 'mock') call = await mockCall();
   else { driver = await startLiveServer({ port: args.port, runDir }); call = driver.call; }
+  call = pacedCall(call, args.paceMs);
 
   let result;
   try {
@@ -279,7 +326,7 @@ async function main() {
   }
   console.log(`live upstream requests: ${result.liveUsed}${result.stoppedBy ? `; stopped: ${result.stoppedBy}` : ''}`);
   // Without --strict a battery exits 0 when it ran to the end: verdicts are the report.
-  process.exit(exitCodeFor(result.records, args.strict));
+  process.exit(exitCodeFor(result.records, args.strict, result));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
