@@ -215,10 +215,20 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
   const cuisine = companion ? twoCuisines(taste, companion) : null;
   const coverCalls = [];
   let cuisineAdded = 0;
+  let coverNote;
   if (cuisine && candidates.length) {
     for (const ids of [cuisine.guest, cuisine.companion]) {
       if (candidates.some((e) => tagIdsOf(e).some((t) => ids.includes(t)))) continue;
-      const extra = await qloo.insights({ ...params, 'filter.tags': ids.join(',') });
+      // Optional cover, like the per-person scoring below: an upstream failure here skips the
+      // cover and the main shortlist still goes out. Anything else is not swallowed.
+      let extra;
+      try {
+        extra = await qloo.insights({ ...params, 'filter.tags': ids.join(',') });
+      } catch (err) {
+        if (!(err instanceof UpstreamError)) throw err;
+        coverNote = `cuisine cover unavailable: ${err.code}`;
+        continue;
+      }
       coverCalls.push(extra.call);
       const best = extra.entities.find((e) => kidSafe(e) && notTexted(e) && !candidates.some((x) => x.entity_id === e.entity_id)
         && tagIdsOf(e).some((t) => ids.includes(t)));
@@ -245,7 +255,7 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
     shared_pick: places.some((p) => p.favors === 'both'),
     promoted_shared_pick: two?.promoted ?? null,
     ...(cuisineAdded ? { cuisine_added: cuisineAdded } : {}),
-    ...(companionNote ? { note: companionNote } : {}),
+    ...(companionNote || coverNote ? { note: [companionNote, coverNote].filter(Boolean).join('; ') } : {}),
   } : undefined;
 
   // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----

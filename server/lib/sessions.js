@@ -163,6 +163,8 @@ export class SessionStore {
     this.now = now;
     /** @type {Map<string, number>} session id -> when it asked to be forgotten (forgetCaller) */
     this.forgottenCalls = new Map();
+    /** @type {Map<string, number>} caller hash -> when that caller asked to be forgotten (forgetCaller) */
+    this.forgottenCallers = new Map();
     this.db = new Database(path);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
@@ -198,7 +200,7 @@ export class SessionStore {
       property_id: s.property_id ?? null,
       persona: s.persona ?? null,
       started_at: s.started_at,
-      caller_hash: s.caller_id && !this.forgottenCalls.has(s.id) ? hashCaller(s.caller_id, this.hashKey) : null,
+      caller_hash: s.caller_id && !this.forgottenCalls.has(s.id) && !this.startedBeforeForget(s) ? hashCaller(s.caller_id, this.hashKey) : null,
       entities_json: JSON.stringify(s.entities),
       picks_count: s.picks_count,
       events_count: s.events_count,
@@ -248,9 +250,25 @@ export class SessionStore {
   forgetCaller(callerId, sessionId = null) {
     const t = this.now().getTime();
     for (const [id, at] of this.forgottenCalls) if (t - at > 3600_000) this.forgottenCalls.delete(id);
+    for (const [h, at] of this.forgottenCallers) if (t - at > 3600_000) this.forgottenCallers.delete(h);
     if (sessionId) this.forgottenCalls.set(sessionId, t);
     if (!callerId) return 0;
+    // Another call from the same number may still be going; it started before this, so its own
+    // log_session must not write the hash back either (startedBeforeForget).
+    this.forgottenCallers.set(hashCaller(callerId, this.hashKey), t);
     return this.db.prepare('UPDATE sessions SET caller_hash = NULL WHERE caller_hash = ?').run(hashCaller(callerId, this.hashKey)).changes;
+  }
+
+  /**
+   * True when this row's caller asked to be forgotten after this call started (a call that was
+   * already in progress). In this process only, for an hour, like forgottenCalls.
+   * @param {{ caller_id?: string|null, started_at: string }} s
+   */
+  startedBeforeForget(s) {
+    if (!s.caller_id || !this.forgottenCallers.size) return false;
+    const at = this.forgottenCallers.get(hashCaller(s.caller_id, this.hashKey));
+    const started = Date.parse(s.started_at);
+    return at !== undefined && (!Number.isFinite(started) || started <= at);
   }
 
   /** True when this call asked to be forgotten (see forgetCaller). @param {string} sessionId */
