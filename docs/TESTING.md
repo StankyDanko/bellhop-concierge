@@ -70,6 +70,11 @@ Each criterion returns pass, warn, fail, or n/a. N/a means the caller didn't exe
 only applies when kids are along). A tool that was called and failed is a fail, never an n/a.
 `--strict` exits non-zero on any fail; warns never fail a run.
 
+Offline, C5 is all warns, and that is expected. The mock fixtures answer a place request with
+the same places whatever signals it carries, so dropping the second taste cannot change the
+picks there. Taste sensitivity is a property of the live taste graph, and it is measured live:
+see the battery rows in [MEASUREMENTS.md](MEASUREMENTS.md).
+
 A run writes `scorecard.md` (verdicts and counts only, safe to share) and `raw.jsonl` (the raw
 tool responses). In live mode `raw.jsonl` holds Qloo data: keep it out of the repository. The
 default output directory is under your system temp directory; `--out <dir>` picks another.

@@ -203,7 +203,7 @@ function deriveSuggestions(data, inn) {
   const demo = data.demographics;
   if (demo.status === 'ok' && demo.age) {
     const [band, v] = Object.entries(demo.age).sort((p, q) => q[1] - p[1])[0] ?? [];
-    if (band && v > 0) out.push({ title: 'Stock for the crowd that shows up', text: `Guests who share these tastes lean ${AGE[band] ?? band} (${signed(v)} vs. area average). A record player in the parlor and a shelf of local zines fit that crowd.`, source: 'Qloo demographics' });
+    if (band && v > 0) out.push({ title: 'Who shares these tastes nearby', text: `Guests who share these tastes lean ${AGE[band] ?? band} (${signed(v)} vs. area average).`, source: 'Qloo demographics' });
   }
   const hot = data.heatmap.status === 'ok' ? data.heatmap.cells?.[0] : null;
   if (hot) out.push({ title: 'Walk the hottest block', text: `Taste affinity peaks ${milesBetween(inn, hot).toFixed(1)} mi ${direction(inn, hot)} of the inn (affinity ${(hot.affinity ?? 0).toFixed(2)}). A coffee shop or bar there is a natural partner for a guest discount card.`, source: 'Qloo heatmap' });

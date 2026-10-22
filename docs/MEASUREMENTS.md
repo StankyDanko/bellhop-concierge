@@ -54,6 +54,7 @@ These change only with a commit, and the command shows the current value.
 | Ten of thirteen guessed shapes matched, one differed and was fixed, two not probed | LEARNED | `npm run probe:qloo`, 2026-10-22, read against the table in [`QLOO-NOTES.md`](../QLOO-NOTES.md) |
 | Latency medians: search 129 ms (17 calls), tags 143 ms (7), insights 158 ms (47, worst 1612 ms) | QLOO | `npm run prewarm -- --apply --cap 120 --out <file outside the repo>`, 2026-10-22, paced one call per 2 s |
 | "Thia food" resolves to the same tag as "thai food"; `sort_by=affinity` leaves the order unchanged | QLOO | the step-4 curls in [`QLOO-NOTES.md`](../QLOO-NOTES.md#key-day-runbook), 2026-10-22 |
+| Dropping the second named taste changed the picks for 14 of 19 callers run (4 warns, 1 not exercised) | TESTING | `npm run battery -- --live --port <port> --cap 150 --pace-ms 2000`, 2026-10-22, all 15 callers and both two-call sequences, criterion C5 in `scorecard.md`. Offline it is all warns: the fixtures cannot model it |
 | Mood tags left the same five places in the same order | QLOO | `resolve_taste` then `recommend_nearby` on a local `npm run live`, with and without the mood tags, 2026-10-22 |
 
 ## Live experiments

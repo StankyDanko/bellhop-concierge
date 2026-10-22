@@ -62,7 +62,7 @@ export const PRIVACY = {
       heading: 'What a call sends to Qloo',
       blocks: [
         { p: "Taste ids, tags, the inn's coordinates, a search radius, and filters such as a kind of place. The one free-text field is the taste you named, capped at 80 characters." },
-        { p: 'Never your name, your phone number, or your room. Every outbound parameter is checked against an allowlist before it leaves the server, and a taste that contains an email address, a phone number, or a room number is refused. Ticketmaster gets a location, a date range, and a kind of event, nothing about you.' },
+        { p: 'Never your phone number, an email address, or your room. Every outbound parameter is checked against an allowlist before it leaves the server, and a taste that contains an email address, a phone number, or a room number is refused. The concierge never asks your name. Ticketmaster gets a location, a date range, and a kind of event, nothing about you.' },
       ],
     },
     {

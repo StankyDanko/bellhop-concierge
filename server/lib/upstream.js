@@ -110,6 +110,16 @@ function openTraceEntry(service, endpoint, params, mock) {
   return entry;
 }
 
+/**
+ * Record in the call trace that a service was not asked at all, and why, so the dashboard's
+ * trace says plainly where an answer did not come from.
+ * @param {string} service @param {string} endpoint @param {string} error
+ */
+export function traceUnavailable(service, endpoint, error) {
+  const entry = openTraceEntry(service, endpoint, {}, false);
+  if (entry) entry.error = error;
+}
+
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 /** Map an HTTP status to a stable error code the agent can reason about. */

@@ -96,9 +96,10 @@ Where every number on this page comes from: [docs/MEASUREMENTS.md](docs/MEASUREM
 
 ## What it never does
 
-- **Sends personal data to Qloo.** Every outbound parameter passes an allowlist first. Only
-  ids, tags, coordinates, and filters go out. A taste mention that contains an email, a phone
-  number, or a room number is refused before it leaves the server.
+- **Sends personal data to Qloo.** Every outbound parameter passes an allowlist first: ids,
+  tags, coordinates, filters, and the guest's own words for a taste (80 characters at most).
+  A taste mention shaped like an email, a phone number, or a room number is refused, by
+  parameter name and by value, before it leaves the server. The concierge never asks a name.
 - **Keeps a caller's number.** The session log stores a keyed hash of it, never the number,
   never a name, never a transcript.
 - **Texts anyone but the caller.** The recipient is bound to the number that called, not

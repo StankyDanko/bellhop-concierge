@@ -24,6 +24,8 @@
 import { timeWindow, tmDate } from '../lib/timewin.js';
 import { InputError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
+import { traceUnavailable } from '../lib/upstream.js';
+import { EVENTS_ENDPOINT } from '../lib/ticketmaster.js';
 import { latLng, num, oneOf } from '../lib/validate.js';
 
 export const CLASSIFICATIONS = /** @type {const} */ (['music', 'sports', 'arts & theatre', 'film', 'family', 'comedy']);
@@ -146,6 +148,9 @@ export function eventWhen(event, now, tz) {
 }
 
 /** "Friday at eight, The Lyric Annex, Hollow Pines String Band." from tool fields only. */
+/** Said when events cannot be checked: never a made-up show. */
+export const EVENTS_UNAVAILABLE_SAY = "I can't check tonight's events right now.";
+
 export function sayLine(event, sayWhen) {
   const parts = [sayWhen, event.venue, event.name].filter((x) => typeof x === 'string' && x.trim());
   return `${parts.join(', ').replace(/[.\s]+$/, '')}.`;
@@ -153,9 +158,9 @@ export function sayLine(event, sayWhen) {
 
 /**
  * @param {any} body
- * @param {{ ticketmaster: import('../lib/ticketmaster.js').TicketmasterClient, timezone: string, now?: () => Date, toolSecret?: string }} ctx
+ * @param {{ ticketmaster: import('../lib/ticketmaster.js').TicketmasterClient, qloo?: { mode?: string }, timezone: string, now?: () => Date, toolSecret?: string }} ctx
  */
-export async function eventsNearby(body, { ticketmaster, timezone, now = () => new Date(), toolSecret }) {
+export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = () => new Date(), toolSecret }) {
   const { lat, lng } = latLng(body);
   const radiusMiles = num(body?.radius_miles ?? 10, 'radius_miles', { min: 1, max: 50 });
   const when = oneOf(body?.when ?? 'tonight', 'when', ['tonight', 'weekend']);
@@ -165,7 +170,13 @@ export async function eventsNearby(body, { ticketmaster, timezone, now = () => n
   const tz = body?.timezone ? validTimezone(body.timezone) : timezone;
 
   if (!ticketmaster.enabled) {
-    return { status: 'degraded', reason: 'ticketmaster_not_configured', events: [], calls: [] };
+    return { status: 'degraded', reason: 'ticketmaster_not_configured', events: [], say: EVENTS_UNAVAILABLE_SAY, calls: [] };
+  }
+  // The fixture events are fictional. They serve only a server that is mock all the way through
+  // (tests, the offline demo); a server answering real callers with live Qloo never reads them.
+  if (ticketmaster.mode === 'mock' && qloo && qloo.mode !== 'mock') {
+    traceUnavailable('ticketmaster', EVENTS_ENDPOINT, 'ticketmaster_unavailable');
+    return { status: 'degraded', reason: 'ticketmaster_unavailable', events: [], say: EVENTS_UNAVAILABLE_SAY, calls: [] };
   }
 
   const at = now();
