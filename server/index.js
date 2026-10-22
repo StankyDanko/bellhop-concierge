@@ -15,6 +15,8 @@ import { SessionStore } from './lib/sessions.js';
 import { createSmsSender } from './lib/twilio.js';
 import { openDashboardDb } from './api/db.js';
 import { dashboardEnv } from './api/index.js';
+import { GuestMemory } from './lib/memory.js';
+import { parseAgents } from './hooks/conversation-init.js';
 
 const config = loadConfig();
 if (!config.toolSecret) {
@@ -31,6 +33,21 @@ const sms = createSmsSender({ config: config.sms, logger });
 // Innkeeper configs live in the same SQLite file as the session log (seeds the demo inn on first run).
 const dashboardDb = openDashboardDb({ path: process.env.DASHBOARD_DB_PATH || config.sessionsPath });
 
+// Returning-guest memory: its own file, its own secret, and off unless that secret is set (and
+// differs from the tool secret, so memory and session rows can never be joined by hash).
+let memory = null;
+if (config.memory.secret && config.memory.secret === config.toolSecret) {
+  logger({ svc: 'memory', error: 'secret_reused', detail: 'GUEST_MEMORY_SECRET equals CONCIERGE_TOOL_SECRET; memory stays off' });
+} else if (config.memory.secret) {
+  memory = new GuestMemory({ path: config.memory.path, secret: config.memory.secret, ttlDays: config.memory.ttlDays, logger });
+}
+const sweep = () => {
+  try { const r = memory?.sweep(); if (r) logger({ svc: 'memory', sweep: r }); } catch (err) { logger({ svc: 'memory', error: 'sweep_failed', detail: String(err?.message ?? err) }); }
+};
+sweep();
+const sweepTimer = memory ? setInterval(sweep, 15 * 60_000) : null;
+sweepTimer?.unref();
+
 let app;
 try {
   app = createApp({
@@ -43,6 +60,8 @@ try {
     sessions,
     cacheMode: cache?.frozen ? 'frozen' : cache?.only ? 'only' : cache ? 'on' : 'off',
     dashboard: { db: dashboardDb, env: dashboardEnv() },
+    memory,
+    agents: parseAgents(config.agentsJson),
   });
 } catch (err) {
   console.error(`Startup failed: ${err.message}`);
@@ -59,6 +78,8 @@ const shutdown = () => {
     cache?.close();
     sessions.close();
     dashboardDb.close();
+    if (sweepTimer) clearInterval(sweepTimer);
+    memory?.close();
     process.exit(0);
   });
 };

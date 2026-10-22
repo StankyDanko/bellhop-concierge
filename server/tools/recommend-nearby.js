@@ -8,6 +8,7 @@ import { popularityCounterfactual } from './counterfactual.js';
 import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
+import { MAX_SIGNALS, MAX_TEXTED } from '../lib/memory.js';
 
 /** Average in-town driving speed used to turn "max 15 minutes" into a radius. */
 export const MILES_PER_MINUTE = 0.4;
@@ -74,14 +75,42 @@ async function scoreForTwo(qloo, candidates, guest, companion, take) {
   return { chosen, promoted, calls: [g.call, c.call] };
 }
 
-/**
- * @param {any} body
- * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string }} ctx
- */
 /** "Thai food" -> "thai food"; two cuisines join with "or". */
 const spokenCuisine = (names) => names.map((n) => n.toLowerCase()).join(' or ') || 'that cuisine';
 
-export async function recommendNearby(body, { qloo, toolSecret }) {
+// ---------------------------------------------------------------------------
+// Returning-guest memory (lib/memory.js). Only when this conversation was linked to a caller
+// by the initiation webhook; otherwise nothing here runs and the request is unchanged.
+//   - places already texted to this caller go out as filter.exclude.entities, and are
+//     dropped from the results too in case the filter is not honored
+//   - remembered tastes ride as extra interest signals after the call's own, never as a
+//     cuisine filter, so "something new" still gets new places
+// The ids added here are stripped from the recorded trace (memory_redact, read by app.js).
+// ---------------------------------------------------------------------------
+
+/**
+ * Add remembered ids to the signal params, the call's own first, MAX_SIGNALS in all.
+ * carried counts remembered ids that are in the outbound signal, added or already there.
+ * @returns {{ added: string[], carried: number }}
+ */
+function addPriorSignals(params, own, remembered) {
+  const ownIds = [...own.entityIds, ...own.tagIds];
+  const all = [...new Set([...remembered.entityIds, ...remembered.tagIds])];
+  const room = Math.max(0, MAX_SIGNALS - ownIds.length);
+  const added = all.filter((id) => !ownIds.includes(id)).slice(0, room);
+  const append = (key, ids) => {
+    if (ids.length) params[key] = params[key] ? `${params[key]},${ids.join(',')}` : ids.join(',');
+  };
+  append('signal.interests.entities', added.filter((id) => !id.startsWith('urn:tag:')));
+  append('signal.interests.tags', added.filter((id) => id.startsWith('urn:tag:')));
+  return { added, carried: all.filter((id) => ownIds.includes(id) || added.includes(id)).length };
+}
+
+/**
+ * @param {any} body
+ * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, memory?: import('../lib/memory.js').GuestMemory|null }} ctx
+ */
+export async function recommendNearby(body, { qloo, toolSecret, memory }) {
   const taste = tasteSignals(body?.taste);
   const companion = companionSignals(body?.companion_taste);
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
@@ -110,10 +139,25 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
   if (budget !== undefined) firstParams['filter.price_level.max'] = String(Math.round(budget));
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
 
+  const recall = memory ? memory.recallFor(body?.session_id) : null;
+  const texted = new Set(recall ? recall.texted.slice(-MAX_TEXTED) : []);
+  let memoryApplied = null;
+  let memoryRedact = null;
+  if (recall) {
+    if (texted.size) firstParams['filter.exclude.entities'] = [...texted].join(',');
+    const remembered = { entityIds: [...recall.guest.entityIds], tagIds: [...recall.guest.tagIds] };
+    if (companion) { remembered.entityIds.push(...recall.companion.entityIds); remembered.tagIds.push(...recall.companion.tagIds); }
+    const { added, carried } = addPriorSignals(firstParams, signalsIn, remembered);
+    memoryApplied = { prior_signals: carried, excluded: texted.size };
+    memoryRedact = { ids: added, exclude: texted.size > 0 };
+  }
+
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
+  const notTexted = (e) => !texted.has(e.entity_id);
   // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
-  const first = await placeInsights(qloo, firstParams, shaped.cuisine, kidSafe, Math.min(3, take));
-  const { entities, params, body: tasteBody } = first;
+  const first = await placeInsights(qloo, firstParams, shaped.cuisine, texted.size ? (e) => kidSafe(e) && notTexted(e) : kidSafe, Math.min(3, take));
+  const { params, body: tasteBody } = first;
+  const entities = texted.size ? first.entities.filter(notTexted) : first.entities;
 
   let filteredOut = 0;
   const candidates = entities.filter((e) => {
@@ -174,10 +218,14 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
       // nearby, so the ones that fit come first and the rest are the best matches overall
       // (`say` tells the agent); null: no cuisine was said or it matched too weakly to filter.
       cuisine_filter: first.cuisine_filter,
-      cuisine: shaped.cuisine.length ? signalsIn.signals.filter((s) => shaped.cuisine.includes(s.id)).map((s) => s.name) : [] },
+      cuisine: shaped.cuisine.length ? signalsIn.signals.filter((s) => shaped.cuisine.includes(s.id)).map((s) => s.name) : [],
+      // Counts only, and only on a call the memory layer linked: remembered tastes carried as
+      // signals and texted places left out.
+      ...(memoryApplied ? { memory: memoryApplied } : {}) },
     companion: companionSummary,
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
     counterfactual: cf.counterfactual,
+    ...(memoryRedact ? { memory_redact: memoryRedact } : {}),
     calls: [...first.calls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
   };
 }

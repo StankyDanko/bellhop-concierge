@@ -161,6 +161,8 @@ export class SessionStore {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     this.hashKey = hashKey;
     this.now = now;
+    /** @type {Map<string, number>} session id -> when it asked to be forgotten (forgetCaller) */
+    this.forgottenCalls = new Map();
     this.db = new Database(path);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
@@ -196,7 +198,7 @@ export class SessionStore {
       property_id: s.property_id ?? null,
       persona: s.persona ?? null,
       started_at: s.started_at,
-      caller_hash: s.caller_id ? hashCaller(s.caller_id, this.hashKey) : null,
+      caller_hash: s.caller_id && !this.forgottenCalls.has(s.id) ? hashCaller(s.caller_id, this.hashKey) : null,
       entities_json: JSON.stringify(s.entities),
       picks_count: s.picks_count,
       events_count: s.events_count,
@@ -233,6 +235,27 @@ export class SessionStore {
       created_at: this.now().toISOString(),
     });
     return info.changes > 0;
+  }
+
+  /**
+   * Forget me: unlink a caller from their past calls by setting caller_hash to NULL on their
+   * rows. The rows stay (counts and taste ids feed the inn's aggregate, above its five-call
+   * floor); nothing ties them to the number any more. The call that asked is remembered for an
+   * hour, in this process only, so its own log_session does not write the hash back.
+   * Returns how many rows changed.
+   * @param {string|null} callerId @param {string|null} [sessionId]
+   */
+  forgetCaller(callerId, sessionId = null) {
+    const t = this.now().getTime();
+    for (const [id, at] of this.forgottenCalls) if (t - at > 3600_000) this.forgottenCalls.delete(id);
+    if (sessionId) this.forgottenCalls.set(sessionId, t);
+    if (!callerId) return 0;
+    return this.db.prepare('UPDATE sessions SET caller_hash = NULL WHERE caller_hash = ?').run(hashCaller(callerId, this.hashKey)).changes;
+  }
+
+  /** True when this call asked to be forgotten (see forgetCaller). @param {string} sessionId */
+  isForgottenCall(sessionId) {
+    return this.forgottenCalls.has(sessionId);
   }
 
   /** @param {string} sessionId */

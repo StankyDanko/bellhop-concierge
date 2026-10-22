@@ -20,8 +20,11 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
 /** @param {unknown} v */
 const flag = (v) => v === true || v === 'true' || v === 1 || v === '1';
 
-/** @param {any} body @param {{ sessions: import('../lib/sessions.js').SessionStore, now?: () => Date }} ctx */
-export async function logSession(body, { sessions, now = () => new Date() }) {
+/**
+ * @param {any} body
+ * @param {{ sessions: import('../lib/sessions.js').SessionStore, now?: () => Date, memory?: import('../lib/memory.js').GuestMemory|null }} ctx
+ */
+export async function logSession(body, { sessions, now = () => new Date(), memory = null }) {
   const unset = (v) => (typeof v === 'string' && !/^\{\{.*\}\}$/.test(v.trim()) ? v.trim() : '');
   const sid = unset(body?.session_id);
   if (sid && !ID.test(sid)) throw new InputError('session_id has unexpected characters');
@@ -45,10 +48,21 @@ export async function logSession(body, { sessions, now = () => new Date() }) {
   const t = now();
   const started_at = new Date(t.getTime() - (duration ?? 0) * 1000).toISOString();
 
+  // Optional: how many nights the guest said they are in town. Only shortens or stretches how
+  // long a returning-guest memory lasts (lib/memory.js); never stored in the session log. A value
+  // out of range is ignored rather than refused, so the log itself always goes through.
+  const n = Number(body?.nights);
+  const nights = Number.isFinite(n) && n >= 1 && n <= 60 ? n : null;
+
   const row = sessions.write({
     id, property_id, persona, started_at, caller_id, entities,
     picks_count: Math.round(picks_count), events_count: Math.round(events_count), sms_sent: flag(body?.sms_sent),
   });
+  // Returning-guest memory: fold this call into the caller's memory. Only a call the initiation
+  // webhook linked has anything to fold; best effort, it never fails the log.
+  if (memory && sid) {
+    try { memory.commit(sid, { nights, smsSent: flag(body?.sms_sent) }); } catch { /* memory is optional */ }
+  }
   // trace_calls: how many Qloo and Ticketmaster requests this call made, linked by session_id.
   // taste_ids: how many resolved Qloo ids the row added to the inn's guest taste fingerprint.
   const tasteIds = JSON.parse(row.entity_ids_json ?? '[]').length;

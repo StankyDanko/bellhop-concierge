@@ -16,6 +16,9 @@ import { recommendNearby } from './tools/recommend-nearby.js';
 import { resolveTaste } from './tools/resolve-taste.js';
 import { logSession } from './tools/log-session.js';
 import { createSendLimiter, sendSms } from './tools/send-sms.js';
+import { forgetGuest } from './tools/forget-guest.js';
+import { observeTool, redactTrace } from './lib/memory.js';
+import { conversationInit, INIT_BODY_MAX, INIT_PATH } from './hooks/conversation-init.js';
 import { mountDashboard } from './api/index.js';
 
 /** Tool name (what the voice agent calls) -> handler. */
@@ -28,6 +31,15 @@ export const TOOLS = {
   area_insights: areaInsights,
   send_sms: sendSms,
   log_session: logSession,
+};
+
+/**
+ * Returning-guest memory tools, routed like the rest under /tools/*. Kept apart from TOOLS
+ * until the agent definitions carry them (compiler/tools.js asserts TOOLS and its own
+ * definitions match one for one).
+ */
+export const MEMORY_TOOLS = {
+  forget_guest: forgetGuest,
 };
 
 /** A line the agent can say when a lookup fails, instead of inventing an answer. */
@@ -47,11 +59,14 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {string} [deps.cacheMode]  'frozen' | 'only' | 'on' | 'off', reported by /health
  * @param {() => Date} [deps.now]
  * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the innkeeper dashboard (server/api/)
+ * @param {import('./lib/memory.js').GuestMemory|null} [deps.memory]  returning-guest memory; null switches it off
+ * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
+ * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
  */
-export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard, cacheMode }) {
+export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret };
+  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
 
   app.get('/health', (c) => c.json({
     ok: true,
@@ -60,13 +75,18 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
     ticketmaster: ticketmaster.mode ?? (ticketmaster.enabled ? 'live' : 'disabled'),
     sms: sms.mode,
     cache: cacheMode ?? 'on',
-    tools: Object.keys(TOOLS),
+    tools: [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)],
   }));
+
+  // Conversation initiation webhook: answers the call's dynamic variables before the first word.
+  // Its own auth inside (a bad secret still answers the default lines, so the call connects).
+  app.post(INIT_PATH, bodyLimit({ maxSize: INIT_BODY_MAX, onError: (c) => c.json({ ok: false, status: 'error', error: { code: 'body_too_large' } }, 413) }),
+    conversationInit({ secret, memory, agents, timezone, now, logger, rng: initRng }));
 
   app.use('/tools/*', requireSecret(secret));
   app.use('/tools/*', bodyLimit({ maxSize: 32 * 1024, onError: (c) => c.json({ ok: false, status: 'error', error: { code: 'body_too_large' } }, 413) }));
 
-  for (const [name, handler] of Object.entries(TOOLS)) {
+  for (const [name, handler] of Object.entries({ ...TOOLS, ...MEMORY_TOOLS })) {
     app.post(`/tools/${name}`, async (c) => {
       const started = Date.now();
       let body;
@@ -76,7 +96,10 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
         return c.json({ ok: false, status: 'error', error: { code: 'invalid_json' } }, 400);
       }
       try {
-        const { result: { calls, ...result }, trace } = await withTrace(name, () => handler(body, ctx));
+        const { result: { calls, memory_redact: memoryRedact, ...result }, trace } = await withTrace(name, () => handler(body, ctx));
+        // Remembered ids never reach the recorded trace (dashboard, fingerprint) or the response.
+        redactTrace(trace, memoryRedact);
+        rememberCall(memory, name, body, result, logger);
         logger({ svc: 'tool', tool: name, status: result.status, ms: Date.now() - started });
         persistTrace(sessions, sessionIdFrom(body), name, trace, result.counterfactual, logger);
         return c.json({ ok: true, tool: name, ...result, trace, meta: { upstream: calls, ms: Date.now() - started } });
@@ -92,6 +115,16 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
 
   app.notFound((c) => c.json({ ok: false, status: 'error', error: { code: 'not_found' } }, 404));
   return app;
+}
+
+/** Note what a tool call means for the caller's memory. Best effort: never fails the tool call. */
+function rememberCall(memory, tool, body, result, logger) {
+  if (!memory) return;
+  try {
+    observeTool(memory, tool, body, result);
+  } catch (err) {
+    logger({ svc: 'memory', tool, error: 'observe_failed', detail: String(err?.message ?? err).slice(0, 120) });
+  }
 }
 
 /** Store a tool's call trace under its session id. Best effort: never fails the tool call. */

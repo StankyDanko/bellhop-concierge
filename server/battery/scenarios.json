@@ -34,5 +34,12 @@
       "mentions": ["Wes Anderson films", "jazz"], "cross": { "target": "book" } },
     { "id": "three-things", "label": "Guest names three things",
       "mentions": ["Johnny Cash", "Wes Anderson films", "mexican food"] }
+  ],
+  "_sequences_note": "One fictional caller (555-01xx) calls twice. Each call reuses a scenario above by id. texted_on: calls whose plan is reported texted. forget_on: the call that says forget me. days_between: how far the mock clock moves before the next call (live runs stay same-day).",
+  "sequences": [
+    { "id": "seq-same-day", "label": "Same day: texted, then back again and forget me",
+      "caller": "+15550100001", "calls": ["solo-artist-cuisine", "director-cuisine"], "texted_on": [1], "forget_on": 2 },
+    { "id": "seq-next-day", "label": "Next day: texted, then back with a plus-one",
+      "caller": "+15550100002", "calls": ["three-things", "couple-two-each"], "texted_on": [1], "days_between": 1 }
   ]
 }

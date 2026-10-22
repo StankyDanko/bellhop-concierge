@@ -1,6 +1,8 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on twelve criteria
-// (server/battery/criteria.js). No phone, no voice platform, no text messages.
+// order the voice agent calls the tools, and scores each call on sixteen criteria
+// (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
+// sequences (scenarios.json "sequences") replay one fictional caller twice through the
+// initiation webhook to score variety and returning-guest memory (C13 to C16).
 //
 //   npm run battery -- --mock                       fixtures, in process, offline
 //   npm run battery -- --live --port 18803 --out DIR  start a local server against live Qloo
@@ -53,13 +55,50 @@ const BUDGET_LEVEL = { easy: 2, splurge: 4 };
 const toSignal = (r) => ({ id: r.id, name: r.name });
 
 /**
- * Play one caller. `call(tool, body)` resolves to { status, json, ms }.
- * @param {(tool: string, body: object) => Promise<{ status: number, json: any, ms: number }>} call
+ * Dashboard routes the memory sweep reads after a sequence call (C16). valuesOnly: the compile
+ * preview is the agent definition, where placeholder names may appear but values never.
+ * Live mode skips /insights (it spends Qloo).
  */
-export async function playScenario(call, scenario, property) {
+export const API_SWEEP = Object.freeze([
+  { method: 'GET', path: '/health' },
+  { method: 'GET', path: '/api/health-summary' },
+  { method: 'GET', path: '/api/personas' },
+  { method: 'GET', path: '/api/guardrails' },
+  { method: 'GET', path: '/api/sample-pick' },
+  { method: 'GET', path: '/api/properties/demo' },
+  { method: 'GET', path: '/api/properties/demo/sessions' },
+  { method: 'GET', path: '/api/properties/demo/fingerprint' },
+  { method: 'GET', path: '/api/properties/demo/insights', mockOnly: true },
+  { method: 'GET', path: '/api/properties/demo/itinerary-sample' },
+  { method: 'POST', path: '/api/properties/demo/compile', valuesOnly: true },
+]);
+
+/** The voice agent id sequence calls post to the initiation webhook (CONCIERGE_AGENTS entry). */
+export const BATTERY_AGENT = 'battery';
+const DAY_MS = 86_400_000;
+
+/**
+ * Play one caller. `call(tool, body)` resolves to { status, json, ms }.
+ * A call inside a two-call sequence (opts.callerId set) also posts the initiation webhook
+ * first, carries session_id on every tool call, and, per opts, reports a text as sent, asks to
+ * be forgotten, and sweeps the dashboard afterwards (see runBattery and criteria C13 to C16).
+ * @param {(tool: string, body: object) => Promise<{ status: number, json: any, ms: number }>} call
+ * @param {{ sessionId?: string, callerId?: string, prior?: any, texted?: boolean, forget?: boolean, drivers?: any }} [opts]
+ */
+export async function playScenario(call, scenario, property, opts = {}) {
+  const { callerId = null, prior = null, drivers = {} } = opts;
   /** @type {any} */
   const rec = { scenario, tools: [], trace: [], statuses: [], resolve: null, recommend: null, reduced: null,
     events: null, cross: null, compose: null, crossInputs: null };
+  const sessionId = opts.sessionId ?? `battery-${scenario.id}`;
+  const inSequence = Boolean(callerId && drivers.init);
+  const withSession = (body) => (inSequence ? { ...body, session_id: sessionId } : body);
+  if (inSequence) {
+    rec.prior = prior;
+    rec.init = await drivers.init({ caller_id: callerId, agent_id: BATTERY_AGENT, conversation_id: sessionId });
+    rec.secrets = { numbers: [callerId, callerId.replace(/^\+/, '')], hashes: drivers.hashes ? drivers.hashes(callerId) : [],
+      memoryLines: [rec.init.json?.dynamic_variables?.memory_line], stayLines: [rec.init.json?.dynamic_variables?.stay_line] };
+  }
   const run = async (tool, body, { chain = true } = {}) => {
     // After a rate limit nothing more is sent, not even the rest of this caller.
     if (rec.rateLimited) return { status: 0, json: null, ms: 0, skipped: true };
@@ -71,13 +110,12 @@ export async function playScenario(call, scenario, property) {
     if (chain) rec.tools.push({ tool, ms: res.ms, status: res.status });
     return res;
   };
-  const sessionId = `battery-${scenario.id}`;
   const where = { lat: property.lat, lng: property.lng };
 
-  rec.resolve = await run('resolve_taste', {
+  rec.resolve = await run('resolve_taste', withSession({
     mentions: scenario.mentions,
     ...(scenario.companion_mentions?.length ? { companion_mentions: scenario.companion_mentions } : {}),
-  });
+  }));
   const r = rec.resolve.json ?? {};
   const taste = (r.resolved ?? []).map(toSignal);
   const companion = (r.companion_resolved ?? []).map(toSignal);
@@ -89,18 +127,18 @@ export async function playScenario(call, scenario, property) {
   if (taste.length) {
     const body = { taste, ...(companion.length ? { companion_taste: companion } : {}), ...where, constraints,
       ...(scenario.radius_miles ? { radius_miles: scenario.radius_miles } : {}), take: 3 };
-    rec.recommend = await run('recommend_nearby', body);
+    rec.recommend = await run('recommend_nearby', withSession(body));
     if (taste.length >= 2) {
       // Same call without the second named taste: does it matter to the answer?
-      rec.reduced = await run('recommend_nearby', { ...body, taste: taste.filter((_, i) => i !== 1) }, { chain: false });
+      rec.reduced = await run('recommend_nearby', withSession({ ...body, taste: taste.filter((_, i) => i !== 1) }), { chain: false });
     }
   }
 
   if (scenario.events) {
-    rec.events = await run('events_nearby', { ...where, when: scenario.constraints?.when ?? 'tonight', take: 3 });
+    rec.events = await run('events_nearby', withSession({ ...where, when: scenario.constraints?.when ?? 'tonight', take: 3 }));
   }
   if (scenario.cross && taste.length) {
-    rec.cross = await run('cross_domain', { taste, target: scenario.cross.target, take: 3 });
+    rec.cross = await run('cross_domain', withSession({ taste, target: scenario.cross.target, take: 3 }));
     rec.crossInputs = { ids: taste.map((t) => t.id), names: taste.map((t) => t.name.toLowerCase()) };
   }
 
@@ -116,19 +154,66 @@ export async function playScenario(call, scenario, property) {
   if (cr) picks.push({ name: cr.name, why: cr.why, pick_token: cr.pick_token });
   if (picks.length) {
     const when = scenario.constraints?.when;
-    const res = await run('compose_itinerary', {
+    const res = await run('compose_itinerary', withSession({
       picks, guest: { ...(partySize ? { party_size: partySize } : {}), ...(when ? { when } : {}) },
-    });
+    }));
     rec.compose = { ...res, submitted: picks.map((p) => p.name) };
   }
 
-  await run('log_session', {
+  // A texted call never calls send_sms: log_session reports sms_sent, the path memory trusts
+  // when no send was seen. The places it texted are the submitted picks recommend returned.
+  const textedNow = inSequence && opts.texted === true && rec.compose?.status === 200;
+  if (inSequence) {
+    const placeIds = new Map((rec.recommend?.json?.places ?? []).map((p) => [p.name, p.entity_id]));
+    rec.texted = textedNow ? [...new Set((rec.compose?.submitted ?? []).map((n) => placeIds.get(n)).filter(Boolean))] : [];
+  }
+  if (inSequence && opts.forget) {
+    rec.forget = await run('forget_guest', { session_id: sessionId, caller_id: callerId }, { chain: false });
+  }
+
+  const logged = await run('log_session', {
     session_id: sessionId, entities: scenario.mentions, picks_count: picks.length,
-    events_count: ev ? 1 : 0, sms_sent: false,
+    events_count: ev ? 1 : 0, sms_sent: textedNow,
+    ...(inSequence ? { caller_id: callerId } : {}),
   }, { chain: false });
+
+  if (inSequence) {
+    rec.committed = logged.status === 200 && logged.json?.logged === true && !opts.forget;
+    if (opts.forget) {
+      rec.memoryRows = drivers.memoryRows ? await drivers.memoryRows(callerId) : undefined;
+      rec.afterForget = await drivers.init({ caller_id: callerId, agent_id: BATTERY_AGENT, conversation_id: `${sessionId}-probe` });
+      rec.secrets.memoryLines.push(rec.afterForget.json?.dynamic_variables?.memory_line);
+      rec.secrets.stayLines.push(rec.afterForget.json?.dynamic_variables?.stay_line);
+    }
+    if (drivers.api) rec.apiSweep = await drivers.api();
+  }
 
   rec.eval = evaluate(rec);
   return rec;
+}
+
+/**
+ * Expand the scenario file's two-call sequences into plays: each call reuses a scenario by id,
+ * shares one fictional caller, and gets session id battery-<sequence>-<n>.
+ * @param {any[]} sequences @param {any[]} library  every scenario, by id
+ * @param {{ canAdvance?: boolean }} [opts]  whether the clock can move between calls (mock)
+ */
+export function sequencePlays(sequences, library, { canAdvance = false } = {}) {
+  const byId = new Map(library.map((s) => [s.id, s]));
+  return sequences.map((seq) => ({
+    seq,
+    calls: seq.calls.map((sid, i) => {
+      const base = byId.get(sid);
+      if (!base) throw new Error(`sequence ${seq.id} names unknown scenario ${sid}`);
+      const n = i + 1;
+      const days = i > 0 && canAdvance ? (seq.days_between ?? 0) : 0;
+      return {
+        n, days,
+        scenario: { ...base, id: `${seq.id}-${n}`, label: `${seq.label}, call ${n}`, same_day: days === 0 },
+        opts: { sessionId: `battery-${seq.id}-${n}`, callerId: seq.caller, texted: (seq.texted_on ?? []).includes(n), forget: seq.forget_on === n },
+      };
+    }),
+  }));
 }
 
 /** Live upstream requests this scenario spent (cache misses only). */
@@ -139,15 +224,27 @@ const rateLimited = (rec) => rec.rateLimited === true || rec.statuses.includes(4
  * Run scenarios in order, stopping early on a 429 or when the next scenario could pass the cap.
  * @returns {Promise<{ records: any[], skipped: string[], liveUsed: number, stoppedBy: string|null }>}
  */
-export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 14, onRecord = () => {} }) {
+export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 14, onRecord = () => {},
+  sequences = [], library = scenarios, drivers = null }) {
   const records = [];
   const skipped = [];
   let liveUsed = 0;
   let stoppedBy = null;
-  for (const sc of scenarios) {
+  const plays = scenarios.map((sc) => ({ scenario: sc, opts: {} }));
+  if (sequences.length && drivers?.init) {
+    for (const { calls } of sequencePlays(sequences, library, { canAdvance: Boolean(drivers.advance) })) {
+      calls.forEach((c, i) => plays.push({ ...c, opts: { ...c.opts, drivers, first: i === 0 } }));
+    }
+  }
+  let prior = null;
+  for (const p of plays) {
+    const sc = p.scenario;
     if (stoppedBy) { skipped.push(sc.id); continue; }
     if (liveUsed + perScenarioReserve > cap && liveUsed > 0) { stoppedBy = `cap ${cap} would be exceeded`; skipped.push(sc.id); continue; }
-    const rec = await playScenario(call, sc, property);
+    if (p.opts.first) prior = null;
+    if (p.days && drivers?.advance) drivers.advance(p.days * DAY_MS);
+    const rec = await playScenario(call, sc, property, p.opts.callerId ? { ...p.opts, prior } : {});
+    if (p.opts.callerId) prior = rec;
     liveUsed += liveSpend(rec);
     records.push(rec);
     onRecord(rec);
@@ -211,31 +308,71 @@ export function renderScorecard({ records, skipped = [], liveUsed, stoppedBy, mo
 // Drivers
 // ---------------------------------------------------------------------------
 
+/**
+ * Read every dashboard route once and keep what came back, for C16.
+ * @param {(method: string, path: string) => Promise<{ status: number, text: string }>} fetchText
+ */
+export async function sweepApi(fetchText, { live = false } = {}) {
+  const out = [];
+  for (const r of API_SWEEP) {
+    if (live && r.mockOnly) continue;
+    const { status, text } = await fetchText(r.method, r.path);
+    out.push({ path: r.path, status, text, ...(r.valuesOnly ? { valuesOnly: true } : {}) });
+  }
+  return out;
+}
+
+/** Both hashes a caller number has (session log and memory), so C16 can look for either. */
+async function hashesFor(toolSecret, memorySecret) {
+  const { hashCaller } = await import('../lib/sessions.js');
+  const { memoryKey } = await import('../lib/memory.js');
+  return (callerId) => [hashCaller(callerId, toolSecret), memoryKey(callerId, memorySecret)];
+}
+
 async function mockCall() {
-  const { makeApp, callTool } = await import('../test/helpers.js');
-  const { app } = makeApp();
-  return async (tool, body) => {
+  const { makeApp, callTool, callInit, SECRET, MEMORY_SECRET } = await import('../test/helpers.js');
+  const { app, memory, clock } = makeApp({ memory: true, dashboard: true });
+  const call = async (tool, body) => {
     const t0 = performance.now();
     const res = await callTool(app, tool, body);
     return { ...res, ms: Math.round(performance.now() - t0) };
   };
+  const drivers = {
+    init: async (body) => {
+      const t0 = performance.now();
+      const res = await callInit(app, body);
+      return { ...res, ms: Math.round(performance.now() - t0) };
+    },
+    api: () => sweepApi(async (method, path) => {
+      const res = await app.request(path, { method, headers: { 'content-type': 'application/json' }, ...(method === 'POST' ? { body: '{}' } : {}) });
+      return { status: res.status, text: await res.text() };
+    }),
+    memoryRows: async (callerId) => memory.countFor(callerId),
+    advance: (ms) => clock.advance(ms),
+    hashes: await hashesFor(SECRET, MEMORY_SECRET),
+  };
+  return { call, drivers };
 }
 
 /**
  * The live server's environment. QLOO_RETRIES is 0: the quota rail is to stop on the first
  * 429, and the server's own retries would send two more requests into it.
  */
-export function liveEnv({ port, runDir, secret }) {
+export function liveEnv({ port, runDir, secret, memorySecret = '' }) {
   return {
     ...process.env,
     PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', QLOO_RETRIES: '0', TICKETMASTER_MOCK: '1', SMS_MOCK: '1',
     CACHE_PATH: join(runDir, 'cache.sqlite'), SESSIONS_PATH: join(runDir, 'sessions.sqlite'), DASHBOARD_DB_PATH: join(runDir, 'sessions.sqlite'),
+    // Guest memory in the run directory, under a throwaway secret, for the battery's agent id only.
+    GUEST_MEMORY_PATH: join(runDir, 'guest-memory.sqlite'), GUEST_MEMORY_SECRET: memorySecret,
+    CONCIERGE_AGENTS: JSON.stringify({ [BATTERY_AGENT]: { property_id: 'demo', persona: 'harper', timezone: 'America/New_York' } }),
   };
 }
 
 async function startLiveServer({ port, runDir }) {
   const secret = randomBytes(18).toString('hex');
-  const env = liveEnv({ port, runDir, secret });
+  const memorySecret = randomBytes(18).toString('hex');
+  const env = liveEnv({ port, runDir, secret, memorySecret });
   const logPath = join(runDir, 'server.log');
   const child = spawn('/usr/bin/node', [`--env-file=${join(SERVER_DIR, '.env')}`, join(SERVER_DIR, 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.on('data', (d) => appendFileSync(logPath, d));
@@ -262,7 +399,21 @@ async function startLiveServer({ port, runDir }) {
     await new Promise((r) => { child.once('exit', r); setTimeout(r, 3000); });
     if (child.exitCode === null) child.kill('SIGKILL');
   };
-  return { call, stop, pid: child.pid };
+  // No clock to move and no view into the memory file: sequences run same-day, rows unseen.
+  const drivers = {
+    init: async (body) => {
+      const t0 = performance.now();
+      const res = await fetch(`${base}/hooks/conversation-init`, { method: 'POST', headers: { 'content-type': 'application/json', 'X-Concierge-Secret': secret }, body: JSON.stringify(body) });
+      const json = await res.json().catch(() => null);
+      return { status: res.status, json, ms: Math.round(performance.now() - t0) };
+    },
+    api: () => sweepApi(async (method, path) => {
+      const res = await fetch(`${base}${path}`, { method, headers: { 'content-type': 'application/json' }, ...(method === 'POST' ? { body: '{}' } : {}) });
+      return { status: res.status, text: await res.text() };
+    }, { live: true }),
+    hashes: await hashesFor(secret, memorySecret),
+  };
+  return { call, stop, pid: child.pid, drivers };
 }
 
 export function parseArgs(argv) {
@@ -294,8 +445,9 @@ export function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const { property, scenarios: all } = loadScenarios();
+  const { property, scenarios: all, sequences: allSeq = [] } = loadScenarios();
   const scenarios = args.only ? all.filter((s) => args.only.includes(s.id)) : all;
+  const sequences = args.only ? allSeq.filter((s) => args.only.includes(s.id)) : allSeq;
   const startedAt = new Date().toISOString();
   const runDir = join(args.out ?? join(tmpdir(), 'bellhop-battery'), startedAt.replace(/[:.]/g, '-'));
   mkdirSync(runDir, { recursive: true });
@@ -303,14 +455,15 @@ async function main() {
 
   let driver = null;
   let call;
-  if (args.mode === 'mock') call = await mockCall();
-  else { driver = await startLiveServer({ port: args.port, runDir }); call = driver.call; }
+  let drivers;
+  if (args.mode === 'mock') ({ call, drivers } = await mockCall());
+  else { driver = await startLiveServer({ port: args.port, runDir }); call = driver.call; drivers = driver.drivers; }
   call = pacedCall(call, args.paceMs);
 
   let result;
   try {
     result = await runBattery({
-      call, scenarios, property, cap: args.cap,
+      call, scenarios, property, cap: args.cap, sequences, library: all, drivers,
       onRecord: (rec) => appendFileSync(rawPath, `${JSON.stringify({ scenario: rec.scenario.id, resolve: rec.resolve, recommend: rec.recommend, reduced: rec.reduced, events: rec.events, cross: rec.cross, compose: rec.compose })}\n`),
     });
   } finally {

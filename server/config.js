@@ -35,6 +35,11 @@ export const DEFAULT_RATE_LIMIT_BACKOFF_MS = 2100;
  * @property {import('./lib/twilio.js').SmsConfig} sms
  * @property {string} sessionsPath     SQLite file for the session log
  * @property {string} defaultTimezone  IANA zone used to compute "tonight" / "this weekend"
+ * @property {object} memory           returning-guest memory (server/lib/memory.js)
+ * @property {string} memory.path      its own SQLite file, never the session log's
+ * @property {string} memory.secret    GUEST_MEMORY_SECRET: keys the memory hash; empty switches memory off
+ * @property {number} memory.ttlDays   days a memory lasts after the last call when no stay length is known
+ * @property {string} agentsJson       CONCIERGE_AGENTS: voice agent id -> { property_id, persona, timezone }
  */
 
 /** @param {NodeJS.ProcessEnv} [env] @returns {Config} */
@@ -74,5 +79,12 @@ export function loadConfig(env = process.env) {
     },
     sessionsPath: env.SESSIONS_PATH ?? new URL('./data/sessions.sqlite', import.meta.url).pathname,
     defaultTimezone: env.DEFAULT_TIMEZONE ?? 'America/New_York',
+    memory: {
+      path: env.GUEST_MEMORY_PATH ?? new URL('./data/guest-memory.sqlite', import.meta.url).pathname,
+      // Its own secret, never the tool secret, so memory rows and session rows cannot be joined.
+      secret: env.GUEST_MEMORY_SECRET ?? '',
+      ttlDays: Math.min(14, Math.max(1, int(env.GUEST_MEMORY_TTL_DAYS, 7))),
+    },
+    agentsJson: env.CONCIERGE_AGENTS ?? '',
   };
 }

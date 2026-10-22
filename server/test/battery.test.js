@@ -27,8 +27,70 @@ test('scenarios.json: 12 to 16 callers, unique ids, guest words only', () => {
   assert.doesNotMatch(JSON.stringify(scenarios), /@|\d{7}|room\s*\d/i);
 });
 
-test('criteria: exactly twelve, C1 to C12', () => {
-  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 12 }, (_, i) => `C${i + 1}`));
+test('criteria: exactly sixteen, C1 to C16', () => {
+  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 16 }, (_, i) => `C${i + 1}`));
+});
+
+test('scenarios.json sequences: fictional 555-01xx callers, known scenarios, two calls each', () => {
+  const { scenarios, sequences } = loadScenarios();
+  const ids = new Set(scenarios.map((s) => s.id));
+  assert.ok(sequences.length >= 2);
+  for (const q of sequences) {
+    assert.match(q.caller, /^\+1555010\d{4}$/, q.id);
+    assert.ok(Number(q.caller.slice(-4)) <= 199, `${q.id}: 555-0100 to 555-0199 only`);
+    assert.equal(q.calls.length, 2, q.id);
+    for (const c of q.calls) assert.ok(ids.has(c), `${q.id} names ${c}`);
+  }
+  assert.ok(sequences.some((q) => q.forget_on), 'one sequence says forget me');
+  assert.ok(sequences.some((q) => q.days_between), 'one sequence comes back on another day');
+});
+
+test('C14, C15, C16 fail on a repeat, a leftover row, and a leaked value', () => {
+  const prior = { texted: ['fx-place-1'], resolve: { json: { resolved: [{ id: 'fx-a' }] } } };
+  const mem = (m) => base({ prior, recommend: { status: 200, json: { places: [place({ entity_id: 'fx-place-2' })], applied: { radius_miles: 3, memory: m } } } });
+  assert.equal(verdict('C14', mem({ prior_signals: 1, excluded: 1 })), 'pass');
+  assert.equal(verdict('C14', mem(undefined)), 'fail');
+  assert.equal(verdict('C14', mem({ prior_signals: 0, excluded: 1 })), 'fail');
+  assert.equal(verdict('C14', base({ prior, recommend: { status: 200, json: { places: [place()], applied: { memory: { prior_signals: 1, excluded: 1 } } } } })), 'fail');
+  assert.equal(verdict('C14', { ...mem({ prior_signals: 1, excluded: 1 }), trace: [{ tool: 'recommend_nearby', params: { 'filter.exclude.entities': 'fx-place-1' } }] }), 'fail');
+  assert.equal(verdict('C14', base()), 'na');
+
+  const dv = (o) => ({ status: 200, json: { dynamic_variables: { caller_status: 'new', memory_line: 'none', texted_count: 0, ...o } } });
+  const forget = { status: 200, json: { forgotten: true, say: 'Done.' } };
+  assert.equal(verdict('C15', base({ forget, afterForget: dv({}), memoryRows: 0 })), 'pass');
+  assert.equal(verdict('C15', base({ forget, afterForget: dv({}), memoryRows: 1 })), 'fail');
+  assert.equal(verdict('C15', base({ forget, afterForget: dv({ caller_status: 'returning' }) })), 'fail');
+
+  const secrets = { numbers: ['+15550100001'], hashes: ['fxhash'], memoryLines: ['Fx Band'], stayLines: ['none'] };
+  const sweep = (text, extra = {}) => base({ secrets, apiSweep: [{ path: '/api/x', status: 200, text, ...extra }] });
+  assert.equal(verdict('C16', sweep('{"ok":true}')), 'pass');
+  assert.equal(verdict('C16', sweep('{"name":"Fx Band"}')), 'fail');
+  assert.equal(verdict('C16', sweep('{"memory_line":"x"}')), 'fail');
+  assert.equal(verdict('C16', sweep('{"memory_line":"x"}', { valuesOnly: true })), 'pass', 'a placeholder name in the compile preview is not a leak');
+  assert.equal(verdict('C16', sweep('oops', { status: 500 })), 'fail');
+});
+
+test('the mock battery plays both sequences and C13 to C16 pass', async () => {
+  const { makeApp: mk, callInit } = await import('./helpers.js');
+  const { scenarios, sequences } = loadScenarios();
+  const { app, memory, clock } = mk({ memory: true, dashboard: true });
+  const call = async (tool, body) => ({ ...(await callTool(app, tool, body)), ms: 1 });
+  const drivers = {
+    init: async (body) => ({ ...(await callInit(app, body)), ms: 1 }),
+    api: async () => [{ path: '/api/properties/demo/sessions', status: 200, text: await (await app.request('/api/properties/demo/sessions')).text() }],
+    memoryRows: async (c) => memory.countFor(c),
+    advance: (ms) => clock.advance(ms),
+  };
+  const result = await runBattery({ call, scenarios: [], sequences, library: scenarios, property: PROPERTY, drivers });
+  assert.equal(result.records.length, sequences.reduce((n, q) => n + q.calls.length, 0));
+  const counts = tally(result.records.map((r) => r.eval));
+  for (const id of ['C13', 'C14', 'C15', 'C16']) assert.equal(counts[id].fail, 0, `${id} has a fail`);
+  assert.equal(counts.C13.pass, sequences.length, 'every second call varied');
+  assert.ok(counts.C14.pass >= 1 && counts.C15.pass >= 1 && counts.C16.pass >= 1);
+  const nextDay = result.records.find((r) => r.scenario.id === 'seq-next-day-2');
+  assert.equal(nextDay.init.json.dynamic_variables.caller_status, 'returning');
+  const sameDay = result.records.find((r) => r.scenario.id === 'seq-same-day-2');
+  assert.equal(sameDay.init.json.dynamic_variables.caller_status, 'same_day');
 });
 
 test('C1: a mention in neither list fails; reported unresolved passes', () => {
@@ -159,7 +221,7 @@ test('end to end through the mock app: every scenario plays, every criterion ans
   assert.match(card, /\| solo \|/);
   assert.ok(!card.includes(String.fromCharCode(0x2014)));
   const counts = tally(result.records.map((r) => r.eval));
-  assert.equal(Object.keys(counts).length, 12);
+  assert.equal(Object.keys(counts).length, 16);
 });
 
 test('playScenario never calls send_sms and logs a session row', async () => {

@@ -1,4 +1,4 @@
-// The twelve battery criteria. Each takes one scenario record (what the driver saw while it
+// The sixteen battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -13,6 +13,16 @@
 //   tools               [{ tool, ms, status }] for the chain (rerun and log_session excluded)
 //   trace               every trace entry from every tool call in the scenario
 //   statuses            every HTTP status seen
+// Calls inside a two-call sequence (C13 to C16) also carry:
+//   init                { status, json, ms } from the initiation webhook
+//   prior               the previous call's record for the same caller, or null
+//   committed           log_session answered ok (the call was folded into memory)
+//   texted              ids of the places this call texted (submitted picks mapped through recommend)
+//   forget, afterForget forget_guest's answer and a webhook probe made after it
+//   memoryRows          memory rows plus live links left for the caller (mock only)
+//   apiSweep            [{ path, status, text, valuesOnly? }] every dashboard route after the call
+//   secrets             fake numbers, their hashes, and every memory_line and stay_line served;
+//                       never written to the scorecard
 
 import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
@@ -32,6 +42,13 @@ const recommendFailed = (rec) => (rec?.recommend && rec.recommend.status !== 200
 const allMentions = (s) => [...(s.mentions ?? []), ...(s.companion_mentions ?? [])];
 const key = (p) => p.entity_id ?? p.name;
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** Dynamic variables the initiation webhook returns on every call (design section 6). */
+const INIT_VARS = ['greeting', 'opener_hook', 'choice_pair', 'bet_domain', 'plan_window', 'caller_status', 'memory_line', 'stay_line', 'texted_count'];
+const initVars = (init) => init?.json?.dynamic_variables ?? null;
+export const INIT_BUDGET_MS = 300;
+/** JSON keys that only the memory layer writes; none may appear in a dashboard response. */
+export const MEMORY_KEYS = /"(memory_line|stay_line|caller_status|texted_count|caller_hash|guest_memory|prior_signals|tastes_json|texted_json)"/;
 
 export const CRITERIA = [
   { id: 'C1', label: 'Every named thing resolved or reported unresolved',
@@ -188,6 +205,70 @@ export const CRITERIA = [
       }
       if (bad) return v('fail', `${bad} traced request(s) fail the allowlist`);
       return v('pass', `${qloo.length} traced request(s) clean`);
+    } },
+
+  { id: 'C13', label: 'Variety: a second call from one caller hears a new opener and a new choice pair',
+    run(rec) {
+      if (!rec.init) return na('not part of a call sequence');
+      const b = initVars(rec.init);
+      if (rec.init.status !== 200 || !b) return v('fail', `initiation http ${rec.init.status}`);
+      const missing = INIT_VARS.filter((k) => !(k in b)).length;
+      if (missing) return v('fail', `${missing} dynamic variable(s) missing`);
+      if (!rec.prior) return na('first call for this caller');
+      const a = initVars(rec.prior.init);
+      if (!a) return v('fail', 'first call has no initiation response');
+      const same = ['opener_hook', 'choice_pair'].filter((k) => a[k] === b[k]);
+      if (same.length) return v('fail', `${same.join('+')} repeated on the second call`);
+      const want = rec.scenario?.same_day ? 'same_day' : 'returning';
+      if (rec.prior.committed && b.caller_status !== want) return v('fail', `caller_status ${b.caller_status}, expected ${want}`);
+      if (rec.init.ms > INIT_BUDGET_MS) return v('warn', `opener and pair changed; initiation took ${rec.init.ms} ms`);
+      return v('pass', `opener and pair changed; status ${b.caller_status}; bet ${a.bet_domain === b.bet_domain ? 'same' : 'changed'}`);
+    } },
+
+  { id: 'C14', label: 'Returning call: texted places excluded, prior tastes carried as signals',
+    run(rec) {
+      if (!rec.prior || !rec.prior.texted?.length) return na('no earlier texted call for this caller');
+      if (!rec.recommend) return na('no recommend call on the returning call');
+      const failed = recommendFailed(rec);
+      if (failed) return failed;
+      const mem = rec.recommend.json?.applied?.memory;
+      if (!mem) return v('fail', 'applied.memory missing from recommend_nearby');
+      const texted = new Set(rec.prior.texted);
+      const repeats = places(rec).filter((p) => texted.has(p.entity_id)).length;
+      if (repeats) return v('fail', `${repeats} already-texted place(s) picked again`);
+      if (mem.excluded < texted.size) return v('fail', `${mem.excluded} excluded of ${texted.size} texted`);
+      const priorIds = new Set((rec.prior.resolve?.json?.resolved ?? []).map((r) => r.id));
+      if (mem.prior_signals < Math.min(priorIds.size, 12)) return v('fail', `${mem.prior_signals} prior signal(s) of ${priorIds.size} remembered`);
+      const leaked = rec.trace.filter((t) => t.tool === 'recommend_nearby'
+        && (String(t.params?.['filter.exclude.entities'] ?? '') !== '' || [...texted].some((id) => Object.values(t.params ?? {}).some((x) => String(x).split(',').includes(id))))).length;
+      if (leaked) return v('fail', `${leaked} recorded trace entr(ies) carry remembered ids`);
+      return v('pass', `${mem.excluded} excluded, ${mem.prior_signals} prior signal(s), none in the recorded trace`);
+    } },
+
+  { id: 'C15', label: 'Forget me: no memory row survives, the next call is new',
+    run(rec) {
+      if (!rec.forget) return na('no forget request in this call');
+      if (rec.forget.status !== 200 || rec.forget.json?.forgotten !== true) return v('fail', `forget_guest http ${rec.forget.status}`);
+      if (typeof rec.forget.json.say !== 'string' || !rec.forget.json.say) return v('fail', 'no say line');
+      const p = initVars(rec.afterForget);
+      if (!p) return v('fail', 'no probe after forget');
+      if (p.caller_status !== 'new' || p.memory_line !== 'none' || p.texted_count !== 0) return v('fail', 'probe call still remembered');
+      if (typeof rec.memoryRows === 'number' && rec.memoryRows !== 0) return v('fail', `${rec.memoryRows} row(s) left for the caller`);
+      return v('pass', `probe new${typeof rec.memoryRows === 'number' ? ', 0 rows' : ' (row count not visible in live mode)'}`);
+    } },
+
+  { id: 'C16', label: 'Memory never appears in any /api response',
+    run(rec) {
+      if (!rec.apiSweep?.length) return na('no api sweep for this call');
+      const bad = rec.apiSweep.filter((r) => r.status >= 500).length;
+      if (bad) return v('fail', `${bad} route(s) errored`);
+      const s = rec.secrets ?? {};
+      const needles = [...(s.numbers ?? []), ...(s.hashes ?? []),
+        ...(s.memoryLines ?? []).filter((x) => x && x !== 'none'), ...(s.stayLines ?? []).filter((x) => x && x !== 'none')];
+      // The compile preview is the agent definition: placeholder NAMES may appear there, values never.
+      const hits = rec.apiSweep.filter((r) => (!r.valuesOnly && MEMORY_KEYS.test(r.text)) || needles.some((n) => r.text.includes(n))).length;
+      if (hits) return v('fail', `${hits} of ${rec.apiSweep.length} route(s) expose memory`);
+      return v('pass', `${rec.apiSweep.length} route(s) clean`);
     } },
 ];
 

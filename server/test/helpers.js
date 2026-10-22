@@ -7,6 +7,10 @@ import { createQlooClient } from '../lib/qloo.js';
 import { createTicketmasterClient } from '../lib/ticketmaster.js';
 import { SessionStore } from '../lib/sessions.js';
 import { createSmsSender } from '../lib/twilio.js';
+import { GuestMemory } from '../lib/memory.js';
+import { openDashboardDb } from '../api/db.js';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export const SECRET = 'test-secret-0123456789';
 export const PROPERTY = { lat: 32.079, lng: -81.095 };
@@ -15,17 +19,39 @@ export const FIXED_NOW = new Date('2026-10-16T18:00:00Z'); // a Friday, 2pm in N
 const qlooConfig = { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock: true, timeoutMs: 1000, retries: 0 };
 const tmConfig = { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: '', mock: true, timeoutMs: 1000 };
 
+/** The memory layer's own secret in tests: deliberately not SECRET (the keys must differ). */
+export const MEMORY_SECRET = 'test-memory-secret-9876543210';
+/** The voice agent id the tests and the mock battery post to the initiation webhook. */
+export const TEST_AGENTS = Object.freeze({ battery: { property_id: 'demo', persona: 'harper', timezone: 'America/New_York' } });
+
 /**
- * @param {{ qlooTransport?: any, logger?: any, sms?: any }} [opts]
+ * @param {{ qlooTransport?: any, logger?: any, sms?: any, memory?: boolean, dashboard?: boolean, initRng?: () => number }} [opts]
+ * memory: open an in-memory guest memory with its own clock (clock.advance(ms) moves it).
+ * dashboard: mount the innkeeper dashboard on its own in-memory database.
  */
-export function makeApp({ qlooTransport, logger = silentLogger, sms } = {}) {
+export function makeApp({ qlooTransport, logger = silentLogger, sms, memory = false, dashboard = false, initRng } = {}) {
   const cache = new ResponseCache({ path: ':memory:' });
   const qloo = createQlooClient({ config: qlooConfig, cache, logger, transport: qlooTransport });
   const ticketmaster = createTicketmasterClient({ config: tmConfig, cache, logger });
   const sessions = new SessionStore({ path: ':memory:', hashKey: SECRET, now: () => FIXED_NOW });
   const smsSender = sms ?? createSmsSender({ config: { mock: true }, logger });
-  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: 'America/New_York', logger, sms: smsSender, sessions, now: () => FIXED_NOW });
-  return { app, cache, sessions };
+  let offset = 0;
+  const clock = { now: () => new Date(FIXED_NOW.getTime() + offset), advance: (ms) => { offset += ms; } };
+  const guestMemory = memory ? new GuestMemory({ path: ':memory:', secret: MEMORY_SECRET, now: clock.now }) : null;
+  const dash = dashboard ? { db: openDashboardDb({ path: ':memory:', now: () => FIXED_NOW }), env: {}, distDir: join(tmpdir(), 'no-such-dist') } : undefined;
+  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: 'America/New_York', logger, sms: smsSender, sessions,
+    now: memory ? clock.now : () => FIXED_NOW, dashboard: dash, memory: guestMemory, agents: memory ? { ...TEST_AGENTS } : {}, initRng });
+  return { app, cache, sessions, memory: guestMemory, clock };
+}
+
+/** POST the initiation webhook as the voice platform would. */
+export async function callInit(app, body, headers = { 'X-Concierge-Secret': SECRET }) {
+  const res = await app.request('/hooks/conversation-init', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  });
+  return { status: res.status, json: await res.json() };
 }
 
 /** POST a tool call with the right secret. */
