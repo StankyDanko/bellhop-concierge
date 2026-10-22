@@ -33,8 +33,31 @@ quotes below.
 | `sort_by=affinity` | sent on every `recommend_nearby` place call | insights-api-deep-dive lists `sort_by` (affinity, distance, rating, quality) for places | Not in the probe. Step 4 below: the same call with and without it; affinities should come back highest first | the `params` block in `server/tools/recommend-nearby.js` | Matches, no visible effect. Step 4: the same five places in the same order with and without it, because the default order is already affinity highest first. Kept |
 | `take` limits | at most 20 on insights (three times the picks asked for), 3 on search and tags, 5 on the unsignaled call, 1 to 10 on cross-domain | insights `take` is 1 to 50 (default 20); tags `take` up to 50 | Each section prints how many came back; no section should return more than it asked for | the `take` lines in `server/tools/recommend-nearby.js` and `server/lib/qloo.js` | Matches. No section returned more than it asked for |
 | Tag URN forms | we never build a tag id. We send back exactly the `tag_id` that `/v2/tags` returned, and the guard accepts only `urn:tag:...` | doc examples: `urn:tag:genre:place:restaurant:italian`, `urn:tag:genre:media:comedy` | "tags" prints each `tag_id`. Each should start with `urn:tag:` | `server/lib/qloo.js` `normalizeTags` (which field holds the id) | Matches. Every `tag_id` starts with `urn:tag:`; many carry a `qloo` namespace segment, which the guard accepts |
-| Rate limits | none published. Bounded retries: 2 extra attempts on a 429, a 5xx gateway error, or a timeout; a 4.5 second timeout | The guide says limits are "set high enough to support typical hackathon projects" and asks for bounded retries | Not probed. Watch the server log for `rate_limited` the first live day | `QLOO_RETRIES` and `QLOO_TIMEOUT_MS` in `server/.env` | Not probed. No `rate_limited` in the server log across one local round trip. Still unverified |
-| Cache TTL per endpoint | `/search` and `/v2/tags` 30 days, `/v2/insights` 1 day, `/v2/analysis/compare` 7 days, anything else 1 day. Ticketmaster 1 hour | The guide allows private server-side caching with no time limit; insights stay short because hours and closures change | Not probed. The cache is private and gitignored | `server/lib/cache.js` `TTL_SECONDS` | Not probed; a policy, not a shape. Still unverified |
+| Rate limits | none published. A 429 gets one sleep (`QLOO_429_BACKOFF_MS`, default 2100 ms) and one retry, recorded as `rate_limited` in the call trace. A second 429 serves the cached answer even past its age limit (the trace marks it `stale`), or returns the error code `rate_limited` for the agent to speak. Other retryable failures (a 5xx gateway error, a timeout) keep the 2 extra attempts; a 4.5 second timeout | The guide says limits are "set high enough to support typical hackathon projects" and asks for bounded retries | Not in the probe. `npm run prewarm -- --apply` paces live calls and reports any 429 | `QLOO_429_BACKOFF_MS`, `QLOO_RETRIES`, and `QLOO_TIMEOUT_MS` in `server/.env` | Limit shape UNVERIFIED. One run saw a 429 after about 60 calls in 6 minutes; another made 248 calls in 2.5 minutes with none; a paced run (one call per 2 s, 83 calls) saw none |
+| Cache TTL per endpoint | `/search` and `/v2/tags` 30 days, `/v2/insights` 1 day, `/v2/analysis/compare` 7 days, anything else 1 day. Ticketmaster 1 hour | The guide allows private server-side caching with no time limit; insights stay short because hours and closures change | Not probed. The cache is private and gitignored. `CACHE_FREEZE=1 npm run prewarm -- --apply` reports cache hits and misses with no calls | `server/lib/cache.js` `TTL_SECONDS`; `CACHE_FREEZE` in `server/.env` | Unchanged while the key is live. `CACHE_FREEZE=1` serves any cached entry regardless of age and never calls upstream; `/health` then reports `"cache": "frozen"`. Switch it on the day the key is deactivated (the demo must answer through Nov 16, its numbers through Nov 23). A deactivated key that answers 401 or 403 before the flag is set also falls back to the cached answer. Whether the terms allow this indefinitely is UNVERIFIED beyond "private server-side caching, no time limit" |
+
+## Pre-warm and freeze
+
+`npm run prewarm -- --dry-run` lists the request shapes. `npm run prewarm -- --apply` replays the
+sample call, the landing page, the dashboard panels, and the fifteen battery scenarios into the
+cache (default `server/data/cache.sqlite`), one live call per 2 s. `CACHE_FREEZE=1 npm run
+prewarm -- --apply` checks the cache with no calls and reports hits and misses. Run it after
+any change to request shapes and before the key goes dark. Measured 2026-10-22: 79 distinct
+Qloo shapes, 83 live calls.
+
+## Measured latency
+
+Per Qloo endpoint, live, paced one call per 2 s, 2026-10-22, in milliseconds:
+
+| Endpoint | Calls | Median | Worst |
+|---|---|---|---|
+| `/search` | 17 | 129 | 315 |
+| `/v2/tags` | 7 | 143 | 251 |
+| `/v2/insights` | 47 | 158 | 1612 |
+
+Measuring command: `npm run prewarm -- --apply --cap 120 --out <file>` (the file holds counts and
+timings only; keep it outside the repo). Earlier readings: search 160 to 230, tags 56 to 200,
+insights 160 to 190.
 
 ## Key-day runbook
 

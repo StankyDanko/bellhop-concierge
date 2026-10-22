@@ -105,8 +105,8 @@ weekend. The details, request and response shapes included, are in
 5. **Demographics describe people who share these tastes nearby,** not this inn's guests. The
    callers' fingerprint is a small, self-selected sample, which is why every panel shows its
    call count and stays dark under five.
-6. **Hackathon keys are switched off after the event.** Cache-only mode keeps a seeded demo
-   answering the questions it was asked while the key was live, and nothing new.
+6. **Hackathon keys are switched off after the event.** Cache freeze (`CACHE_FREEZE=1`) keeps a
+   pre-warmed demo answering the questions it was asked while the key was live, and nothing new.
 
 ## What's in the repo
 

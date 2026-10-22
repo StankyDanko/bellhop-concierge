@@ -69,11 +69,14 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 | **Mock** | `QLOO_MOCK=1` and/or `TICKETMASTER_MOCK=1` (`npm run mock` sets both) | none; answers from `server/fixtures/*.json` | bypassed |
 | **Live** | set `QLOO_API_KEY` (and `TICKETMASTER_API_KEY`) in `server/.env`, then `npm run live` | real, logged, retried | read-through, TTL per endpoint |
 | **Cache-only** | `CACHE_ONLY=1` | none; a request not in the cache returns `cache_miss` | serves entries even past their TTL |
+| **Cache freeze** | `CACHE_FREEZE=1` | none, same as cache-only; `/health` reports `"cache": "frozen"` | serves entries even past their TTL |
 
 Mock and live share every line of code above the transport, including normalization, so a
 tool that works in mock mode exercises the same paths it will use live. Cache-only mode
-exists for the period after the hackathon key is deactivated: a demo seeded while the key
-was live keeps answering the same questions.
+and cache freeze exist for the period after the hackathon key is deactivated: a demo seeded
+while the key was live keeps answering the same questions. `npm run prewarm -- --apply` seeds
+it at one live call per 2 s; with `CACHE_FREEZE=1` the same command checks it with no calls.
+Live, a 401 or 403 from Qloo also falls back to the cached answer.
 
 ### Environment
 
@@ -85,12 +88,14 @@ was live keeps answering the same questions.
 | `QLOO_BASE_URL` | `https://hackathon.api.qloo.com` | hackathon keys do not work on staging or production hosts |
 | `QLOO_MOCK` | | `1` = fixtures |
 | `QLOO_TIMEOUT_MS` | `4500` | per attempt; the voice platform waits about 10 s for a tool |
-| `QLOO_RETRIES` | `2` | extra attempts on 429/5xx/timeouts only, backoff 250 ms then 500 ms |
+| `QLOO_RETRIES` | `2` | extra attempts on 5xx/timeouts only, backoff 250 ms then 500 ms |
+| `QLOO_429_BACKOFF_MS` | `2100` | a 429 sleeps this long and retries once; a second 429 serves the cached answer, even stale, or returns `rate_limited` |
 | `TICKETMASTER_API_KEY` | | Discovery API consumer key (free tier). Without it `events_nearby` answers `status: "degraded"` |
 | `TICKETMASTER_MOCK` | | `1` = fixtures |
 | `TICKETMASTER_TIMEOUT_MS` | `4000` | |
 | `CACHE_PATH` | `server/data/cache.sqlite` | |
 | `CACHE_ONLY` | | `1` = never call upstream |
+| `CACHE_FREEZE` | | `1` = cache-only for the period after the key goes dark; `/health` says `frozen` |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
