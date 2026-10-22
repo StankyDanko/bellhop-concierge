@@ -75,6 +75,7 @@ export function spokenList(items) {
 export const VIBE_PHRASES = Object.freeze({
   spicy: ['spicy'],
   loud: ['lively'],
+  lively: ['lively'],
   fun: ['fun'],
   slow: ['relaxed'],
   candlelit: ['romantic', 'intimate'],
@@ -92,6 +93,9 @@ export const VIBE_OPPOSITES = Object.freeze([
   ['loud', 'quiet'],
   ['adventurous', 'familiar'],
   ['candlelit', 'loud'],
+  ['lively', 'quiet'],
+  ['candlelit', 'lively'],
+  ['slow', 'lively'],
   ['fun', 'quiet'],
 ]);
 
