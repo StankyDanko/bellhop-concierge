@@ -72,11 +72,11 @@ export function relaxCuisine(params) {
  */
 export async function placeInsights(qloo, params, cuisine, keep = () => true) {
   const first = await qloo.insights(params);
-  if (!cuisine.length) return { entities: first.entities, calls: [first.call], params, cuisine_filter: null };
-  if (first.entities.some(keep)) return { entities: first.entities, calls: [first.call], params, cuisine_filter: 'hard' };
+  if (!cuisine.length) return { entities: first.entities, body: first.body, calls: [first.call], params, cuisine_filter: null };
+  if (first.entities.some(keep)) return { entities: first.entities, body: first.body, calls: [first.call], params, cuisine_filter: 'hard' };
   const relaxed = relaxCuisine(params);
   const second = await qloo.insights(relaxed);
-  return { entities: second.entities, calls: [first.call, second.call], params: relaxed, cuisine_filter: 'relaxed' };
+  return { entities: second.entities, body: second.body, calls: [first.call, second.call], params: relaxed, cuisine_filter: 'relaxed' };
 }
 
 /** Tag kinds worth naming on a pick: cuisine and the room's feel. */

@@ -56,7 +56,8 @@ test('recommend_nearby: ranked places with a Qloo why trace', async () => {
   const [first, second] = json.places;
   assert.equal(first.name, 'Lemongrass Lantern');
   assert.equal(first.source, 'Qloo');
-  assert.equal(first.why, 'Fans of Thai food and Sturgill Simpson love it');
+  // The entity driver Qloo named, then the pick's own cuisine tag, never "fans of" a tag.
+  assert.equal(first.why, 'Fans of Sturgill Simpson love it; tagged Thai');
   assert.equal(first.why_trace.basis, 'explainability');
   assert.ok(first.url.startsWith('https://'));
   assert.ok(first.distance_miles > 0 && first.distance_miles < 1);

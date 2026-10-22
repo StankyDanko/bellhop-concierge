@@ -5,7 +5,7 @@ import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
 import { locationParams, placeInsights, placeTasteParams, shapePlace, signalParams } from './places.js';
 import { popularityCounterfactual } from './counterfactual.js';
-import { classifyFavors, FAVORS_LINES } from '../lib/why.js';
+import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
 
@@ -62,10 +62,9 @@ async function scoreForTwo(qloo, candidates, guest, companion, take) {
     return { fit: new Map(entities.map((e) => [e.entity_id, e.affinity])), call };
   };
   const [g, c] = await Promise.all([scoreFor(guest), scoreFor(companion)]);
-  const scored = candidates.map((e) => {
-    const fit = { guest: g.fit.get(e.entity_id) ?? null, companion: c.fit.get(e.entity_id) ?? null };
-    return { e, fit, favors: classifyFavors(fit.guest, fit.companion) };
-  });
+  const fits = candidates.map((e) => ({ guest: g.fit.get(e.entity_id) ?? null, companion: c.fit.get(e.entity_id) ?? null }));
+  const labels = favorsByRank(fits); // by rank across the whole shortlist (lib/why.js)
+  const scored = candidates.map((e, i) => ({ e, fit: fits[i], favors: labels[i] }));
   const chosen = scored.slice(0, take);
   let promoted = null;
   if (take >= 2 && !chosen.some((s) => s.favors === 'both')) {
@@ -110,7 +109,7 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
 
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
   const first = await placeInsights(qloo, firstParams, shaped.cuisine, kidSafe);
-  const { entities, params } = first;
+  const { entities, params, body: tasteBody } = first;
 
   let filteredOut = 0;
   const candidates = entities.filter((e) => {
@@ -143,7 +142,8 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
   } : undefined;
 
   // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----
-  const cf = await popularityCounterfactual(qloo, params, places, kidSafe);
+  const cf = await popularityCounterfactual(qloo, params, places, kidSafe,
+    { ranked: candidates, signalEffects: readSignalEffects(tasteBody, signalsIn.signals) });
   // ---- end counterfactual ----
 
   return {

@@ -2,7 +2,7 @@
 //
 // TraceTable: every upstream request a call made (endpoint, the exact params sent, mock or
 // live, cache, time, result count). The API key is never in the data, so it cannot show.
-// Counterfactual: the top pick with no taste signal next to the top pick with it.
+// Counterfactual: the places with no taste signal next to the places with it (whole lists).
 // SessionTrace: the expandable "Qloo calls (n)" block on a Calls row.
 // RequestBehind: the landing's "The request behind this pick".
 import { useId, useState } from 'react';
@@ -87,9 +87,68 @@ export function TraceTable({ trace }) {
   );
 }
 
-/** Without Qloo taste vs. with it. Honest when they agree. */
+const LIST_STYLE = { margin: 'var(--space-1) 0 0', paddingLeft: '1.25rem', display: 'grid', gap: 'var(--space-1)', fontSize: 'var(--text-sm)', minWidth: 0, overflowWrap: 'anywhere' };
+const PAIR_STYLE = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: 'var(--space-3)', minWidth: 0 };
+const AGREE_SAY = { borderLeftColor: 'var(--color-border-strong)' };
+
+/** One side of the contrast: a ranked list, each place marked when it is on the other list too. */
+function ContrastList({ label, chip, items, other, highlightMoved }) {
+  const onOther = (p) => other.some((o) => (p.entity_id && o.entity_id === p.entity_id) || o.name === p.name);
+  return (
+    <section aria-label={label} style={{ minWidth: 0 }}>
+      {chip}
+      <ol style={LIST_STYLE}>
+        {items.map((p) => {
+          const shared = onOther(p);
+          return (
+            <li key={p.entity_id || p.name}>
+              {highlightMoved && !shared ? <strong className="cf-why">{p.name}</strong> : <span>{p.name}</span>}
+              {shared && <span className="dim"> (on both lists)</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** The numbers under the two lists, each one read straight from the payload. */
+function ContrastFacts({ cf }) {
+  const n = cf.with_list.length;
+  const pop = cf.popularity_mean ?? {};
+  const hasPop = typeof pop.without === 'number' && typeof pop.with === 'number';
+  return (
+    <p className="micro">
+      <span className="num">{cf.overlap5}</span> of <span className="num">{n}</span> on both lists
+      {hasPop && <>, average popularity <span className="num">{pop.without.toFixed(2)}</span> without your words and <span className="num">{pop.with.toFixed(2)}</span> with them</>}
+    </p>
+  );
+}
+
+/**
+ * Without Qloo taste vs. with it. With the whole-list payload (with_list, without_list), the two
+ * lists side by side; when the town and the guest agree, a quiet neutral state that says so and
+ * pads nothing into a fake difference. Older stored sessions carry only the top pick each way,
+ * and render as before.
+ */
 export function Counterfactual({ cf }) {
   if (!cf) return null;
+  if (Array.isArray(cf.with_list) && Array.isArray(cf.without_list)) {
+    const agrees = cf.verdict === 'agrees';
+    return (
+      <div className="cf" aria-label="What this guest would have heard without their tastes">
+        <p className="micro">{agrees ? 'Your taste and the town agree' : 'Without your tastes, and with them'}</p>
+        <div style={PAIR_STYLE}>
+          <ContrastList label="Most popular nearby, with no taste" chip={<span className="chip chip-mono">Popularity only</span>}
+            items={cf.without_list} other={cf.with_list} highlightMoved={false} />
+          <ContrastList label="Ranked for this guest's tastes" chip={<SourceChip source="Qloo" />}
+            items={cf.with_list} other={cf.without_list} highlightMoved={!agrees} />
+        </div>
+        <ContrastFacts cf={cf} />
+        <p className="cf-say" style={agrees ? AGREE_SAY : undefined}>{cf.say}</p>
+      </div>
+    );
+  }
   return (
     <div className="cf" aria-label="What this guest would have heard without their tastes">
       <p className="micro">Without your tastes, and with them</p>

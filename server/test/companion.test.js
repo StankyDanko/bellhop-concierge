@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeApp, callTool, PROPERTY } from './helpers.js';
 import { BOTH_MARKER, composeItinerary, MAX_CHARS, TRUNCATION_ORDER } from '../lib/sms.js';
-import { BOTH_FLOOR, classifyFavors, FAVORS_LINES } from '../lib/why.js';
+import { classifyFavors, FAVORS_LINES, FLAT_SPREAD, favorsByRank } from '../lib/why.js';
 import { PER_PERSON_FILTER, recommendNearby } from '../tools/recommend-nearby.js';
 import { ResponseCache } from '../lib/cache.js';
 import { createQlooClient } from '../lib/qloo.js';
@@ -18,17 +18,42 @@ const THAI = { id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' };
 const KACEY = { id: 'fx-artist-kacey-musgraves', name: 'Kacey Musgraves' };
 const JAZZ = { id: 'urn:tag:genre:place:bar:jazz', name: 'Jazz bars' };
 
-test('classifyFavors: both needs two good, close scores; otherwise the higher one wins', () => {
-  assert.equal(classifyFavors(0.8, 0.83), 'both');
+test('favorsByRank: close, high affinities with crossed orders still give all three labels', () => {
+  // Fake numbers shaped like the live scale: everything between 0.80 and 0.83, orders crossed.
+  // guest ranks:     A1 B2 C3 D4 E5 F6     companion ranks: C1 B2 F3 E4 A5 D6     top half = 3
+  const fits = [
+    { guest: 0.830, companion: 0.806 }, // A: guest top half only -> guest
+    { guest: 0.826, companion: 0.824 }, // B: both top half -> both
+    { guest: 0.821, companion: 0.829 }, // C: both top half -> both
+    { guest: 0.815, companion: 0.802 }, // D: neither, guest ranks 4 vs 6 -> guest
+    { guest: 0.809, companion: 0.812 }, // E: neither, companion 4 vs 5 -> companion
+    { guest: 0.803, companion: 0.818 }, // F: companion top half only -> companion
+  ];
+  assert.deepEqual(favorsByRank(fits), ['guest', 'both', 'both', 'guest', 'companion', 'companion']);
+  // The old absolute rule (floor 0.5, margin 0.15) called every one of these "both".
+});
+
+test('favorsByRank: a flat spread for either person says nothing; missing scores go to the scored person', () => {
+  const flatCompanion = [
+    { guest: 0.83, companion: 0.811 }, { guest: 0.80, companion: 0.812 }, { guest: 0.78, companion: 0.813 },
+  ];
+  assert.ok(0.813 - 0.811 < FLAT_SPREAD);
+  assert.deepEqual(favorsByRank(flatCompanion), [null, null, null]);
+  assert.deepEqual(favorsByRank([{ guest: 0.8, companion: null }, { guest: null, companion: 0.7 }, { guest: null, companion: null }]),
+    ['guest', 'companion', null]);
+  // Equal ranks outside the top half: neither person stands out, so no label.
+  assert.deepEqual(favorsByRank([
+    { guest: 0.9, companion: 0.8 }, { guest: 0.8, companion: 0.9 }, { guest: 0.7, companion: 0.7 },
+  ]), ['both', 'both', null]);
+});
+
+test('classifyFavors: one pick alone never claims both; the higher score wins, a tie goes to the guest', () => {
   assert.equal(classifyFavors(0.92, 0.48), 'guest');
   assert.equal(classifyFavors(0.55, 0.88), 'companion');
-  // Close but both weak is not "you both will like".
-  assert.equal(classifyFavors(BOTH_FLOOR - 0.1, BOTH_FLOOR - 0.05), 'companion');
+  assert.equal(classifyFavors(0.8, 0.8), 'guest');
   assert.equal(classifyFavors(0.7, null), 'guest');
   assert.equal(classifyFavors(null, 0.7), 'companion');
   assert.equal(classifyFavors(null, undefined), null);
-  // A tie on weak scores goes to the guest, deterministically.
-  assert.equal(classifyFavors(0.3, 0.3), 'guest');
 });
 
 test('favors lines are plain, assume nothing about the relationship, and use no dashes', () => {
@@ -67,15 +92,18 @@ test('recommend_nearby: a plus-one gets per-person fit and a favors line on ever
     taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 3,
   });
   assert.equal(status, 200);
+  // By rank over the four-place shortlist (top half = 2). Guest: Lemongrass, Riverbend, Low
+  // Lantern, Pastel. Plus-one: Pastel, Low Lantern, Riverbend, Lemongrass. No place is in both
+  // top halves, so nothing is "both" and there is no shared pick to promote.
   assert.deepEqual(json.places.map((p) => [p.name, p.favors]), [
     ['Lemongrass Lantern', 'guest'],
-    ['The Low Lantern Listening Room', 'both'],
+    ['The Low Lantern Listening Room', 'companion'],
     ['Pastel Diner & Pie', 'companion'],
   ]);
   assert.deepEqual(json.places[0].fit, { guest: 0.92, companion: 0.48 });
-  assert.equal(json.places[1].favors_line, 'This one you both will like.');
+  assert.equal(json.places[0].favors_line, 'That one leans your way.');
   assert.equal(json.places[2].favors_line, 'That one is for your plus-one.');
-  assert.deepEqual(json.companion, { scored: true, shared_pick: true, promoted_shared_pick: null });
+  assert.deepEqual(json.companion, { scored: true, shared_pick: false, promoted_shared_pick: null });
   // One shortlist call plus exactly two scoring calls.
   assert.equal(json.meta.upstream.length, 4); // taste + two scoring calls + the counterfactual
 });
@@ -173,12 +201,13 @@ test('recommend_nearby: in live mode a repeat call is served from the upstream c
 
 test('compose_itinerary: the shared pick carries the (both) marker', async () => {
   const { app } = makeApp();
-  const recs = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 3 })).json.places;
+  // Kids leaves a three-place shortlist where Riverbend sits in both top halves.
+  const recs = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 2, constraints: { kids: true } })).json.places;
   const picks = recs.map((p) => ({ name: p.name, why: p.why, url: p.url, favors: p.favors, pick_token: p.pick_token }));
   const { json } = await callTool(app, 'compose_itinerary', { picks, guest: { party_size: 2, when: 'tonight' } });
   assert.equal(json.favors_dropped, 0);
   assert.ok(json.char_count <= MAX_CHARS);
-  assert.ok(json.body.includes(`The Low Lantern Listening Room${BOTH_MARKER}`));
+  assert.ok(json.body.includes(`Riverbend Smokehouse${BOTH_MARKER}`));
   assert.ok(!json.body.includes(`Lemongrass Lantern${BOTH_MARKER}`), 'only the shared pick is marked');
 });
 

@@ -118,8 +118,16 @@ test('counterfactual: different picks give the without/with sentence, built from
   assert.equal(cf.without_qloo_taste.name, 'Harborside Burger Hall');
   assert.equal(cf.without_qloo_taste.reason, 'most popular place nearby');
   assert.equal(cf.with_qloo.name, 'Lemongrass Lantern');
-  assert.equal(cf.say, 'Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Thai food and Sturgill Simpson go there.');
-  assert.ok(!cf.say.includes('—'), 'no em dash');
+  assert.equal(cf.verdict, 'moved');
+  assert.equal(cf.without_list[0].name, 'Harborside Burger Hall');
+  assert.equal(cf.with_list[0].name, 'Lemongrass Lantern');
+  assert.ok(cf.with_list.length <= 5 && cf.without_list.length <= 5);
+  assert.equal(cf.overlap5 + cf.moved5, cf.with_list.length);
+  assert.match(cf.say, /^Your tastes moved the answer: /);
+  // The top-pick sentence stays, as top1. Only Qloo-named entity drivers go after "fans of".
+  assert.equal(cf.top1.same, false);
+  assert.equal(cf.top1.say, 'Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Sturgill Simpson go there.');
+  assert.ok(!cf.say.includes('—') && !cf.top1.say.includes('—'), 'no em dash');
   assert.ok(!r.compose.json.body.includes('Harborside'), 'the counterfactual stays out of the SMS');
 });
 
@@ -127,9 +135,11 @@ test('counterfactual: when the crowd and the guest agree, it says so honestly', 
   const pick = { name: 'Lemongrass Lantern', entity_id: 'x1', why: 'Fans of Thai food love it', why_trace: { basis: 'explainability', drivers: [{ name: 'Thai food' }] } };
   const cf = describeCounterfactual({ name: 'Lemongrass Lantern', entity_id: 'x1' }, pick);
   assert.equal(cf.same, true);
-  assert.match(cf.say, /^Your tastes agree with the crowd on this one: Lemongrass Lantern/);
+  assert.equal(cf.verdict, 'agrees');
+  assert.match(cf.say, /^Here your taste and the town agree/);
+  assert.match(cf.top1.say, /^Your tastes agree with the crowd on this one: Lemongrass Lantern/);
   const unexplained = describeCounterfactual({ name: 'A', entity_id: 'a' }, { name: 'B', entity_id: 'b', why: 'x', why_trace: { basis: 'affinity', drivers: [] } });
-  assert.match(unexplained.say, /because it is the strongest match for your tastes overall\.$/);
+  assert.match(unexplained.top1.say, /because it is the strongest match for your tastes overall\.$/);
   assert.equal(describeCounterfactual(null, pick), null);
 });
 

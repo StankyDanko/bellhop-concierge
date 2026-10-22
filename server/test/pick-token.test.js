@@ -47,7 +47,8 @@ test('the regression: a solo guest with a forged favors "both" gets no marker', 
 
 test('a forged favors on a plus-one pick is stripped; the real ones stay', async () => {
   const { app } = makeApp();
-  const places = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 3 })).json.places;
+  // Kids and take 2 give one pick each person ranks in their top half (a "both") plus one that is not.
+  const places = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 2, constraints: { kids: true } })).json.places;
   const shared = places.find((p) => p.favors === 'both');
   const other = places.find((p) => p.favors !== 'both');
   assert.ok(shared && other);
