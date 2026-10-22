@@ -58,7 +58,7 @@ from mock fixtures), and the dashboard shows the request behind each pick.
 | Heatmap | insights, `filter.type=urn:heatmap` | where around the inn a taste runs hottest | mock fixtures until the key arrives |
 | Demographics | insights, `filter.type=urn:demographics` | which age and gender groups lean toward these tastes in the area | mock fixtures until the key arrives |
 | Guest taste fingerprint | the ids every caller resolved, aggregated behind a five-call floor, sent as `signal.interests.entities` and `signal.interests.tags` to the heatmap, demographics, and compare calls | the panels describe the people who call this number, not the town, with the sample size shown | mock fixtures until the key arrives |
-| Audience compare | `GET /v2/analysis/compare` | how two groups of tastes differ | mock fixtures until the key arrives |
+| Callers vs. town | `GET /v2/insights` `filter.type=urn:tag`, once on the fingerprint and once on the inn's location alone, plus `GET /v2/analysis/compare` | two lean lists, what callers favor and what the town favors, with compare as one quiet line where they share a tag | mock fixtures until the key arrives |
 
 Ticketmaster's Discovery API adds what a taste graph doesn't hold: what's on tonight and this
 weekend. The details, request and response shapes included, are in

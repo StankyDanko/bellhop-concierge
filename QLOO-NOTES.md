@@ -36,6 +36,16 @@ quotes below.
 | Rate limits | none published. A 429 gets one sleep (`QLOO_429_BACKOFF_MS`, default 2100 ms) and one retry, recorded as `rate_limited` in the call trace. A second 429 serves the cached answer even past its age limit (the trace marks it `stale`), or returns the error code `rate_limited` for the agent to speak. Other retryable failures (a 5xx gateway error, a timeout) keep the 2 extra attempts; a 4.5 second timeout | The guide says limits are "set high enough to support typical hackathon projects" and asks for bounded retries | Not in the probe. `npm run prewarm -- --apply` paces live calls and reports any 429 | `QLOO_429_BACKOFF_MS`, `QLOO_RETRIES`, and `QLOO_TIMEOUT_MS` in `server/.env` | Limit shape UNVERIFIED. One run saw a 429 after about 60 calls in 6 minutes; another made 248 calls in 2.5 minutes with none; a paced run (one call per 2 s, 83 calls) saw none |
 | Cache TTL per endpoint | `/search` and `/v2/tags` 30 days, `/v2/insights` 1 day, `/v2/analysis/compare` 7 days, anything else 1 day. Ticketmaster 1 hour | The guide allows private server-side caching with no time limit; insights stay short because hours and closures change | Not probed. The cache is private and gitignored. `CACHE_FREEZE=1 npm run prewarm -- --apply` reports cache hits and misses with no calls | `server/lib/cache.js` `TTL_SECONDS`; `CACHE_FREEZE` in `server/.env` | Unchanged while the key is live. `CACHE_FREEZE=1` serves any cached entry regardless of age and never calls upstream; `/health` then reports `"cache": "frozen"`. Switch it on the day the key is deactivated (the demo must answer through Nov 16, its numbers through Nov 23). A deactivated key that answers 401 or 403 before the flag is set also falls back to the cached answer. Whether the terms allow this indefinitely is UNVERIFIED beyond "private server-side caching, no time limit" |
 
+## Heatmap and locality, observed live
+
+- `heatmap.dimensions=quality` is the spelling the API honors; `output.heatmap.dimensions` is
+  silently ignored.
+- `output.heatmap.boundary=urn:entity:locality` cannot be combined with dimensions (a 400), and
+  needs at least one signal (a 400 without one). Named areas are therefore a second heatmap call
+  with the fingerprint and no dimensions, and the town list never asks for them.
+- In live mode the sample callers' fixture ids are replaced at request time by ids from
+  `/search` on their displayed names, so no fixture id reaches the API.
+
 ## Pre-warm and freeze
 
 `npm run prewarm -- --dry-run` lists the request shapes. `npm run prewarm -- --apply` replays the

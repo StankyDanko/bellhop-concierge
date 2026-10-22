@@ -638,13 +638,26 @@ in `fixtures/fingerprint.sample-callers.json`. Both are hand-written; neither ho
 Qloo response.
 
 **How the panels use it.** `GET /api/properties/:id/insights` sends the fingerprint's five
-most-named ids to Qloo directly. No name is re-resolved through `/search`.
+most-named ids to Qloo directly. A caller's own ids are never re-resolved. In live mode the
+sample callers' fixture ids are replaced at request time by the ids `/search` returns for their
+displayed names, so no fixture id goes upstream.
 
 | Panel | Qloo call | Fingerprint param |
 |---|---|---|
-| Where tastes run hottest | `GET /v2/insights` `filter.type=urn:heatmap`, `filter.location`, `filter.location.radius` | `signal.interests.entities`, `signal.interests.tags` |
+| Where tastes run hottest | `GET /v2/insights` `filter.type=urn:heatmap`, `filter.location`, `filter.location.radius`, `heatmap.dimensions=quality` | `signal.interests.entities`, `signal.interests.tags` |
+| Hottest named areas | a second `GET /v2/insights` `filter.type=urn:heatmap` with `output.heatmap.boundary=urn:entity:locality`, no dimensions | `signal.interests.entities`, `signal.interests.tags` |
 | Who shares these tastes | `GET /v2/insights` `filter.type=urn:demographics` | `signal.interests.entities`, `signal.interests.tags` |
-| Your callers vs. your town | `GET /v2/analysis/compare` | `a.signal.interests.entities` = the fingerprint's entity ids; `b.signal.interests.entities` = the top 5 places from an unsignaled `GET /v2/insights` `filter.type=urn:entity:place` near the inn |
+| Your callers lean toward | `GET /v2/insights` `filter.type=urn:tag` | `signal.interests.entities`, `signal.interests.tags` |
+| The town around the inn leans toward | `GET /v2/insights` `filter.type=urn:tag`, `filter.location` | none: the inn's location and no taste signal |
+| Callers vs. town, one quiet line | `GET /v2/analysis/compare` | `a.signal.interests.entities` = the fingerprint's entity ids; `b.signal.interests.entities` = the top 5 places from an unsignaled `GET /v2/insights` `filter.type=urn:entity:place` near the inn |
+
+The dashboard shows two lists. "Your callers lean toward" is Qloo's tag insight over the
+fingerprint (the tastes your callers named); "The town around the inn leans toward" is the same
+insight with the inn's location and no taste signal at all. Compare stays as one quiet line,
+only where the two groups share a tag. "Hottest named areas" comes from the second heatmap call
+with the locality boundary; each hottest cell also carries a quality affinity. Callers' lists
+stay dark below five calls that name a taste; the town list holds no guest data. Age and gender
+are never sent. Measuring command: `/usr/bin/node --test server/test/area-lean.test.js`.
 
 **Checked live on key day:** the compare call (a = fingerprint, b = top local places).
 The live API accepts place ids in a group. It answers with each group's tags (`results.a`,
