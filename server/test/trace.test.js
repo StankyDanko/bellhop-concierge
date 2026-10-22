@@ -221,7 +221,8 @@ test('dashboard: the sessions API returns each call\'s trace and counterfactual,
   assert.ok(!text.includes(hashCaller(CALLER, SECRET)) && !text.includes(CALLER));
   assert.equal(json.sample_session.sample, true);
   assert.ok(json.sample_session.trace.length >= 3);
-  assert.match(json.sample_session.counterfactual.say, /^Without your tastes/);
+  assert.match(json.sample_session.counterfactual.say, /^(Your tastes moved the answer|Here your taste and the town agree|Your picks are popular nearby too)/);
+  assert.match(json.sample_session.counterfactual.top1.say, /^(Without your tastes|Your tastes agree with the crowd)/);
 });
 
 test('landing: /api/sample-pick shows the exact request behind the pick and the counterfactual', async () => {

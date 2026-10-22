@@ -16,7 +16,7 @@
   "picks": [
     {
       "name": "Lemongrass Lantern",
-      "why": "Fans of Thai food and Sturgill Simpson love it",
+      "why": "Fans of Sturgill Simpson love it; tagged Thai",
       "favors": "guest",
       "favors_line": "That one leans your way.",
       "signed": true
@@ -24,8 +24,8 @@
     {
       "name": "The Low Lantern Listening Room",
       "why": "Fans of Sturgill Simpson love it",
-      "favors": "both",
-      "favors_line": "This one you both will like.",
+      "favors": "companion",
+      "favors_line": "That one is for your plus-one.",
       "signed": true
     },
     {
@@ -44,15 +44,15 @@
     "signed": true
   },
   "signed_text": {
-    "body": "1. The Low Lantern Listening Room (both) - Fans of Sturgill Simpson love it https://example.com/low-lantern\n2. Lemongrass Lantern https://example.com/lemongrass-lantern\n3. Inside Llewyn Davis\n4. Hollow Pines String Band Tonight 8pm\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+    "body": "1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. The Low Lantern Listening Room https://example.com/low-lantern\n3. Inside Llewyn Davis\n4. Hollow Pines String Band Tonight 8pm\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
     "picks_included": 4,
     "favors_dropped": 1,
     "when_dropped": 0,
     "tokens_dropped": 1,
     "dropped": {
-      "name": "Lemongrass Lantern",
-      "claim": "Lemongrass Lantern (both)",
-      "signed_for": "guest"
+      "name": "The Low Lantern Listening Room",
+      "claim": "The Low Lantern Listening Room (both)",
+      "signed_for": "companion"
     }
   },
   "trace": [
@@ -67,7 +67,7 @@
       },
       "mode": "mock",
       "cache": "miss",
-      "ms": 1,
+      "ms": 2,
       "results": 2
     },
     {
@@ -76,9 +76,10 @@
       "source": "qloo",
       "endpoint": "/v2/tags",
       "params": {
-        "filter.query": "thai food",
+        "filter.query": "thai",
         "feature.typo_tolerance": "true",
-        "take": "3"
+        "take": "10",
+        "filter.parents.types": "urn:entity:place"
       },
       "mode": "mock",
       "cache": "miss",
@@ -109,6 +110,7 @@
         "filter.type": "urn:entity:place",
         "signal.interests.entities": "fx-artist-sturgill-simpson,fx-artist-kacey-musgraves",
         "signal.interests.tags": "urn:tag:genre:place:restaurant:thai",
+        "filter.tags": "urn:tag:genre:place:restaurant:thai",
         "filter.location": "POINT(-81.0943 32.0749)",
         "filter.location.radius": "4828",
         "sort_by": "affinity",
@@ -210,15 +212,63 @@
     }
   ],
   "counterfactual": {
+    "verdict": "moved",
+    "same": false,
+    "without_list": [
+      {
+        "name": "Harborside Burger Hall",
+        "entity_id": "fx-place-harborside-burger-hall"
+      },
+      {
+        "name": "Pastel Diner & Pie",
+        "entity_id": "fx-place-pastel-diner"
+      },
+      {
+        "name": "Square Street Taproom",
+        "entity_id": "fx-place-square-street-taproom"
+      },
+      {
+        "name": "Lemongrass Lantern",
+        "entity_id": "fx-place-lemongrass-lantern"
+      }
+    ],
+    "with_list": [
+      {
+        "name": "Lemongrass Lantern",
+        "entity_id": "fx-place-lemongrass-lantern"
+      },
+      {
+        "name": "The Low Lantern Listening Room",
+        "entity_id": "fx-place-low-lantern"
+      },
+      {
+        "name": "Pastel Diner & Pie",
+        "entity_id": "fx-place-pastel-diner"
+      },
+      {
+        "name": "Riverbend Smokehouse",
+        "entity_id": "fx-place-riverbend-smokehouse"
+      }
+    ],
+    "overlap5": 2,
+    "moved5": 2,
+    "picks_outside": 1,
+    "popularity_mean": {
+      "without": 0.89,
+      "with": null
+    },
+    "say": "Your tastes moved the answer: one of your three picks is not among the four most popular places nearby.",
+    "top1": {
+      "same": false,
+      "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Sturgill Simpson go there."
+    },
     "without_qloo_taste": {
       "name": "Harborside Burger Hall",
       "reason": "most popular place nearby"
     },
     "with_qloo": {
       "name": "Lemongrass Lantern",
-      "why": "Fans of Thai food and Sturgill Simpson love it"
-    },
-    "same": false,
-    "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Thai food and Sturgill Simpson go there."
+      "why": "Fans of Sturgill Simpson love it; tagged Thai"
+    }
   }
 }
