@@ -36,3 +36,18 @@ test('--dry-run lists shapes from fixtures with zero network calls', () => {
   assert.match(res.stdout, /battery: three-things/);
   assert.doesNotMatch(res.stdout, /live calls made/);
 });
+
+test('the step list also plays each returning-caller sequence, both calls, and the dry run makes their shapes', () => {
+  const battery = { property: { lat: 1, lng: 2 }, scenarios: [{ id: 'fx-a' }, { id: 'fx-b' }],
+    sequences: [{ id: 'fx-seq', caller: '+15550100150', calls: ['fx-a', 'fx-b'], texted_on: [1] }] };
+  const labels = buildSteps(battery).map((s) => s.label);
+  assert.ok(labels.includes('battery: fx-seq (both calls)'));
+  const res = spawnSync('/usr/bin/node', ['server/scripts/prewarm.js', '--dry-run'], { encoding: 'utf8', env: { PATH: process.env.PATH } });
+  assert.equal(res.status, 0, res.stderr);
+  for (const id of ['seq-same-day', 'seq-next-day']) {
+    const line = res.stdout.split('\n').find((l) => l.startsWith(`battery: ${id} (both calls)`));
+    assert.ok(line, `${id} is played`);
+    assert.match(line, /errors 0$/);
+    assert.ok(Number(/new (\d+)/.exec(line)[1]) > 0, `${id} adds request shapes of its own`);
+  }
+});

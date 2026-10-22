@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { evaluate } from '../battery/criteria.js';
-import { exitCodeFor, liveEnv, pacedCall, parseArgs, qlooLimited, runBattery } from '../scripts/battery.js';
+import { exitCodeFor, healthProblem, liveEnv, pacedCall, parseArgs, qlooLimited, runBattery } from '../scripts/battery.js';
 import { PROPERTY } from './helpers.js';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -75,4 +75,31 @@ test("send_sms's own 429 (one text per call, the hourly limit) never stops a run
   const out = await runBattery({ call: async () => { calls += 1; return calls === 1 ? smsRefused : ok; }, scenarios, property: PROPERTY });
   assert.equal(out.stoppedBy, null);
   assert.deepEqual(out.skipped, []);
+});
+
+test('--frozen needs a cache path, paces nothing, and refuses --cache without it', () => {
+  const a = parseArgs(['--frozen', '--cache', '/tmp/fx-frozen-cache.sqlite']);
+  assert.equal(a.mode, 'frozen');
+  assert.equal(a.cache, '/tmp/fx-frozen-cache.sqlite');
+  assert.equal(a.paceMs, 0, 'no upstream calls, so nothing to pace');
+  assert.throws(() => parseArgs(['--frozen']), /needs --cache/);
+  assert.throws(() => parseArgs(['--live', '--cache', '/tmp/fx.sqlite']), /only for --frozen/);
+  assert.equal(parseArgs(['--live']).paceMs, 2000);
+});
+
+test('the health precondition: live needs qloo live, frozen needs a frozen cache-only server, both need mock texts', () => {
+  assert.equal(healthProblem({ qloo: 'live', sms: 'mock', cache: 'on' }), null);
+  assert.match(healthProblem({ qloo: 'cache-only', sms: 'mock', cache: 'frozen' }), /expected qloo live/);
+  assert.equal(healthProblem({ qloo: 'cache-only', sms: 'mock', cache: 'frozen' }, { frozen: true }), null);
+  assert.match(healthProblem({ qloo: 'live', sms: 'mock', cache: 'on' }, { frozen: true }), /cache-only/);
+  assert.match(healthProblem({ qloo: 'cache-only', sms: 'mock', cache: 'only' }, { frozen: true }), /frozen/);
+  assert.match(healthProblem({ qloo: 'cache-only', sms: 'live', cache: 'frozen' }, { frozen: true }), /sms is live/);
+});
+
+test('a frozen server gets the cache path, the freeze flag, and an empty key', () => {
+  const env = liveEnv({ port: 18899, runDir: '/tmp/fx-run', secret: 'fx-secret-0123456789', frozenCache: '/tmp/fx-cache.sqlite' });
+  assert.equal(env.CACHE_FREEZE, '1');
+  assert.equal(env.QLOO_API_KEY, '');
+  assert.equal(env.CACHE_PATH, '/tmp/fx-cache.sqlite');
+  assert.equal(liveEnv({ port: 18899, runDir: '/tmp/fx-run', secret: 'fx' }).CACHE_FREEZE, undefined);
 });

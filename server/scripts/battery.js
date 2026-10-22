@@ -6,6 +6,10 @@
 //
 //   npm run battery -- --mock                       fixtures, in process, offline
 //   npm run battery -- --live --port 18803 --out DIR  start a local server against live Qloo
+//   npm run battery -- --frozen --cache PATH --port 18803 --out DIR
+//                                                   the dark-key check: a local server with
+//                                                   CACHE_FREEZE=1, no key, and the prewarmed cache
+//                                                   at PATH; it must report qloo cache-only, frozen
 //
 // Live mode starts server/index.js itself on --port with a throwaway cache and session log
 // under the run directory, Ticketmaster and texting mocked, and stops it again. It never calls
@@ -19,7 +23,7 @@
 //                      rate limit is shared with every other process using the same key.
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -409,23 +413,39 @@ async function mockCall() {
  * The live server's environment. QLOO_RETRIES is 0: the quota rail is to stop on the first
  * 429, and the server's own retries would send two more requests into it.
  */
-export function liveEnv({ port, runDir, secret, memorySecret = '' }) {
+export function liveEnv({ port, runDir, secret, memorySecret = '', frozenCache = null }) {
   return {
     ...process.env,
     PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', QLOO_RETRIES: '0', TICKETMASTER_MOCK: '1', SMS_MOCK: '1',
-    CACHE_PATH: join(runDir, 'cache.sqlite'), SESSIONS_PATH: join(runDir, 'sessions.sqlite'), DASHBOARD_DB_PATH: join(runDir, 'sessions.sqlite'),
+    // Frozen: the prewarmed cache, read only, and no key at all, exactly as after the key goes dark.
+    ...(frozenCache ? { CACHE_FREEZE: '1', QLOO_API_KEY: '' } : {}),
+    CACHE_PATH: frozenCache ?? join(runDir, 'cache.sqlite'), SESSIONS_PATH: join(runDir, 'sessions.sqlite'), DASHBOARD_DB_PATH: join(runDir, 'sessions.sqlite'),
     // Guest memory in the run directory, under a throwaway secret, for the battery's agent id only.
     GUEST_MEMORY_PATH: join(runDir, 'guest-memory.sqlite'), GUEST_MEMORY_SECRET: memorySecret,
     CONCIERGE_AGENTS: JSON.stringify({ [BATTERY_AGENT]: { property_id: 'demo', persona: 'harper', timezone: 'America/New_York' } }),
   };
 }
 
-async function startLiveServer({ port, runDir }) {
+/**
+ * What /health must say before a run starts: live Qloo for --live, a frozen cache with no
+ * upstream for --frozen, and texting mocked either way. Null when it may start.
+ */
+export function healthProblem(health, { frozen = false } = {}) {
+  if (frozen) {
+    if (health?.qloo !== 'cache-only' || health?.cache !== 'frozen') return `expected qloo cache-only with the cache frozen, server reports qloo ${health?.qloo}, cache ${health?.cache}`;
+  } else if (health?.qloo !== 'live') return `expected qloo live, server reports ${health?.qloo}`;
+  if (health?.sms !== 'mock') return `refusing to run: sms is ${health?.sms}, not mock`;
+  return null;
+}
+
+async function startLiveServer({ port, runDir, frozenCache = null }) {
   const secret = randomBytes(18).toString('hex');
   const memorySecret = randomBytes(18).toString('hex');
-  const env = liveEnv({ port, runDir, secret, memorySecret });
+  const env = liveEnv({ port, runDir, secret, memorySecret, frozenCache });
   const logPath = join(runDir, 'server.log');
-  const child = spawn('/usr/bin/node', [`--env-file=${join(SERVER_DIR, '.env')}`, join(SERVER_DIR, 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // Frozen never reads server/.env, so no key can reach the server.
+  const nodeArgs = frozenCache ? [join(SERVER_DIR, 'index.js')] : [`--env-file=${join(SERVER_DIR, '.env')}`, join(SERVER_DIR, 'index.js')];
+  const child = spawn('/usr/bin/node', nodeArgs, { env, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.on('data', (d) => appendFileSync(logPath, d));
   child.stderr.on('data', (d) => appendFileSync(logPath, d));
   const base = `http://127.0.0.1:${port}`;
@@ -436,8 +456,8 @@ async function startLiveServer({ port, runDir }) {
   }
   if (!up) { child.kill('SIGTERM'); throw new Error(`server did not come up on ${port}; see ${logPath}`); }
   const health = await (await fetch(`${base}/health`)).json();
-  if (health.qloo !== 'live') { child.kill('SIGTERM'); throw new Error(`expected qloo live, server reports ${health.qloo}`); }
-  if (health.sms !== 'mock') { child.kill('SIGTERM'); throw new Error(`refusing to run: sms is ${health.sms}, not mock`); }
+  const problem = healthProblem(health, { frozen: Boolean(frozenCache) });
+  if (problem) { child.kill('SIGTERM'); throw new Error(problem); }
   const call = async (tool, body) => {
     const t0 = performance.now();
     const res = await fetch(`${base}/tools/${tool}`, { method: 'POST', headers: { 'content-type': 'application/json', 'X-Concierge-Secret': secret }, body: JSON.stringify(body) });
@@ -468,11 +488,13 @@ async function startLiveServer({ port, runDir }) {
 }
 
 export function parseArgs(argv) {
-  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null };
+  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null, cache: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--mock') a.mode = 'mock';
     else if (k === '--live') a.mode = 'live';
+    else if (k === '--frozen') a.mode = 'frozen';
+    else if (k === '--cache') a.cache = argv[++i];
     else if (k === '--port') a.port = Number(argv[++i]);
     else if (k === '--out') a.out = argv[++i];
     else if (k === '--cap') a.cap = Number(argv[++i]);
@@ -481,8 +503,11 @@ export function parseArgs(argv) {
     else if (k === '--pace-ms') a.paceMs = Number(argv[++i]);
     else throw new Error(`unknown flag ${k}`);
   }
-  if (!a.mode) throw new Error('pick a mode: --mock or --live');
-  if (a.paceMs === null) a.paceMs = a.mode === 'mock' ? 0 : DEFAULT_PACE_MS;
+  if (!a.mode) throw new Error('pick a mode: --mock, --live, or --frozen');
+  if (a.mode === 'frozen' && !a.cache) throw new Error('--frozen needs --cache PATH, the prewarmed cache to serve');
+  if (a.cache && a.mode !== 'frozen') throw new Error('--cache is only for --frozen');
+  // Frozen makes no upstream calls, so nothing to pace.
+  if (a.paceMs === null) a.paceMs = a.mode === 'live' ? DEFAULT_PACE_MS : 0;
   if (!Number.isInteger(a.paceMs) || a.paceMs < 0) throw new Error('--pace-ms must be a whole number of milliseconds, 0 or more');
   if (!Number.isInteger(a.cap) || a.cap < 1) throw new Error('--cap must be a whole number of requests, 1 or more');
   if (!Number.isInteger(a.port) || a.port < 1024 || a.port > 65535) throw new Error('--port must be a whole number from 1024 to 65535');
@@ -508,7 +533,11 @@ async function main() {
   let call;
   let drivers;
   if (args.mode === 'mock') ({ call, drivers } = await mockCall());
-  else { driver = await startLiveServer({ port: args.port, runDir }); call = driver.call; drivers = driver.drivers; }
+  else {
+    if (args.mode === 'frozen' && !existsSync(args.cache)) throw new Error(`no cache at ${args.cache}; run npm run prewarm -- --apply --cache ${args.cache} first`);
+    driver = await startLiveServer({ port: args.port, runDir, frozenCache: args.mode === 'frozen' ? resolve(args.cache) : null });
+    call = driver.call; drivers = driver.drivers;
+  }
   call = pacedCall(call, args.paceMs);
 
   let result;

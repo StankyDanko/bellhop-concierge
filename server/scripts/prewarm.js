@@ -6,6 +6,9 @@
 //   2. the landing page's sample pick and the demo property's panels: insights at 1, 2 and
 //      5 miles with the sample callers and with no guest signal, and the itinerary sample
 //   3. the fifteen battery scenarios (server/battery/scenarios.json)
+//   4. the battery's returning-caller sequences, both calls each, with memory on: the second call
+//      excludes the places the first one texted and carries its tastes, so those shapes are cached
+//      too. The calls run same-day, exactly as the live and frozen batteries play them.
 // Nothing is mocked in --apply: later requests use the entity ids earlier answers returned,
 // exactly as a real call does, which is why the shape list is only exact after a live run.
 //
@@ -31,7 +34,8 @@ import { SessionStore } from '../lib/sessions.js';
 import { createSmsSender } from '../lib/twilio.js';
 import { openDashboardDb } from '../api/db.js';
 import { dashboardEnv } from '../api/index.js';
-import { loadScenarios, playScenario } from './battery.js';
+import { BATTERY_AGENT, loadScenarios, playScenario, sequencePlays } from './battery.js';
+import { GuestMemory } from '../lib/memory.js';
 
 export const DEFAULT_PACE_MS = 2000;
 export const DEFAULT_CAP = 120;
@@ -56,6 +60,16 @@ export function buildSteps(battery) {
   steps.push({ label: 'dashboard: itinerary sample', run: ({ get }) => get('/api/properties/demo/itinerary-sample') });
   for (const sc of battery.scenarios) {
     steps.push({ label: `battery: ${sc.id}`, run: ({ call }) => playScenario(call, sc, battery.property) });
+  }
+  for (const { seq, calls } of sequencePlays(battery.sequences ?? [], battery.scenarios)) {
+    steps.push({
+      label: `battery: ${seq.id} (both calls)`,
+      run: async ({ call, drivers }) => {
+        if (!drivers?.init) throw new Error('sequences need the memory drivers');
+        let prior = null;
+        for (const c of calls) prior = await playScenario(call, c.scenario, battery.property, { ...c.opts, drivers, prior });
+      },
+    });
   }
   return steps;
 }
@@ -167,12 +181,24 @@ async function main() {
   });
   const ticketmaster = createTicketmasterClient({ config: { ...config.ticketmaster, mock: true }, cache: null, logger });
   const sessions = new SessionStore({ path: ':memory:', hashKey: secret });
+  // Memory on, in memory only, under its own throwaway secret, for the battery's agent: the
+  // sequences' second calls make the shapes a returning caller makes.
+  const memory = new GuestMemory({ path: ':memory:', secret: randomBytes(16).toString('hex') });
+  const agents = { [BATTERY_AGENT]: { property_id: 'demo', persona: 'harper', timezone: config.defaultTimezone } };
   const sms = createSmsSender({ config: { mock: true }, logger });
   const dashboardDb = openDashboardDb({ path: ':memory:' });
   const app = createApp({
-    secret, qloo, ticketmaster, timezone: config.defaultTimezone, logger, sms, sessions,
+    secret, qloo, ticketmaster, timezone: config.defaultTimezone, logger, sms, sessions, memory, agents,
     dashboard: { db: dashboardDb, env: dashboardEnv({}) },
   });
+  const drivers = {
+    init: async (body) => {
+      const res = await app.request('/hooks/conversation-init', {
+        method: 'POST', headers: { 'content-type': 'application/json', 'X-Concierge-Secret': secret }, body: JSON.stringify(body),
+      });
+      return { status: res.status, json: await res.json().catch(() => null), ms: 0 };
+    },
+  };
 
   const call = async (tool, body) => {
     const t0 = performance.now();
@@ -187,7 +213,7 @@ async function main() {
   const mode = dry ? 'dry-run (fixtures; ids differ from live, so counts are an estimate)' : live ? `live, one call per ${args.paceMs} ms, cap ${args.cap}` : 'verify only (cache frozen, no upstream calls)';
   console.log(`prewarm: ${mode}`);
   const { rows, shapes } = await runSteps({
-    steps, ctx: { call, get }, events, capReached: () => Boolean(paced) && paced.log.length >= args.cap,
+    steps, ctx: { call, get, drivers }, events, capReached: () => Boolean(paced) && paced.log.length >= args.cap,
     onStep: (r) => console.log(`${r.label}\trequests ${r.requests}\tnew ${r.new_shapes}\tlive ${r.live}\thits ${r.cache_hits}\tmisses ${r.misses}\terrors ${r.errors}`),
   });
   const skipped = rows.filter((r) => r.skipped).map((r) => r.label);
@@ -199,6 +225,7 @@ async function main() {
   if (args.out) writeFileSync(args.out, `${JSON.stringify({ mode: args.mode, shapes, rows, latency, live_calls: paced?.log.length ?? 0 }, null, 2)}\n`);
   cache?.close();
   sessions.close();
+  memory.close?.();
   dashboardDb.close();
 }
 

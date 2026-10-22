@@ -40,7 +40,10 @@ const v = (verdict, reason) => ({ verdict, reason });
 const na = (reason) => v('na', reason);
 const places = (rec) => (Array.isArray(rec?.recommend?.json?.places) ? rec.recommend.json.places : []);
 /** A recommend_nearby that was called and failed: a fail for the place criteria, never "no picks". */
-const recommendFailed = (rec) => (rec?.recommend && rec.recommend.status !== 200 ? v('fail', `recommend_nearby http ${rec.recommend.status}`) : null);
+/** A tool answer that failed: a non-200, or a 200 that says ok false (a frozen-cache miss). */
+const failedAnswer = (res) => Boolean(res) && (res.status !== 200 || res.json?.ok === false);
+const failCode = (res) => (res?.json?.error?.code ? `${res.status} ${res.json.error.code}` : `${res?.status}`);
+const recommendFailed = (rec) => (failedAnswer(rec?.recommend) ? v('fail', `recommend_nearby http ${failCode(rec.recommend)}`) : null);
 const allMentions = (s) => [...(s.mentions ?? []), ...(s.companion_mentions ?? [])];
 const key = (p) => p.entity_id ?? p.name;
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -56,7 +59,7 @@ export const CRITERIA = [
   { id: 'C1', label: 'Every named thing resolved or reported unresolved',
     run(rec) {
       const r = rec.resolve?.json;
-      if (!r || rec.resolve.status !== 200) return v('fail', `resolve_taste http ${rec.resolve?.status}`);
+      if (!r || failedAnswer(rec.resolve)) return v('fail', `resolve_taste http ${failCode(rec.resolve)}`);
       const resolved = [...(r.resolved ?? []), ...(r.companion_resolved ?? [])];
       const unresolved = [...(r.unresolved ?? []), ...(r.companion_unresolved ?? [])];
       const dropped = allMentions(rec.scenario).filter((m) => {
@@ -174,7 +177,7 @@ export const CRITERIA = [
   { id: 'C9', label: 'Cross domain never returns an input as its own pick',
     run(rec) {
       if (!rec.cross) return na('no cross_domain call');
-      if (rec.cross.status !== 200) return v('fail', `cross_domain http ${rec.cross.status}`);
+      if (failedAnswer(rec.cross)) return v('fail', `cross_domain http ${failCode(rec.cross)}`);
       const inputs = rec.crossInputs ?? { ids: [], names: [] };
       const results = rec.cross.json.results ?? [];
       const echoed = results.filter((r) => inputs.ids.includes(r.entity_id) || inputs.names.includes(String(r.name).toLowerCase())).length;

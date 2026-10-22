@@ -44,6 +44,8 @@ export const MEMORY_TOOLS = {
 
 /** A line the agent can say when a lookup fails, instead of inventing an answer. */
 const FALLBACK_SAY = "I couldn't reach my recommendations desk just now.";
+/** Said when the cache is frozen (or cache-only) and holds nothing for this request. */
+export const CACHE_MISS_SAY = "I can't reach my sources for that one right now.";
 /** Said when a text did not go out. The agent must never say it was sent. */
 const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
 
@@ -150,6 +152,12 @@ function toErrorResponse(tool, err, logger) {
   if (err instanceof PiiViolation) {
     logger({ svc: 'tool', tool, error: 'pii_refused', detail: err.message });
     return [{ ok: false, tool, status: 'error', error: { code: 'pii_refused', message: 'Request refused: it would have sent personal data upstream.' } }, 422];
+  }
+  // A frozen cache with nothing for this request is not a failure of the server: answer 200 so
+  // the voice platform hands the agent the line to say, and mark it plainly as not ok.
+  if (err instanceof UpstreamError && err.code === 'cache_miss') {
+    logger({ svc: 'tool', tool, error: 'cache_miss', upstream: err.service });
+    return [{ ok: false, tool, status: 'unavailable', error: { code: 'cache_miss', service: err.service, retryable: false }, say: CACHE_MISS_SAY }, 200];
   }
   if (err instanceof UpstreamError) {
     logger({ svc: 'tool', tool, error: err.code, upstream: err.service });

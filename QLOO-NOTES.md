@@ -51,11 +51,17 @@ quotes below.
 ## Pre-warm and freeze
 
 `npm run prewarm -- --dry-run` lists the request shapes. `npm run prewarm -- --apply` replays the
-sample call, the landing page, the dashboard panels, and the fifteen battery scenarios into the
+sample call, the landing page, the dashboard panels, the fifteen battery scenarios, and both
+returning-caller sequences (memory on, so the second call's exclusions are cached too) into the
 cache (default `server/data/cache.sqlite`), one live call per 2 s. `CACHE_FREEZE=1 npm run
 prewarm -- --apply` checks the cache with no calls and reports hits and misses. Run it after
-any change to request shapes and before the key goes dark. Measured 2026-10-22: 79 distinct
-Qloo shapes, 83 live calls.
+any change to request shapes and before the key goes dark. Measured 2026-10-22, before the
+sequences were added: 79 distinct Qloo shapes, 83 live calls.
+
+`npm run battery -- --frozen --cache <that cache> --port <free port> --out <dir outside the repo>`
+then replays every caller against a server with `CACHE_FREEZE=1` and no key, the way the demo
+runs after the key goes dark. In frozen mode a request with nothing cached answers 200 with
+`ok: false`, code `cache_miss`, and a line the agent can say, never a 502.
 
 ## Measured latency
 

@@ -169,7 +169,8 @@ Errors are never reported as success:
 | 413 | `body_too_large` | body over 32 KB |
 | 422 | `pii_refused` | the request would have sent personal data to Qloo |
 | 429 | `rate_limited` | a local limit refused the call before any upstream request (today, the `send_sms` hourly limit); the response has `reason: "rate_limited"` and a `say` line |
-| 502 | `unauthorized`, `forbidden`, `rate_limited`, `timeout`, `cache_miss`, ... | upstream failed; the response includes `say`, a line the agent can speak instead of inventing an answer |
+| 502 | `unauthorized`, `forbidden`, `rate_limited`, `timeout`, ... | upstream failed; the response includes `say`, a line the agent can speak instead of inventing an answer |
+| 200 with `ok: false` | `cache_miss` | cache-only or frozen, and nothing cached for this request; `status: "unavailable"` and `say` ("I can't reach my sources for that one right now."), so the voice platform hands the agent the line |
 
 ### `POST /hooks/conversation-init`
 
