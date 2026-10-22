@@ -106,7 +106,7 @@ try {
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
   check(h1 === 'The front desk concierge for small inns.', `H1 = ${JSON.stringify(h1)}`);
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
-  check(land.includes('Guests call the number on the room card and name up to three things they love. A text follows with up to three picks nearby, and the reason for each when it fits.'), 'product sentence present');
+  check(land.includes('Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.'), 'product sentence present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
   check(tels.length >= 2 && tels.every((t) => t === 'tel:+15550100199'), `tel: links ${tels.length}, all tel:+15550100199`);
   check(land.includes('Try it: call The Juniper House, a sample inn'), 'number card label names the sample inn');

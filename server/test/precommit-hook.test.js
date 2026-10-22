@@ -61,3 +61,26 @@ test('CONTRIBUTING.md may say the abbreviation, never an em dash', { skip: proce
     assert.notEqual(r.hook().status, 0);
   } finally { r.done(); }
 });
+
+test('the denylist reads CONTRIBUTING.md and SCREENS.md too, except the one trailer-rule line', { skip: process.platform === 'win32' }, () => {
+  const TRAILER_RULE = '- No `Co-Authored-By`, no `Generated with`, no `Signed-off-by` from anyone but the author.';
+  const r = repo();
+  try {
+    mkdirSync(join(r.dir, '.git', 'info'), { recursive: true });
+    writeFileSync(join(r.dir, '.git', 'info', 'commit-denylist'), 'fxvendor\nco-authored\n');
+    r.write('CONTRIBUTING.md', `Fx rules.\n${TRAILER_RULE}\n`);
+    r.stage('CONTRIBUTING.md');
+    assert.equal(r.hook().status, 0, 'the exact trailer-rule line passes');
+    r.write('CONTRIBUTING.md', `Fx rules.\n${TRAILER_RULE} Co-Authored-By is fine here.\n`);
+    r.stage('CONTRIBUTING.md');
+    assert.notEqual(r.hook().status, 0, 'only the exact line is exempt');
+    r.write('CONTRIBUTING.md', 'Built with fxvendor.\n');
+    r.stage('CONTRIBUTING.md');
+    assert.match(r.hook().stderr, /CONTRIBUTING\.md:1 matches the local denylist/);
+    r.write('CONTRIBUTING.md', 'Fx rules.\n');
+    r.stage('CONTRIBUTING.md');
+    r.write('dashboard/SCREENS.md', 'Drawn by fxvendor.\n');
+    r.stage('dashboard/SCREENS.md');
+    assert.match(r.hook().stderr, /SCREENS\.md:1 matches the local denylist/);
+  } finally { r.done(); }
+});

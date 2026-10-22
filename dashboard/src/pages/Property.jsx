@@ -325,7 +325,7 @@ export default function Property({ id, health }) {
               </ol>
             )}
             <p className="dim" style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}>
-              Built by the compose_itinerary tool for the same sample guest as the demo page: one Qloo pick, one Ticketmaster listing, and your own first favorite. Links are https only, and the whole text stays under 320 characters.
+              Built by the compose_itinerary tool for the same sample guest as the demo page: one Qloo pick, one Ticketmaster listing, and your own first favorite. Links are https only, and the whole text stays at most 320 characters long.
             </p>
             {itin.state === 'ok' && <p style={{ marginTop: 'var(--space-2)' }}><ViaChip upstream={itin.data.upstream} /></p>}
           </div>

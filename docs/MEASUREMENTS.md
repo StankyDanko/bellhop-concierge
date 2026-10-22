@@ -1,7 +1,7 @@
 # Where the numbers come from
 
-House rule: a number that wasn't measured doesn't ship. Every number in the README and in
-`docs/` is listed here with how it was taken and when. Two kinds:
+House rule: a number that wasn't measured doesn't ship. Every number in the README, in `docs/`,
+and on the landing page is listed here with how it was taken and when. Two kinds:
 
 - **Repo commands.** Anyone can run them. Most need nothing; the live ones need a Qloo key in
   `server/.env` and spend quota.
@@ -29,6 +29,21 @@ These change only with a commit, and the command shows the current value.
 | Twenty calls a day on the test line | README | `grep -n "daily_limit" compiler/compile.js` (the demo inn is at trust level `test`) |
 | Fifteen battery callers, two two-call sequences, sixteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
+
+## On the landing page
+
+| Number | Where it's said | Command or source |
+|---|---|---|
+| Up to three things a guest names | hero | `grep -n "three named things" template/concierge.md` (the stop rule) |
+| Up to three places nearby | hero | `grep -n "One to three picks" compiler/tools.js` (compose_itinerary's picks, as the agent is told) |
+| One to watch at the inn, when there is one | hero | `grep -n "one to watch at the inn" template/concierge.md` (cross_domain); the sample text has four lines: two places, one film, one event (`grep -n picks_included server/fixtures/sample-session.json`) |
+| At most 320 characters in the text | call rail | `grep -n "MAX_CHARS =" server/lib/sms.js` |
+| Dark until five calls | callers section | `grep -n "SESSION_GATE =" server/api/routes.js` |
+| Thirteen Qloo capabilities | capability list | the `CAPABILITIES` list in `dashboard/src/pages/Landing.jsx`, each entry found in the code by `grep -rn -e "ENDPOINTS\." -e "filter.parents.types" -e "'filter.tags'" -e "filter.results.entities" -e "feature.explainability" -e "popularNearby" -e "heatmap.dimensions" -e "output.heatmap.boundary" -e "urn:demographics" -e "urn:tag'" server/lib server/tools server/api`. Memory's `filter.exclude.entities` is not counted: it runs only with `GUEST_MEMORY_SECRET` set |
+| Twelve rules always on | safety section | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` (the page reads the live count from `/api/guardrails`) |
+| Eleven builder questions | run-your-own section | `grep -c "title: '" dashboard/src/pages/Builder.jsx` prints 12: the intro, then eleven questions |
+| 1 mi scale on the area card | area card | the scale bar is drawn one mile long from the card's own miles-to-pixels `scale` (`grep -n "1 mi" dashboard/src/components/AreaCard.jsx`) |
+| "What is around here" is 9.0% of 10 million guest messages | run-your-own section | Conduit, "What 10 million guest messages are about", https://www.conduit.ai/blog/what-10-million-guest-messages-are-about, read 2026-10-22: the post's category is "property and area information at 9.0%" |
 
 ## Repo commands, live
 

@@ -32,6 +32,12 @@ const server = spawn(process.execPath, ['server/index.js'], {
   stdio: ['ignore', 'ignore', 'inherit'],
 });
 const pid = server.pid;
+// Tied to this process's own exit, not to the try block below: a throw before it, or a
+// hung step killed by a timeout, still stops the server. kill and rmSync are synchronous.
+process.on('exit', () => {
+  if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM');
+  rmSync(tmp, { recursive: true, force: true });
+});
 console.log(`server pid ${pid} on ${BASE}`);
 
 async function waitUp() {
@@ -43,7 +49,8 @@ async function waitUp() {
 }
 
 try {
-  check(await waitUp(), 'server answers /health');
+  // A port can be taken between the free-port probe and the spawn: only our live child counts.
+  check(await waitUp() && server.exitCode === null, 'server answers /health (our own process)');
   for (const path of ['/', '/build', '/property/demo']) {
     const res = await fetch(BASE + path);
     const html = await res.text();
@@ -109,10 +116,11 @@ try {
   const g = await (await fetch(`${BASE}/api/guardrails`)).json();
   check(Array.isArray(g.locked) && g.locked.length > 0, `/api/guardrails lists ${g.locked?.length} locked rules for the brief`);
   // The landing's own checks (dashboard/scripts/verify-landing.mjs) against this same server.
-  const landing = spawnSync(process.execPath, ['dashboard/scripts/verify-landing.mjs', '--base', BASE], { cwd: ROOT, encoding: 'utf8' });
+  // Bounded: a hung landing check fails the smoke instead of hanging it.
+  const landing = spawnSync(process.execPath, ['dashboard/scripts/verify-landing.mjs', '--base', BASE], { cwd: ROOT, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL' });
   const landingFails = (landing.stdout ?? '').split('\n').filter((l) => l.startsWith('FAIL'));
   for (const l of landingFails) console.log(l);
-  check(landing.status === 0, `landing checks pass (${(landing.stdout.match(/^ok /gm) ?? []).length} ok, ${landingFails.length} failed)`);
+  check(landing.status === 0, `landing checks pass (${((landing.stdout ?? '').match(/^ok /gm) ?? []).length} ok, ${landingFails.length} failed${landing.error ? `, ${landing.error.code}` : ''})`);
 } finally {
   try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
   const exited = server.exitCode !== null || server.signalCode !== null || await new Promise((r) => { const t = setTimeout(() => r(false), 3000); server.once('exit', () => { clearTimeout(t); r(true); }); });

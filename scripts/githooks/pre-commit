@@ -38,16 +38,21 @@ in_copy_scope() {
   return 1
 }
 EMDASH=$'\xe2\x80\x94'
+TRAILER_RULE='- No `Co-Authored-By`, no `Generated with`, no `Signed-off-by` from anyone but the author.'
 for f in "${staged[@]}"; do
   in_copy_scope "$f" || continue
   body=$(git show ":$f" 2>/dev/null) || continue
   hit=$(printf '%s\n' "$body" | grep -n -F -- "$EMDASH" | head -1)
   [ -n "$hit" ] && fail "$f:${hit%%:*} has an em dash. Use a period, a comma, or a colon."
   case "$f" in
-    CONTRIBUTING.md|dashboard/SCREENS.md) continue ;;   # these two state the rules themselves
+    CONTRIBUTING.md|dashboard/SCREENS.md) ;;   # these two state the "AI" rule itself
+    *)
+      hit=$(printf '%s\n' "$body" | grep -n -P '\bAI\b|(?i:artificial intelligence)' | head -1)
+      [ -n "$hit" ] && fail "$f:${hit%%:*} says \"AI\". Say \"intelligent software\", \"the concierge\", or \"the agent\"." ;;
   esac
-  hit=$(printf '%s\n' "$body" | grep -n -P '\bAI\b|(?i:artificial intelligence)' | head -1)
-  [ -n "$hit" ] && fail "$f:${hit%%:*} says \"AI\". Say \"intelligent software\", \"the concierge\", or \"the agent\"."
+  # The denylist reads every file. The one exception is the single CONTRIBUTING.md line that
+  # states the trailer rule, matched whole; it is blanked so line numbers stay true.
+  [ "$f" = CONTRIBUTING.md ] && body=$(printf '%s\n' "$body" | awk -v x="$TRAILER_RULE" '$0 == x { print ""; next } { print }')
   hit=$(printf '%s\n' "$body" | deny_hit)
   [ -n "$hit" ] && fail "$f:${hit%%:*} matches the local denylist. Reword it."
 done

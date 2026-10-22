@@ -11,16 +11,25 @@ import { CallRail, Counterfactual } from '../components/QlooTrace.jsx';
 import { WhyPick } from '../components/WhyPick.jsx';
 import { AreaCard } from '../components/AreaCard.jsx';
 
-/** The eight Qloo capabilities the tool server calls (server/README.md, "How Qloo is load-bearing"). */
+/**
+ * Every Qloo capability the tool server and dashboard call with memory off, counted from the code
+ * (docs/MEASUREMENTS.md has the grep for each). Memory's filter.exclude.entities is left out: it
+ * runs only when GUEST_MEMORY_SECRET is set.
+ */
 const CAPABILITIES = [
   ['Entity search', 'A band name becomes a Qloo artist id.', 'GET /search'],
-  ['Tag search', '"Thai food" becomes a cuisine tag.', 'GET /v2/tags'],
+  ['Place-scoped tag search', '"Thai food" becomes the thai restaurant tag, never a film genre.', 'GET /v2/tags filter.parents.types'],
   ['Location-scoped insights', 'Places near the inn, ranked for this guest.', 'GET /v2/insights filter.location'],
+  ['Cuisine as a hard filter', 'A guest who says thai gets thai places.', 'GET /v2/insights filter.tags'],
   ['Cross-domain affinity', 'A music taste picks a restaurant, and a film to watch at the inn.', 'GET /v2/insights signal.* + filter.type'],
+  ['Per-person scoring', 'Which pick leans to the guest, the plus-one, or both.', 'GET /v2/insights filter.results.entities'],
   ['Explainability', 'The reason behind a pick, when Qloo names one.', 'feature.explainability=true'],
-  ['Heatmap', 'Where around the inn a taste runs hottest.', 'GET /v2/insights filter.type=urn:heatmap'],
+  ['Popularity baseline', 'What anyone nearby would be told, for the contrast.', 'GET /v2/insights, no signal'],
+  ['Heatmap', 'Where around the inn a taste runs hottest, with quality.', 'GET /v2/insights filter.type=urn:heatmap heatmap.dimensions'],
+  ['Named areas', 'The neighborhoods where callers\' tastes run hottest.', 'GET /v2/insights output.heatmap.boundary'],
   ['Demographics', 'Which age groups lean toward guest tastes.', 'GET /v2/insights filter.type=urn:demographics'],
-  ['Audience compare', 'How two kinds of guests differ.', 'GET /v2/analysis/compare'],
+  ['Tag insights', 'What callers lean toward, and what the town leans toward.', 'GET /v2/insights filter.type=urn:tag'],
+  ['Audience compare', 'Where the two lists share a tag.', 'GET /v2/analysis/compare'],
 ];
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen'];
@@ -123,9 +132,10 @@ export default function Landing({ health }) {
         <div className="hero-main">
           <p className="product-name">Bellhop Concierge</p>
           <h1 id="hero-h">The front desk concierge for small inns.</h1>
-          {/* "three": the stop rule in template/concierge.md (grep -n "three named things" template/concierge.md)
-              and compose_itinerary's "One to three picks" (grep -n "One to three picks" compiler/tools.js). */}
-          <p className="hero-lead">Guests call the number on the room card and name up to three things they love. A text follows with up to three picks nearby, and the reason for each when it fits.</p>
+          {/* "three things": the stop rule (grep -n "three named things" template/concierge.md). "three places":
+              compose_itinerary's "One to three picks" (grep -n "One to three picks" compiler/tools.js); "one to
+              watch at the inn": cross_domain (grep -n "one to watch at the inn" template/concierge.md). */}
+          <p className="hero-lead">Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.</p>
           <NumberCard number={number} onCopy={copy} cardRef={cardRef} live={health.state === 'answering'} innName={innName} health={health} />
           {health.state === 'busy' && (
             <Banner tone="warning">We couldn't reach the concierge's tool server just now. The number stays the same; try again in a minute.</Banner>

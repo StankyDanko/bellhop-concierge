@@ -239,7 +239,7 @@ export function stationsOf(trace, { said = [], plusOne = [], textChars } = {}) {
       caption: crossType ? `One kind of taste in, a ${crossType} out.` : 'One kind of taste in, another kind of pick out.' },
     { id: 'events', label: 'What is on nearby', rows: events,
       caption: `${plural(results(events), 'event')} came back.` },
-    { id: 'text', label: 'One text, under 320 characters', rows: [], keep: true,
+    { id: 'text', label: 'One text, at most 320 characters', rows: [], keep: true,
       // 320: MAX_CHARS in server/lib/sms.js (grep -n "MAX_CHARS = 320" server/lib/sms.js)
       caption: typeof textChars === 'number' ? `This one: ${textChars} characters.` : 'Each pick with its reason, and a link.' },
   ];
@@ -298,7 +298,7 @@ export function CallRail({ trace, said, plusOne, textChars, header }) {
   };
   const label = still
     ? (mode === 'all' ? 'Hide each step' : 'Show each step')
-    : (mode === 'playing' ? 'Pause' : (mode === 'all' ? 'Step through it again' : 'Step through the call'));
+    : (mode === 'playing' ? 'Show all' : (mode === 'all' ? 'Step through it again' : 'Step through the call'));
   const qloo = (trace ?? []).filter((e) => e.source === 'qloo').length;
   const modes = [...new Set((trace ?? []).map((e) => e.mode).filter(Boolean))];
 
