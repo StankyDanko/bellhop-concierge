@@ -150,7 +150,7 @@ test('counterfactual: a failed unsignaled call never costs the guest their picks
       { name: 'Only Place', entity_id: 'fx-only-place-0001', location: { lat: 32.08, lon: -81.09 }, tags: [], query: { affinity: 0.8 } }] } } };
   };
   const { app } = makeApp({ qlooTransport: transport });
-  const res = await callTool(app, 'recommend_nearby', { session_id: SID, taste: TASTE, ...PROPERTY });
+  const res = await callTool(app, 'recommend_nearby', { session_id: SID, taste: TASTE, ...PROPERTY, take: 1 });
   assert.equal(res.status, 200);
   assert.equal(res.json.places[0].name, 'Only Place');
   assert.equal(res.json.counterfactual, null);

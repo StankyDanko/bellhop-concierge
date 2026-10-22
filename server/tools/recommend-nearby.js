@@ -108,7 +108,8 @@ export async function recommendNearby(body, { qloo, toolSecret }) {
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
 
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
-  const first = await placeInsights(qloo, firstParams, shaped.cuisine, kidSafe);
+  // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
+  const first = await placeInsights(qloo, firstParams, shaped.cuisine, kidSafe, Math.min(3, take));
   const { entities, params, body: tasteBody } = first;
 
   let filteredOut = 0;

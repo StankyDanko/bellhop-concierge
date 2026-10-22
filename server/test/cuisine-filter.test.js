@@ -166,7 +166,7 @@ function placesTransport({ filtered = THAI_PLACES, open = ANY_PLACES } = {}) {
 test('a stated cuisine is a hard filter.tags and still a signal; a vibe is only a signal', async () => {
   const { transport, sent } = placesTransport();
   const { app } = makeApp({ qlooTransport: transport });
-  const { json } = await callTool(app, 'recommend_nearby', { taste: [ARTIST, THAI, COZY], ...PROPERTY });
+  const { json } = await callTool(app, 'recommend_nearby', { taste: [ARTIST, THAI, COZY], ...PROPERTY, take: 2 });
   const first = sent[0].params;
   assert.equal(first['filter.tags'], FX_THAI);
   assert.equal(first['signal.interests.tags'], `${FX_THAI},${FX_COZY}`);
@@ -174,9 +174,9 @@ test('a stated cuisine is a hard filter.tags and still a signal; a vibe is only 
   assert.equal(json.applied.cuisine_filter, 'hard');
   assert.deepEqual(json.applied.cuisine, ['Thai food']);
   assert.deepEqual(json.places.map((p) => p.entity_id), ['fx-place-a', 'fx-place-b']);
-  // The counterfactual keeps the cuisine filter: "the most popular thai place nearby".
+  // The counterfactual is the town's popular list: no taste signal and no cuisine filter.
   const unsignaled = sent.find((s) => !Object.keys(s.params).some((k) => k.startsWith('signal.')));
-  assert.equal(unsignaled.params['filter.tags'], FX_THAI);
+  assert.equal(unsignaled.params['filter.tags'], undefined);
   assert.equal(sent.length, 2, 'taste call and counterfactual, no retry');
 });
 
@@ -264,4 +264,14 @@ test('cross_domain filters places by cuisine, never films or books', async () =>
   const toFilms = await callTool(app, 'cross_domain', { taste: [ARTIST, THAI], target: 'movie' });
   assert.equal(sent[0].params['filter.tags'], undefined);
   assert.equal(toFilms.json.cuisine_filter, undefined);
+});
+
+test('one cuisine place when three are asked for relaxes once; the cuisine place stays first', async () => {
+  const { transport, sent } = placesTransport({ filtered: [THAI_PLACES[0]] });
+  const { app } = makeApp({ qlooTransport: transport });
+  const { json } = await callTool(app, 'recommend_nearby', { taste: [ARTIST, THAI], ...PROPERTY, take: 3 });
+  const tasteCalls = sent.filter((s) => Object.keys(s.params).some((k) => k.startsWith('signal.')));
+  assert.equal(tasteCalls.length, 2, 'exactly one retry');
+  assert.equal(json.applied.cuisine_filter, 'relaxed');
+  assert.deepEqual(json.places.map((p) => p.entity_id), ['fx-place-a', 'fx-place-c', 'fx-place-d']);
 });

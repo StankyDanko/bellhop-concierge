@@ -117,7 +117,8 @@ test('recommend_nearby: the param shape for per-person scoring', async () => {
     return { status: 200, body: { success: true, results: { entities: shortlist } } };
   };
   const { app } = makeApp({ qlooTransport: transport });
-  await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY, JAZZ], ...PROPERTY });
+  // take matches the two-place shortlist so the cuisine filter is not relaxed (cuisine-filter.test.js).
+  await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY, JAZZ], ...PROPERTY, take: 2 });
   // taste call + two per-person scoring calls + the unsignaled counterfactual call
   assert.equal(seen.length, 4, 'never more than two extra scoring calls (plus the counterfactual)');
   const [primary, guest, companion] = seen.filter((p) => Object.keys(p).some((k) => k.startsWith('signal.')));
@@ -191,7 +192,7 @@ test('recommend_nearby: in live mode a repeat call is served from the upstream c
     config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: 'test-key', mock: false, timeoutMs: 1000, retries: 0 },
     cache, logger: silentLogger, transport,
   });
-  const body = { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY };
+  const body = { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 1 };
   const first = await recommendNearby(body, { qloo });
   const again = await recommendNearby(body, { qloo });
   assert.deepEqual(first.calls.map((c) => c.via), ['live', 'live', 'live', 'live']);

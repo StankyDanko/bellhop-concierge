@@ -157,7 +157,10 @@ export function describeCounterfactual(popular, picked, typeLabel = 'place') {
 export async function popularityCounterfactual(qloo, params, places, keep = () => true, more = {}) {
   if (!places.length || typeof qloo.popularNearby !== 'function') return { counterfactual: null, call: null };
   try {
-    const { entities, call } = await qloo.popularNearby(params);
+    // The baseline is the town's popular list: no taste signal and no cuisine filter either,
+    // so the contrast is against what anyone nearby would be told.
+    const { 'filter.tags': _cuisine, ...town } = params;
+    const { entities, call } = await qloo.popularNearby(town);
     const withoutList = entities.filter(keep);
     const typeLabel = shortType(params['filter.type']);
     return { counterfactual: describeContrast(withoutList, places, typeLabel === 'unknown' ? 'place' : typeLabel, more), call };

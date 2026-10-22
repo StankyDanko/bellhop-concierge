@@ -34,8 +34,9 @@ export function signalParams({ entityIds, tagIds }) {
 // filter.tags. Every taste stays a signal as before: under the filter, the cuisine signal
 // leaves the picks and their order unchanged (measured), and the call trace keeps naming
 // what the guest said. Several cuisines in one filter come back as places of any of them. If
-// the filter leaves nothing to pick at the inn's radius, the request is made once more
-// without it, and the result says cuisine_filter: 'relaxed' so the explanation can say so.
+// the filter leaves fewer places than the caller needs at the inn's radius, the request is
+// made once more without it: the places that fit the cuisine stay first, the unfiltered ones
+// fill the rest, and the result says cuisine_filter: 'relaxed' so the explanation can say so.
 // ---------------------------------------------------------------------------
 
 /** A restaurant genre tag: what a guest's cuisine resolves to. */
@@ -63,20 +64,25 @@ export function relaxCuisine(params) {
 
 /**
  * One place insights call with the cuisine filter, and at most one more without it when the
- * filter leaves nothing that `keep` accepts.
+ * filter leaves fewer than `min` places that `keep` accepts. On the retry the filtered
+ * places that `keep` accepts come first, then the unfiltered ones not already listed.
  * @param {import('../lib/qloo.js').QlooClient} qloo
  * @param {Record<string,string>} params  from placeTasteParams, plus location and filters
  * @param {string[]} cuisine
  * @param {(e: import('../lib/qloo.js').QlooEntity) => boolean} [keep]
+ * @param {number} [min]  fewest kept places that count as enough
  * @returns {Promise<{ entities: import('../lib/qloo.js').QlooEntity[], calls: any[], params: Record<string,string>, cuisine_filter: 'hard'|'relaxed'|null }>}
  */
-export async function placeInsights(qloo, params, cuisine, keep = () => true) {
+export async function placeInsights(qloo, params, cuisine, keep = () => true, min = 1) {
   const first = await qloo.insights(params);
   if (!cuisine.length) return { entities: first.entities, body: first.body, calls: [first.call], params, cuisine_filter: null };
-  if (first.entities.some(keep)) return { entities: first.entities, body: first.body, calls: [first.call], params, cuisine_filter: 'hard' };
+  const fitting = first.entities.filter(keep);
+  if (fitting.length >= min) return { entities: first.entities, body: first.body, calls: [first.call], params, cuisine_filter: 'hard' };
   const relaxed = relaxCuisine(params);
   const second = await qloo.insights(relaxed);
-  return { entities: second.entities, body: second.body, calls: [first.call, second.call], params: relaxed, cuisine_filter: 'relaxed' };
+  const seen = new Set(fitting.map((e) => e.entity_id));
+  const entities = [...fitting, ...second.entities.filter((e) => !seen.has(e.entity_id))];
+  return { entities, body: second.body, calls: [first.call, second.call], params: relaxed, cuisine_filter: 'relaxed' };
 }
 
 /** Tag kinds worth naming on a pick: cuisine and the room's feel. */

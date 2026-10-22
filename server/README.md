@@ -240,9 +240,10 @@ Qloo request: `GET /v2/insights` with `filter.type=urn:entity:place`,
 **A stated cuisine is a requirement.** As a signal alone a cuisine tag barely moves the
 ranking: a guest who said "thai" got no thai place. So the cuisine also goes out as a hard
 `filter.tags`, and every pick is a place of that cuisine. Two cuisines (the guest's and the
-plus-one's) come back as places of either. If nothing nearby fits the filter (after the kids
-filter), the tool asks once more without it, with the cuisine still steering the ranking, and
-says so: `applied.cuisine_filter` is `"hard"`, `"relaxed"`, or `null` when no cuisine was
+plus-one's) come back as places of either. If fewer than three places nearby fit the filter
+(after the kids filter; fewer than `take` when it asks for less), the tool asks once more
+without it, with the cuisine still steering the ranking: the places that fit stay first and
+the unfiltered ones fill the rest. It says so: `applied.cuisine_filter` is `"hard"`, `"relaxed"`, or `null` when no cuisine was
 said, and `applied.cuisine` lists the cuisines in the guest's words. Vibe tags stay signals.
 Per-person scoring for a plus-one is unchanged (signals only, on the shortlist).
 
@@ -282,8 +283,9 @@ and `basis` still says whether Qloo itself named a driver.
 
 **The counterfactual.** After the taste call, `recommend_nearby` makes one more cached
 `GET /v2/insights` with the same `filter.type`, `filter.location`, radius, price and rating
-filters, and `take=5`, but no `signal.*` and no `sort_by`, so Qloo ranks by general
-popularity. The kids filter applies to both lists. It compares the two lists, not just the two
+filters, and `take=5`, but no `signal.*`, no `sort_by`, and no cuisine `filter.tags`, so
+Qloo ranks by general popularity: the baseline is the town's popular list, what anyone nearby
+would be told. The kids filter applies to both lists. It compares the two lists, not just the two
 top picks: on live data the top pick sometimes matched while the rest of the list did not.
 The response gains (fake values):
 

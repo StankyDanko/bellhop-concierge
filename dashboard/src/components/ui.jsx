@@ -129,13 +129,18 @@ export function WhyChip({ place, defaultOpen = false }) {
         {explained ? (
           <>
             <p className="micro" style={{ color: 'inherit' }}>Why Qloo picked it, by what you said</p>
-            {trace.drivers.map((d) => (
+            {trace.drivers.map((d) => (d.source === 'tag_match' ? (
+              <div className="driver" key={d.id}>
+                <span className="driver-name" title={d.name}>{d.name}</span>
+                <span className="micro">matches your words</span>
+              </div>
+            ) : (
               <div className="driver" key={d.id}>
                 <span className="driver-name" title={d.name}>{d.name}</span>
                 <span className="bar" aria-hidden="true"><span style={{ transform: `scaleX(${(d.score ?? 0) / max})` }} /></span>
                 <span className="num">{(d.score ?? 0).toFixed(2)}</span>
               </div>
-            ))}
+            )))}
             <p className="micro mono why-foot" style={{ color: 'inherit' }}>
               Qloo explainability, affinity {typeof place.affinity === 'number' ? place.affinity.toFixed(2) : 'n/a'}
             </p>
