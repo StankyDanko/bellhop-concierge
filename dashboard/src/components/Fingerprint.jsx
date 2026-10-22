@@ -98,3 +98,82 @@ export function FingerprintSizeLine({ fp }) {
   }
   return <p className="brief-note fp-brief-line">Taste fingerprint starts after {d.gate.min} calls that name a taste. <span className="tnum">{d.gate.count}</span> so far.</p>;
 }
+
+// ---- two lists: what callers lean toward, what the town leans toward ---------------------------
+
+const signed = (n) => `${n > 0 ? '+' : ''}${n.toFixed(2)}`;
+
+/** One tag list, or the reason there is none. Tag names only: short words, no scores to decode. */
+function LeanList({ title, sec, empty, onRetry, tastes }) {
+  let body;
+  if (sec?.status === 'gated') body = <p className="dim fp-line">Dark until {sec.min} calls name a taste. {tasteCountText(tastes, sec.count)}</p>;
+  else if (sec?.status === 'degraded') body = <p className="dim fp-line">This list is taking longer than usual. {onRetry && <button type="button" className="btn btn-text fp-retry" onClick={onRetry}>Try again</button>}</p>;
+  else if (!sec || sec.status === 'skipped' || !sec.tags?.length) body = <p className="dim fp-line">{empty}</p>;
+  else {
+    body = (
+      <ul className="fp-chips" aria-label={title}>
+        {sec.tags.map((t) => <li key={t.id ?? t.name} className="fp-chip fp-chip-plain"><span className="fp-chip-name">{t.name}</span></li>)}
+      </ul>
+    );
+  }
+  return (
+    <div className="fp-lean-col">
+      <h4 className="fp-lean-h">{title}</h4>
+      {body}
+    </div>
+  );
+}
+
+/**
+ * The callers-versus-town panel as two lists. The difference between them is a secondary line,
+ * drawn only when the compare call found tags both groups share.
+ */
+export function LeanPanel({ data, onRetry, tastes }) {
+  const callers = data.callers_lean;
+  const town = data.town_lean;
+  const cmp = data.compare;
+  const diffs = cmp?.status === 'ok' && cmp.shared_tags > 0
+    ? [...(cmp.items ?? [])].filter((i) => (i.scores.a ?? 0) > 0 && (i.scores.b ?? 0) > 0)
+      .sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 2)
+    : [];
+  const townTitle = town?.widened ? `The town leans toward (within ${town.radius_miles} mi)` : 'The town around the inn leans toward';
+  return (
+    <section className="card fp-lean" aria-label="What your callers lean toward and what your town leans toward">
+      <div className="panel-head">
+        <h3>Your callers and your town</h3>
+        <div className="row">{callers?.basis && callers.basis !== 'none' && <BasisTag basis={callers.basis} n={callers.sample_size} />}<span className="chip chip-mono chip-qloo">Qloo</span>{data.sample && <SampleBadge />}</div>
+      </div>
+      <div className="fp-lean-cols">
+        <LeanList title="Your callers lean toward" sec={callers} empty="Nothing stands out yet." onRetry={onRetry} tastes={tastes} />
+        <LeanList title={townTitle} sec={town} empty="Qloo has too little to say about this area." onRetry={onRetry} tastes={tastes} />
+      </div>
+      {diffs.length > 0 && (
+        <p className="micro fp-diff">
+          Where both lists share a tag, the biggest gap: {diffs.map((d) => `${d.name} (${signed(d.scores.difference ?? 0)}, ${(d.scores.difference ?? 0) > 0 ? 'callers' : 'town'} lean harder)`).join('; ')}.
+        </p>
+      )}
+      <p className="micro panel-foot">Qloo taste tags. The first list comes from the tastes your callers named; the second from the area alone, with no taste signal.</p>
+    </section>
+  );
+}
+
+/** Named areas, strongest first: the readable companion to the map. Quiet when there is nothing to show. */
+export function HotAreas({ data, onRetry }) {
+  const sec = data.hot_areas;
+  if (!sec || sec.status === 'skipped') return null;
+  const areas = sec.areas ?? [];
+  return (
+    <section className="card fp-areas" aria-label="Hottest named areas">
+      <div className="panel-head">
+        <h3>Hottest named areas</h3>
+        <div className="row">{sec.basis && <BasisTag basis={sec.basis} n={sec.sample_size} />}<span className="chip chip-mono chip-qloo">Qloo</span>{data.sample && <SampleBadge />}</div>
+      </div>
+      {sec.status === 'degraded'
+        ? <p className="dim fp-line">Named areas are taking longer than usual. {onRetry && <button type="button" className="btn btn-text fp-retry" onClick={onRetry}>Try again</button>}</p>
+        : areas.length
+          ? <ol className="ranked">{areas.map((a) => <li key={a.name}><span>{a.name}</span><span className="num">{typeof a.affinity === 'number' ? `affinity ${a.affinity.toFixed(2)}` : ''}</span></li>)}</ol>
+          : <p className="dim fp-line">No named areas came back for this radius.</p>}
+      <p className="micro panel-foot">Aggregate, anonymous. Qloo heatmap by locality.</p>
+    </section>
+  );
+}

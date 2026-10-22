@@ -180,3 +180,29 @@ export function fingerprintSignals(fp, max = FINGERPRINT_SIGNAL_MAX) {
     .slice(0, max)
     .map(({ id, name }) => ({ id, name: name ?? '' }));
 }
+
+/** Ids that exist only in the hand-written mock fixtures. They mean nothing to the live API. */
+export const isFixtureId = (id) => /^fx-/.test(id);
+
+/**
+ * The signals as they may go upstream. In mock mode they pass through. Live, a fixture id is
+ * replaced by the entity Qloo's own /search returns for the sample's displayed name (one cached
+ * request each, in order), and dropped when nothing resolves, so no fx- id ever leaves the
+ * process. Real tag URNs are kept. Resolved ids live only in memory and the response cache.
+ * @param {{ mode?: string, search: Function }} qloo
+ * @param {Array<{ id: string, name: string }>} interests
+ * @param {Array<any>} [calls]  receives each /search call record
+ */
+export async function liveSignals(qloo, interests, calls = []) {
+  if (qloo?.mode === 'mock') return interests;
+  const out = [];
+  for (const i of interests) {
+    if (!isFixtureId(i.id)) { out.push(i); continue; }
+    if (!i.name) continue;
+    const { entities, call } = await qloo.search({ query: i.name, take: 1 });
+    calls.push(call);
+    const id = entities[0]?.entity_id;
+    if (id && !isFixtureId(id)) out.push({ id, name: i.name });
+  }
+  return out;
+}

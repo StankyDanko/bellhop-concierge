@@ -6,7 +6,7 @@ import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
 import { Banner, clock, LiveBadge, SampleBadge, SmsPreview, SourceChip, Stat, ViaChip } from '../components/ui.jsx';
 import { Counterfactual, MockNote, SampleSessionCard, SessionTrace, TraceTable, unresolvedInMock } from '../components/QlooTrace.jsx';
-import { BasisTag, FingerprintCard, tasteCountText } from '../components/Fingerprint.jsx';
+import { BasisTag, FingerprintCard, HotAreas, LeanPanel, tasteCountText } from '../components/Fingerprint.jsx';
 import '../property.css';
 
 /** What the guest named, or a muted "none resolved" rather than a blank. */
@@ -145,7 +145,7 @@ function Heatmap({ data, inn, onRetry }) {
           {ranked.map((c) => (
             <li key={c.geohash ?? `${c.lat},${c.lng}`}>
               <span>{milesBetween(inn, c).toFixed(1)} mi {direction(inn, c)} of the inn</span>
-              <span className="num">affinity {(c.affinity ?? 0).toFixed(2)}</span>
+              <span className="num">affinity {(c.affinity ?? 0).toFixed(2)}{typeof c.quality_affinity === 'number' ? `, quality ${c.quality_affinity.toFixed(2)}` : ''}</span>
             </li>
           ))}
         </ol>
@@ -192,35 +192,6 @@ function Demographics({ data, onRetry, onSample, tastes }) {
       footer={data.sample ? 'Shown with example data until 5 calls name a taste.'
         : sec.status === 'gated' ? null
           : `Aggregate, anonymous. People who like these things around here, from the tastes of ${sec.sample_size} ${sec.sample_size === 1 ? 'call' : 'calls'}.`}>
-      {body}
-    </PanelShell>
-  );
-}
-
-function Compare({ data, onRetry, onSample, tastes }) {
-  const sec = data.compare;
-  let body;
-  if (sec.status !== 'ok') body = <SectionState sec={sec} asOf={data.as_of} onRetry={onRetry} onSample={onSample} tastes={tastes} skippedText="Comparing your callers with your town needs at least one named favorite, like a band or a film, not only a kind of food." />;
-  else {
-    const items = [...(sec.items ?? [])].sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 3);
-    const a = sec.groups?.a ?? 'Group A';
-    const b = sec.groups?.b ?? 'Group B';
-    body = (
-      <ul className="ranked" style={{ marginTop: 'var(--space-3)' }}>
-        {items.map((it) => {
-          const d = it.scores.difference ?? ((it.scores.a ?? 0) - (it.scores.b ?? 0));
-          return (
-            <li key={it.id ?? it.name}>
-              <span>{it.name}: {Math.abs(d) < 0.05 ? 'about the same for both' : `leans toward fans of ${d > 0 ? a : b}`}</span>
-              <span className="num">{signed(d)}</span>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  }
-  return (
-    <PanelShell title={sec.groups?.label ?? 'Your callers vs. your town'} sample={data.sample} basis={sec} footer="Qloo audience compare: your callers' tastes against the most popular places near the inn. Biggest differences first.">
       {body}
     </PanelShell>
   );
@@ -397,7 +368,8 @@ export default function Property({ id, health }) {
               <Heatmap data={ins.data} inn={inn} onRetry={reloadIns} />
               <Demographics data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={() => setSample(true)} />
             </div>
-            <Compare data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={() => setSample(true)} />
+            <HotAreas data={ins.data} onRetry={reloadIns} />
+            <LeanPanel data={ins.data} tastes={tastes} onRetry={reloadIns} />
           </div>
         )}
       </section>

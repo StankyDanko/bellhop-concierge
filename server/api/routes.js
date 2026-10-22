@@ -23,7 +23,7 @@ import { recommendNearby } from '../tools/recommend-nearby.js';
 import { resolveTaste } from '../tools/resolve-taste.js';
 import { excludeTestSql, readTrace } from '../lib/sessions.js';
 import { withTrace } from '../lib/upstream.js';
-import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, parseIds, resolvedATaste } from '../lib/fingerprint.js';
+import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, liveSignals, parseIds, resolvedATaste } from '../lib/fingerprint.js';
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { locationParams } from '../tools/places.js';
 import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
@@ -364,6 +364,11 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
         gate: fp.gate,
         interests: guestPanels ? out.interests : [],
         heatmap: { ...out.heatmap, ...label },
+        hot_areas: { ...out.hot_areas, ...label },
+        // Two lists, not a difference score: what the callers lean toward (dark below the
+        // floor) and what the town around the inn leans toward (no guest signal at all).
+        callers_lean: guestPanels ? { ...out.callers_lean, ...label } : gated,
+        town_lean: { ...out.town_lean, basis: 'area', sample_size: 0 },
         demographics: guestPanels ? { ...out.demographics, ...label } : gated,
         compare: guestPanels ? { ...out.compare, ...label } : gated,
         upstream: out.upstream,
@@ -481,8 +486,10 @@ const TOWN_PLACES = 5;
  * Compare: a = the fingerprint's entity ids, b = the most popular places near the inn
  * (an unsignaled place insights call). The live API accepts place ids in a compare group.
  */
-async function insightsFor(ctx, { lat, lng, radius, interests }) {
+async function insightsFor(ctx, { lat, lng, radius, interests: shown }) {
   const calls = [];
+  // Live, sample fixture ids are swapped for ids Qloo resolves from the displayed names.
+  const interests = await liveSignals(ctx.qloo, shown, calls);
   const entityIds = interests.filter((i) => !isTagId(i.id));
   let compare;
   let compareFailure = null;
@@ -506,8 +513,11 @@ async function insightsFor(ctx, { lat, lng, radius, interests }) {
   return {
     as_of: new Date().toISOString(),
     area: res.area,
-    interests: interests.map((i) => i.name).filter(Boolean),
+    interests: shown.map((i) => i.name).filter(Boolean),
     heatmap: res.heatmap,
+    hot_areas: res.hot_areas,
+    callers_lean: res.callers_lean,
+    town_lean: res.town_lean,
     demographics: res.demographics,
     compare: cmp,
     upstream: upstreamSummary(calls),

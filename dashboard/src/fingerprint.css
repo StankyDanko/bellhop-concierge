@@ -33,6 +33,16 @@
 
 .fp-brief-line { margin-top: var(--space-2); }
 
+/* Two lean lists: callers on one side, the town on the other */
+.fp-lean, .fp-areas { min-width: 0; }
+.fp-lean-cols { display: grid; gap: var(--space-4); margin-top: var(--space-3); }
+.fp-lean-col { min-width: 0; }
+.fp-lean-h { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.fp-chip-plain { padding-right: var(--space-3); }
+.fp-diff { margin-top: var(--space-3); line-height: var(--leading-snug); }
+.btn.fp-retry { min-height: 2.75rem; padding-inline: var(--space-1); }
+
 @media (min-width: 48rem) {
   .fp-size-words { flex-basis: auto; }
+  .fp-lean-cols { grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 }
