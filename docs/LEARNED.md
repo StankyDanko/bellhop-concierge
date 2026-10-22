@@ -1,7 +1,7 @@
 # What we learned
 
-The client was written from Qloo's docs before a key existed. On October 22, 2026 it met the
-live API. This is what that day and the experiments after it taught us, in plain words. The
+The client was written from Qloo's docs before a key existed. The key arrived on October 19,
+2026, and on October 22 the client was checked against the live API. This is what that day and the experiments after it taught us, in plain words. The
 numbers behind each one, and how they were taken: [QLOO.md](QLOO.md) and
 [MEASUREMENTS.md](MEASUREMENTS.md).
 

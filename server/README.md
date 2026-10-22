@@ -755,8 +755,8 @@ Ticketmaster adds what a taste graph does not hold: what is on tonight.
 
 ## Checked against the live API
 
-The client was written from Qloo's documentation before a hackathon key was issued, and met
-the live API on 2026-10-22. Ten of the thirteen shapes we had read from the docs matched; the
+The client was written from Qloo's documentation before a hackathon key was issued. The key
+arrived on 2026-10-19, and the client was checked against the live API on 2026-10-22. Ten of the thirteen shapes we had read from the docs matched; the
 compare response differed and was fixed (`tools/area-insights.js` `compactCompare`); rate
 limits and cache lifetime are policy no single call confirms. `npm run probe:qloo` prints every
 shape side by side with what the normalizers read. The row-by-row record is

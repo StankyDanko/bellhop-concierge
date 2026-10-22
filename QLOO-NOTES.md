@@ -2,8 +2,8 @@
 
 Every Qloo call in this repo was built from the docs at
 [docs.qloo.com/reference](https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide)
-before a hackathon key existed. On 2026-10-22 the key arrived and each reading was checked
-against the live API; the Observed column says how it held up. Ten matched, one (compare)
+before a hackathon key existed. The key arrived on 2026-10-19, and on 2026-10-22 each reading
+was checked against the live API; the Observed column says how it held up. Ten matched, one (compare)
 differed and was fixed, two are policy no single call confirms. What we measured beyond these
 shapes, words and counts only: [docs/QLOO.md](docs/QLOO.md).
 

@@ -22,8 +22,8 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 | **Print the brief** | [`/property/demo/brief`](https://concierge.southernsky.cloud/property/demo/brief): one page for the front desk, room cards tear off the bottom. |
 | **Build your own** | [`/build`](https://concierge.southernsky.cloud/build): eleven questions, a preview, then publish. |
 
-**Where the demo stands.** Qloo is live: the hackathon key arrived on October 22, 2026, every
-capability below was checked against the live API that day, and the public server reports Qloo
+**Where the demo stands.** Qloo is live: the hackathon key arrived on October 19, 2026, every
+capability below was checked against the live API on October 22, and the public server reports Qloo
 as live. The number is a test line, capped at twenty calls a day. The server says which mode
 each service is in, Qloo, Ticketmaster, and the text sender, so you never have to take our word
 for it:
