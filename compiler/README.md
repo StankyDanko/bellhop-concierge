@@ -80,7 +80,7 @@ A worked example in the prompt outweighs a rule written next to it, so an exampl
 breaks the stop rule teaches the agent to break it. `compiler/test/examples.test.js` parses
 every persona's `## Example calls (compiled)` section and fails the build if an example:
 
-- puts more than three concierge questions before the lookup line (the opener's band question
+- puts more than three concierge questions before the lookup line (the opener's taste question
   counts as the first; for a road persona the opener asks for the city and state, and place
   questions such as "Which state?" never count),
 - asks any question after the caller has given three named things (the plus-one's count),

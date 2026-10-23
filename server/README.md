@@ -297,6 +297,7 @@ Places near the property, ranked by Qloo affinity for this guest's taste.
 | `lat`, `lng` | number | the property |
 | `radius_miles` | number, default 3 | 0.25-25 |
 | `take` | number, default 3 | 1-10 |
+| `kind` | `dining`, `activity`, or `any`; default `any` | `dining` sends the restaurant genre parent tag `urn:tag:genre:place:restaurant` as `filter.tags` (alone when a cuisine is already the filter, since two tags in one filter.tags mean either one), so every place is a restaurant, bar, bakery, or cafe. `activity` sends it as `filter.exclude.tags` and keeps a cuisine as a signal only. The scope reaches every insights call: the relaxed cuisine retry falls back to dining places, and the counterfactual is the town's popular dining list. Echoed as `applied.kind` |
 | `constraints.party_size` | number | echoed in `applied` (Qloo has no party-size filter) |
 | `constraints.budget` | 1-4 | sent as `filter.price_level.max` |
 | `constraints.min_rating` | 0-5, default 4 | sent as `filter.rating.min` |
@@ -948,7 +949,7 @@ in the server log, one JSON line per call (endpoint and parameters, never the ke
 | 6 | Heatmap | `GET /v2/insights` `filter.type=urn:heatmap` | `area_insights` | where around the property a taste runs hottest |
 | 7 | Demographics | `GET /v2/insights` `filter.type=urn:demographics` | `area_insights` | which age and gender groups lean toward the guests' tastes |
 | 8 | Callers vs. town | `GET /v2/insights` `filter.type=urn:tag` on the fingerprint and on the inn's location alone, plus `GET /v2/analysis/compare` `a.signal.*`, `b.signal.*` | the dashboard API | two lean lists, with compare as one quiet line where they share a tag |
-| 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` and no cuisine `filter.tags` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
+| 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` and no cuisine `filter.tags`, but the dining parent tag when `kind` is `dining` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
 | 10 | Artist to artist | `GET /v2/insights` `filter.type=urn:entity:artist`, `signal.interests.entities=<artist>`, `filter.exclude.entities=<artist>`, `take=5` | `events_nearby` (`artist`) | the reason in "fans of X also love Y, playing Friday at eight": Qloo picks Y, Ticketmaster only says when and where |
 
 What each capability did when measured live, and what we did not ship: [`docs/QLOO.md`](../docs/QLOO.md).
@@ -972,7 +973,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # eighteen simulated callers and two two-call sequences, twenty-one criteria, offline
+npm run battery -- --mock    # twenty simulated callers and two two-call sequences, twenty-three criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

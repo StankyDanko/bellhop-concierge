@@ -1,7 +1,7 @@
 // The worked example calls teach the agent more than any rule written next to them, so they
 // must obey the stop rule exactly. This test parses every persona's "Example calls" section
 // and its uncompiled "Example call checks" list and fails if an example:
-//   - puts more than three concierge questions before the lookup (the opener's band question
+//   - puts more than three concierge questions before the lookup (the opener's taste question
 //     counts as the first, since every example opens by answering or ignoring it),
 //   - asks any question once the caller has given three named things, or
 //   - ends on a question instead of the lookup line, or
@@ -56,7 +56,7 @@ export const STAY_OFFER = /\bplan your night\b|\bfor the stay\b/i;
  * neither does a follow-up place question such as "Which state?".
  */
 export function audit(example, named, { road = false, rental = false } = {}) {
-  let questions = road ? 0 : 1; // the opener's band question
+  let questions = road ? 0 : 1; // the opener's taste question
   let guestTurn = -1;
   const breaches = [];
   for (const t of example.turns) {

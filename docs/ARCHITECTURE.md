@@ -22,7 +22,7 @@ sequenceDiagram
     Tools->>Qloo: GET /search, one per name
     Tools->>Qloo: GET /v2/tags, one per cuisine or mood, scoped to places
     Tools-->>Voice: ids and tags, plus a line to say back
-    Voice->>Tools: recommend_nearby (ids, the inn's point, radius, budget)
+    Voice->>Tools: recommend_nearby (ids, kind, the inn's point, radius, budget)
     Tools->>Qloo: GET /v2/insights, places, taste signals, cuisine as filter.tags, explainability on
     Tools->>Qloo: GET /v2/insights, the same place call with no taste (the town's popular list)
     Tools-->>Voice: three signed picks, each with its reason, plus the contrast

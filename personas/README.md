@@ -34,7 +34,7 @@ Each persona is one Markdown file:
 
 - **Front matter**: `id`, `display_name`, `humor_ceiling`, `tts_stability`, `mode` (`inn`, the
   default, or `road`), and `opener`, the first message the agent speaks. The opener must name the
-  persona, say it is an automated concierge, say the call is recorded, and ask for one band (a road
+  persona, say it is an automated concierge, say the call is recorded, and ask what the guest has been loving lately, in any domain (a road
   persona asks for the city and state instead), in two sentences at most.
 - **Human sections** (anything not marked compiled): the voice bible for whoever tunes it.
 - **`## ... (compiled)` sections**: copied into the prompt word for word. They follow the same
