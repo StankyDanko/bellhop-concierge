@@ -118,6 +118,11 @@ export async function eventsByTaste({ artist, lat, lng, radiusMiles, timezone },
   }
 
   const hits = [];
+  /** Shows already picked: a co-bill of two similar artists is one show. */
+  const seenShows = new Set();
+  const showKey = (e) => e.id || e.url || `${e.name}|${e.start}`;
+  // The named artist's own show, told by whole words ("Ra" is not in "Strand").
+  const carriesNamed = (e) => ` ${nameKey(e.name)} `.includes(` ${namedKey} `);
   let checked = 0;
   for (const s of similar) {
     if (hits.length >= MAX_HITS) break;
@@ -131,8 +136,9 @@ export async function eventsByTaste({ artist, lat, lng, radiusMiles, timezone },
         lat, lng, radiusMiles, start: tmDate(win.fetch.start), end: tmDate(win.fetch.end), classification: 'music', size: 5, attractionId: match.id,
       });
       calls.push(evCall);
-      const show = events.find((e) => inTasteWindow(e, win, timezone) && !nameKey(e.name).includes(namedKey));
+      const show = events.find((e) => inTasteWindow(e, win, timezone) && !carriesNamed(e) && !seenShows.has(showKey(e)));
       if (!show) continue;
+      seenShows.add(showKey(show));
       const w = eventWhen(show, at, timezone);
       const out = {
         name: show.name,

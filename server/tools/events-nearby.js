@@ -198,12 +198,18 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
     artist ? eventsByTaste({ artist, lat, lng, radiusMiles, timezone: tz }, { qloo, ticketmaster, now: () => at, toolSecret }) : null,
   ]);
   const { calls: tasteCalls = [], ...byTasteOut } = byTaste ?? {};
+  const startedBefore = (e, t) => {
+    const ms = e.start && !/^\d{4}-\d{2}-\d{2}$/.test(e.start) ? Date.parse(e.start) : Number.NaN;
+    return Number.isFinite(ms) && ms < t.getTime();
+  };
 
   return {
     ...(byTaste ? { by_taste: byTasteOut } : {}),
-    status: events.length ? 'ok' : 'empty',
+    status: events.some((e) => !startedBefore(e, at)) ? 'ok' : 'empty',
     window: { when, start: win.start.toISOString(), end: win.end.toISOString(), timezone: tz },
-    events: events.slice(0, take).map((e) => {
+    // The request starts at the top of the hour for the cache; a show that already began before
+    // this call is not "to come", so it is dropped here (a date with no time stays).
+    events: events.filter((e) => !startedBefore(e, at)).slice(0, take).map((e) => {
       const w = eventWhen(e, at, tz);
       const out = { ...e, when_label: w.when_label, tonight: w.tonight, say: sayLine(e, w.say_when) };
       return toolSecret ? { ...out, pick_token: signPick(toolSecret, out) } : out;

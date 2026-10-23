@@ -328,8 +328,11 @@ export const CRITERIA = [
       if (!asked) return v('fail', 'no Qloo artist insights call for the named artist in the trace');
       const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const keywords = new Set(rec.trace.filter((t) => t.endpoint === '/attractions.json').map((t) => norm(t.params?.keyword)));
-      const own = shows.filter((e) => norm(e.artist) === norm(named.name) || norm(e.name).includes(norm(named.name))).length;
+      // Whole words, like the tool: "Ra" is not in "Strand".
+      const own = shows.filter((e) => norm(e.artist) === norm(named.name) || ` ${norm(e.name)} `.includes(` ${norm(named.name)} `)).length;
       if (own) return v('fail', `${own} show(s) are the named artist's own`);
+      const showKeys = shows.map((e) => e.url || `${e.name}|${e.start}`);
+      if (new Set(showKeys).size !== showKeys.length) return v('fail', 'the same show listed twice');
       const unsourced = shows.filter((e) => e.reason_source !== 'Qloo' || !keywords.has(norm(e.artist))).length;
       if (unsourced) return v('fail', `${unsourced} show(s) not traced to a Qloo similar artist`);
       const unsigned = shows.filter((e) => !e.when_label || !e.pick_token || !String(e.why ?? '').includes(e.artist)).length;
