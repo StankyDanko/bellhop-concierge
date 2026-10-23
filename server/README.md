@@ -897,7 +897,7 @@ card, and the fingerprint is a small, self-selected sample, always shown with it
 
 ## How Qloo is load-bearing
 
-Four of the nine tools (`curl -s localhost:8787/health`, under `tools`) call Qloo directly, and the rest exist to put Qloo's picks in
+Four of the ten tools (`curl -s localhost:8787/health`, under `tools`) call Qloo directly, and the rest exist to put Qloo's picks in
 front of the guest. Every capability below is
 called from `lib/qloo.js` and appears by endpoint in each response's `meta.upstream` and
 in the server log, one JSON line per call (endpoint and parameters, never the key).
@@ -936,7 +936,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # sixteen simulated callers and two two-call sequences, eighteen criteria, offline
+npm run battery -- --mock    # seventeen simulated callers and two two-call sequences, nineteen criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

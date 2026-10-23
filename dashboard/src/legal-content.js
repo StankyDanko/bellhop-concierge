@@ -32,6 +32,7 @@ export const SMS_SENTENCE = 'Mobile numbers and consent are never sold, shared, 
 export const FOOTER = {
   edition: 'Bellhop Concierge, an edition of Bellhop by SouthernSky. AGPL-3.0.',
   sources: 'Picks from the Qloo taste graph and Ticketmaster.',
+  affiliation: 'Not affiliated with Airbnb or any booking platform.',
   bridge: BRIDGE,
 };
 

@@ -128,6 +128,7 @@ ${sections}
 <p>${esc(FOOTER.edition)}</p>
 <nav aria-label="Site"><a href="${esc(REPO_URL)}" rel="noopener">Source</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://devpost.com/software/bellhop-concierge" rel="noopener">Devpost</a></nav>
 <p>${esc(FOOTER.sources)}</p>
+<p>${esc(FOOTER.affiliation)}</p>
 <p class="bridge">${esc(FOOTER.bridge)}</p>
 </div></footer>
 </body>

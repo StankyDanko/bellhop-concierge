@@ -51,7 +51,7 @@ async function waitUp() {
 try {
   // A port can be taken between the free-port probe and the spawn: only our live child counts.
   check(await waitUp() && server.exitCode === null, 'server answers /health (our own process)');
-  for (const path of ['/', '/build', '/property/demo']) {
+  for (const path of ['/', '/build', '/property/demo', '/property/miami']) {
     const res = await fetch(BASE + path);
     const html = await res.text();
     check(res.status === 200, `${path} returns 200`);
@@ -89,6 +89,7 @@ try {
   // The privacy and terms pages: a carrier review looks for these two sentences word for word.
   check(bundle.includes('Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.'), 'bundle carries the privacy page SMS sentence');
   check(bundle.includes('Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.'), 'bundle carries the footer bridge sentence');
+  check(bundle.includes('Not affiliated with Airbnb or any booking platform.'), 'bundle carries the footer non-affiliation line');
   // The same pages as whole documents, readable with no JavaScript (dashboard/scripts/build-legal.mjs).
   for (const [path, title] of [['/privacy', 'Privacy'], ['/terms', 'Terms'], ['/sms-terms', 'Terms']]) {
     const res = await fetch(BASE + path);

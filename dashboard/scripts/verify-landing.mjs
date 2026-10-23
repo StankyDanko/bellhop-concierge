@@ -52,6 +52,9 @@ if (!BASE) {
 const req = createRequire(join(W, 'package.json'));
 let fails = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`); if (!ok) fails += 1; };
+// "Host" is never the word for the person at the desk (that is the innkeeper). The one allowed sense,
+// besides servers, is the host of a short-term rental, and only in these two exact phrases.
+const withoutRentalHost = (text) => String(text).replace(/\brental hosts?\b|\bthe host of the rental\b/gi, '');
 
 // ---- 1. built output -------------------------------------------------------------------
 if (!existsSync(join(D, 'dist/index.html'))) { console.error('no build: run npm run build:dashboard first'); process.exit(1); }
@@ -62,7 +65,7 @@ const css = assets.filter((f) => f.endsWith('.css')).map((f) => readFileSync(joi
 check(html.includes('<title>Bellhop Concierge</title>'), 'built HTML keeps the title');
 check((html.match(/viewport-fit=cover/g) ?? []).length === 1, 'built HTML has viewport-fit=cover once');
 check(!/<img(?![^>]*\balt=)[^>]*>/i.test(html), 'built HTML: every <img> has alt (shell has none or all carry alt)');
-for (const s of ['The front desk concierge for small inns.', 'What your words changed.', 'Your words moved the answer.', 'How a call becomes a plan.',
+for (const s of ['The front desk concierge for small inns and short-term rentals.', 'What your words changed.', 'Your words moved the answer.', 'How a call becomes a plan.',
   'Why this pick.', 'What your callers love.', 'Safe by default.', 'Run your own concierge.', 'Step through the call', 'Show each step',
   'See the exact request', 'matches your words', 'Eleven questions, then a preview.']) {
   check(js.includes(s), `bundle carries ${JSON.stringify(s)}`);
@@ -109,7 +112,7 @@ try {
   const smsLive = render(h(Landing, { health: { ...health, data: { ...health.data, tools: { ...health.data.tools, sms: 'live' } } } }), 'landing (sms live)');
   check(smsLive.includes('The calls and texts are real.') && !smsLive.includes('test mode'), 'answering with sms live: calls and texts real');
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
-  check(h1 === 'The front desk concierge for small inns.', `H1 = ${JSON.stringify(h1)}`);
+  check(h1 === 'The front desk concierge for small inns and short-term rentals.', `H1 = ${JSON.stringify(h1)}`);
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
   check(land.includes('Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.'), 'product sentence present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
@@ -199,13 +202,13 @@ try {
     const all = `${text} ${attrs}`;
     check(!/\u2014/.test(all), `${label}: no em dash`);
     check(!/\bA\.?I\b/.test(all), `${label}: no "AI"`);
-    check(!/\bhosts?\b/i.test(all), `${label}: no "host"`);
+    check(!/\bhosts?\b/i.test(withoutRentalHost(all)), `${label}: no "host" (the rental host excepted)`);
   }
   // The same rules over every string literal in the bundle (what any page can render).
   check(!/\u2014/.test(js), 'bundle: no em dash');
   const words = js.match(/"[^"\n]{3,}"|'[^'\n]{3,}'|`[^`]{3,}`/g) ?? [];
   const aiHits = words.filter((w) => /\bA\.?I\b/.test(w) && / /.test(w));
-  const hostHits = words.filter((w) => /\bhosts?\b/i.test(w) && / /.test(w));
+  const hostHits = words.filter((w) => /\bhosts?\b/i.test(withoutRentalHost(w)) && / /.test(w));
   check(aiHits.length === 0, `bundle prose strings: no "AI" (${aiHits.slice(0, 3).join(' | ')})`);
   check(hostHits.length === 0, `bundle prose strings: no "host" (${hostHits.slice(0, 3).join(' | ')})`);
 } finally {

@@ -36,7 +36,7 @@ test('tagMeasures: cuisine and vibe words in the reason are counted apart, and t
 
 test('the scorecard prints all three measures and drops the old "named as a driver" count', () => {
   const records = [rec([ARTIST, CUISINE], [pick('Strong match for your overall taste; tagged Alpha food', [match(CUISINE)])])];
-  const card = renderScorecard({ records: records.map((r) => ({ ...r, eval: Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10', 'C11', 'C12', 'C13', 'C14', 'C15', 'C16', 'C17', 'C18'].map((id) => [id, { verdict: 'na', reason: '' }])) })),
+  const card = renderScorecard({ records: records.map((r) => ({ ...r, eval: Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10', 'C11', 'C12', 'C13', 'C14', 'C15', 'C16', 'C17', 'C18', 'C19'].map((id) => [id, { verdict: 'na', reason: '' }])) })),
     liveUsed: 0, mode: 'mock', startedAt: '2026-01-01T00:00:00.000Z' });
   assert.match(card, /picks whose reason names a guest cuisine word: 1 of 1/);
   assert.match(card, /picks whose reason names a guest vibe word: 0 of 0/);

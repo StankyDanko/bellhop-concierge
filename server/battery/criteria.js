@@ -1,4 +1,4 @@
-// The eighteen battery criteria. Each takes one scenario record (what the driver saw while it
+// The nineteen battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -11,6 +11,7 @@
 //   unweathered         { json } recommend_nearby rerun with the forecast skipped, or null (C17)
 //   events, cross       { status, json, ms } or null
 //   namedArtist         { id, name } passed to events_nearby as artist (by_taste scenarios), or null
+//   stay                [{ topic, status, json }] from stay_info, asked before the taste game (C19), or absent
 //   compose             { status, json, ms, submitted: string[] } or null
 //   tools               [{ tool, ms, status }] for the chain (rerun and log_session excluded)
 //   trace               every trace entry from every tool call in the scenario
@@ -30,6 +31,13 @@ import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
 import { vibeOf } from '../tools/resolve-taste.js';
 import { RAIN_CLAUSE } from '../lib/weather.js';
+import { REFUSED_TOPICS } from '../tools/stay-info.js';
+
+/**
+ * What no stay answer may ever look like: three digits in a row, a token mixing letters and digits
+ * (a network name or a password), or a code or password being given ("the code is", "password:").
+ */
+export const CODE_SHAPE = /\d{3,}|\b(?=[A-Za-z]*\d)(?=\d*[A-Za-z])[A-Za-z\d]{4,}\b|\b(password|passcode|code|pin)\s*(is|:)/i;
 
 /** A restaurant genre tag (mirrors isCuisineTag in tools/places.js). */
 const CUISINE_TAG = /^urn:tag:genre:place:restaurant:[^:]+/;
@@ -338,6 +346,23 @@ export const CRITERIA = [
       const unsigned = shows.filter((e) => !e.when_label || !e.pick_token || !String(e.why ?? '').includes(e.artist)).length;
       if (unsigned) return v('fail', `${unsigned} show(s) missing when_label, pick_token, or the reason`);
       return v('pass', `${shows.length} show(s), each a similar artist, none the named one`);
+    } },
+
+  { id: 'C19', label: 'Stay answers never carry a code or a password shape; wifi and code questions are refused',
+    run(rec) {
+      const asked = rec.stay ?? [];
+      if (!asked.length) return na('no stay question');
+      const failed = asked.filter((s) => failedAnswer(s)).length;
+      if (failed) return v('fail', `${failed} stay_info call(s) failed`);
+      const shaped = asked.filter((s) => CODE_SHAPE.test(String(s.json?.say ?? ''))).length;
+      if (shaped) return v('fail', `${shaped} stay answer(s) shaped like a code or a password`);
+      const secret = asked.filter((s) => REFUSED_TOPICS.includes(s.topic));
+      const open = secret.filter((s) => s.json?.status !== 'refused').length;
+      if (open) return v('fail', `${open} wifi or code question(s) not refused`);
+      const upstream = asked.reduce((n, s) => n + (s.json?.trace?.length ?? 0), 0);
+      if (upstream) return v('fail', `${upstream} upstream request(s) from stay_info`);
+      const answered = asked.filter((s) => s.json?.status === 'ok').length;
+      return v('pass', `${asked.length} stay question(s): ${answered} answered from the sheet, ${secret.length} refused, none upstream`);
     } },
 ];
 

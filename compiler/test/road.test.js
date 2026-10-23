@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { compile, INN_DEMO_TRANSFER, loadPersona, RUNTIME_VARIABLES, TRUST_LIMITS } from '../compile.js';
+import { compile, INN_DEMO_TRANSFER, loadPersona, RENTAL_DEMO_TRANSFER, ROAD_TRANSFER_DESCRIPTION, RUNTIME_VARIABLES, TRUST_LIMITS } from '../compile.js';
 import { sentences } from '../lint.js';
 import { CALLER_ID_VAR, LOCALITY, SMS_TOOL_NAME } from '../tools.js';
 import { validateConfig } from '../../config/schema.js';
@@ -104,19 +104,32 @@ test('road: trust level sets the call limits exactly as it does for an inn', () 
   assert.deepEqual(compile(road(), OPTS).agent.platform_settings.call_limits, { daily_limit: 20, agent_concurrency_limit: 1, bursting_enabled: false });
 });
 
-test('road: the inn demo is one transfer away, with a placeholder until the agent id is passed', () => {
+test('road: the inn demo and the rental demo are one transfer away, with placeholders until the agent ids are passed', () => {
   const off = compile(road(), OPTS);
   const t = off.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent;
   assert.equal(t.type, 'system');
   assert.equal(t.params.system_tool_type, 'transfer_to_agent');
-  assert.equal(t.params.transfers.length, 1);
+  assert.equal(t.params.transfers.length, 2);
   assert.equal(t.params.transfers[0].agent_id, INN_DEMO_TRANSFER.placeholder);
-  assert.equal(t.params.transfers[0].enable_transferred_agent_first_message, true);
-  assert.ok(off.lint.some((f) => f.rule === 'placeholder' && f.where === 'built_in_tools.transfer_to_agent'));
-  const on = compile(road(), { ...OPTS, innDemoAgentId: 'agent_inn_demo_example' });
-  assert.equal(on.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent.params.transfers[0].agent_id, 'agent_inn_demo_example');
+  assert.equal(t.params.transfers[1].agent_id, RENTAL_DEMO_TRANSFER.placeholder);
+  for (const x of t.params.transfers) assert.equal(x.enable_transferred_agent_first_message, true);
+  assert.equal(off.lint.filter((f) => f.rule === 'placeholder' && f.where === 'built_in_tools.transfer_to_agent').length, 2);
+  const on = compile(road(), { ...OPTS, innDemoAgentId: 'agent_inn_demo_example', rentalDemoAgentId: 'agent_rental_demo_example' });
+  const onT = on.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent.params.transfers;
+  assert.deepEqual(onT.map((x) => x.agent_id), ['agent_inn_demo_example', 'agent_rental_demo_example']);
   assert.ok(!on.lint.some((f) => f.where === 'built_in_tools.transfer_to_agent'));
   assert.match(promptOf(on), /When the guest asks for the inn demo/);
+  // Both spoken phrases reach the rental demo, and the inn demo still reaches Harper.
+  for (const phrase of ['the Airbnb demo', 'the rental demo']) {
+    assert.ok(onT[1].condition.includes(phrase), `rental transfer condition names ${phrase}`);
+    assert.ok(promptOf(on).includes(`asks for the Airbnb demo, the rental demo`), 'the prompt names both phrases');
+    assert.ok(!onT[0].condition.includes(phrase), `the inn transfer never takes ${phrase}`);
+  }
+  assert.match(onT[0].condition, /the inn demo/);
+  // Only one of the two demos: the other keeps its placeholder and its warning.
+  const half = compile(road(), { ...OPTS, innDemoAgentId: 'agent_inn_demo_example' });
+  assert.equal(half.lint.filter((f) => f.where === 'built_in_tools.transfer_to_agent').length, 1);
+  assert.match(half.lint.find((f) => f.where === 'built_in_tools.transfer_to_agent').excerpt, /rentalDemoAgentId/);
   // The inn personas never carry a transfer.
   for (const persona of ['harper', 'maybelle']) {
     assert.equal(compile(demo(), { ...OPTS, persona }).agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent, undefined);
@@ -125,7 +138,7 @@ test('road: the inn demo is one transfer away, with a placeholder until the agen
 
 test('road: the transfer rule is linted like any model-visible text', () => {
   const r = compile(road(), OPTS);
-  for (const text of [INN_DEMO_TRANSFER.description, INN_DEMO_TRANSFER.condition]) {
+  for (const text of [ROAD_TRANSFER_DESCRIPTION, INN_DEMO_TRANSFER.description, INN_DEMO_TRANSFER.condition, RENTAL_DEMO_TRANSFER.description, RENTAL_DEMO_TRANSFER.condition]) {
     assert.doesNotMatch(text, /[–—]|\bA\.?I\b|\blives?\b/);
   }
   assert.deepEqual(r.lint.filter((f) => f.where.startsWith('built_in_tools') && f.severity === 'error'), []);

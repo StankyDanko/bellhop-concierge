@@ -47,12 +47,15 @@ export function parseChecks(fileText) {
 /** A road persona's question about where the caller is: never a taste question. */
 export const PLACE_QUESTION = /\b(city|state|town)\b/i;
 
+/** A rental persona's offer after a stay answer ("want me to plan your night?"): never a taste question. */
+export const STAY_OFFER = /\bplan your night\b|\bfor the stay\b/i;
+
 /**
  * Walk one example; return the question count and every stop-rule breach.
  * A road persona's opener asks where the caller is, not for a band, so it does not count, and
  * neither does a follow-up place question such as "Which state?".
  */
-export function audit(example, named, { road = false } = {}) {
+export function audit(example, named, { road = false, rental = false } = {}) {
   let questions = road ? 0 : 1; // the opener's band question
   let guestTurn = -1;
   const breaches = [];
@@ -60,6 +63,7 @@ export function audit(example, named, { road = false } = {}) {
     if (t.who === 'guest') { guestTurn += 1; continue; }
     if (!t.text.includes('?')) continue;
     if (road && PLACE_QUESTION.test(t.text) && !/\b(band|dinner|loves)\b/i.test(t.text)) continue;
+    if (rental && STAY_OFFER.test(t.text)) continue;
     questions += 1;
     if (guestTurn >= 0 && named[guestTurn] >= STOP_AT_NAMED) breaches.push(`question after ${named[guestTurn]} named things: "${t.text}"`);
   }
@@ -90,7 +94,7 @@ for (const id of listPersonas(PERSONAS_DIR.pathname)) {
       const guestTurns = ex.turns.filter((t) => t.who === 'guest').length;
       assert.equal(named.length, guestTurns, `${id} / ${ex.title}: one count per guest turn`);
       named.forEach((n, i) => assert.ok(i === 0 || n >= named[i - 1], `${id} / ${ex.title}: counts never go down`));
-      const { questions, breaches } = audit(ex, named, { road: persona.mode === 'road' });
+      const { questions, breaches } = audit(ex, named, { road: persona.mode === 'road', rental: persona.mode === 'rental' });
       assert.ok(questions <= MAX_QUESTIONS, `${id} / ${ex.title}: ${questions} questions before the lookup`);
       assert.deepEqual(breaches, [], `${id} / ${ex.title}`);
       assert.ok(!ex.turns.at(-1).text.includes('?'), `${id} / ${ex.title}: must end on the lookup, not a question`);

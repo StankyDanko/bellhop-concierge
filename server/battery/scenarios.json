@@ -1,5 +1,5 @@
 {
-  "_note": "Simulated callers. Guest words only: no names, numbers, or room details. Property coordinates are the fictional demo inn used by the test suite.",
+  "_note": "Simulated callers. Guest words only: no names, numbers, or room details. Property coordinates are the fictional demo inn used by the test suite; miami-rental-stay carries the fictional Miami rental demo (config/examples/miami-rental.json), whose place lookups use the demo inn coordinates offline because every fixture place sits there.",
   "property": { "lat": 32.079, "lng": -81.095 },
   "scenarios": [
     { "id": "solo-artist-cuisine", "label": "Solo: artist plus cuisine",
@@ -35,7 +35,10 @@
     { "id": "three-things", "label": "Guest names three things",
       "mentions": ["Johnny Cash", "Wes Anderson films", "mexican food"] },
     { "id": "artist-shows", "label": "Guest names a touring artist: shows by similar artists",
-      "mentions": ["Kacey Musgraves"], "events": true, "by_taste": true, "constraints": { "when": "weekend" } }
+      "mentions": ["Kacey Musgraves"], "events": true, "by_taste": true, "constraints": { "when": "weekend" } },
+    { "id": "miami-rental-stay", "label": "Miami rental: what time is checkout, the wifi, then the taste game",
+      "property_id": "miami", "property": { "lat": 25.729, "lng": -80.241 }, "stay": ["checkout", "wifi"],
+      "mentions": ["Kacey Musgraves", "seafood"] }
   ],
   "_sequences_note": "One fictional caller (555-01xx) calls twice. Each call reuses a scenario above by id. texted_on: calls whose plan is reported texted. forget_on: the call that says forget me. days_between: how far the mock clock moves before the next call (live runs stay same-day).",
   "sequences": [

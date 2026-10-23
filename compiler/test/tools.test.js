@@ -11,7 +11,8 @@ import { compile } from '../compile.js';
 import { SECRET_HEADER, SERVER_TOOL_NAMES, SMS_TOOL_NAME, toolPath } from '../tools.js';
 import { demo } from './helpers.js';
 
-const r = compile(demo(), { toolBaseUrl: 'https://tools.example.org/', toolSecretId: 'sec_test' });
+// With a stay sheet, so stay_info (compiled only for a config that has one) is checked too.
+const r = compile({ ...demo(), stay: { trash: 'Trash goes out Tuesday night.' } }, { toolBaseUrl: 'https://tools.example.org/', toolSecretId: 'sec_test' });
 const byName = Object.fromEntries(r.tools.map((t) => [t.tool_config.name, t.tool_config]));
 
 test('one webhook per server tool (send_sms and log_session included), and nothing else', () => {

@@ -9,8 +9,8 @@ import { demo } from './helpers.js';
 const OPTS = { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test' };
 const prompt = (r) => r.agent.conversation_config.agent.prompt.prompt;
 
-test('the two inn personas and the road persona are on disk and parse', () => {
-  assert.deepEqual(listPersonas().sort(), ['harper', 'maybelle', 'road']);
+test('the two inn personas, the road persona, and the rental persona are on disk and parse', () => {
+  assert.deepEqual(listPersonas().sort(), ['harper', 'marisol', 'maybelle', 'road']);
   for (const id of listPersonas()) {
     const p = loadPersona(id);
     assert.equal(p.id, id);

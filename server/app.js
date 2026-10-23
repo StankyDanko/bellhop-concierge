@@ -18,6 +18,8 @@ import { resolveTaste } from './tools/resolve-taste.js';
 import { logSession } from './tools/log-session.js';
 import { createSendLimiter, sendSms } from './tools/send-sms.js';
 import { forgetGuest } from './tools/forget-guest.js';
+import { stayInfo } from './tools/stay-info.js';
+import { stayLookup } from './lib/stay.js';
 import { observeTool, redactTrace } from './lib/memory.js';
 import { conversationInit, INIT_BODY_MAX, INIT_PATH } from './hooks/conversation-init.js';
 import { mountDashboard } from './api/index.js';
@@ -32,6 +34,7 @@ export const TOOLS = {
   area_insights: areaInsights,
   send_sms: sendSms,
   log_session: logSession,
+  stay_info: stayInfo,
 };
 
 /**
@@ -67,11 +70,13 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/memory.js').GuestMemory|null} [deps.memory]  returning-guest memory; null switches it off
  * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
  * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
+ * @param {(propertyId: string) => any} [deps.stays]  a property's config by id, for stay_info (lib/stay.js); defaults to the dashboard database, then config/examples
  */
-export function createApp({ secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
+export function createApp({ secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng, stays }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
+  const ctx = { qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory,
+    stays: stays ?? stayLookup({ db: dashboard?.db ?? null }) };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
   const toolList = [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)];

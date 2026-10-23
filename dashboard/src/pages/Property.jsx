@@ -275,15 +275,18 @@ function ReadingKey({ gate, sample, tastes, qlooMode }) {
 
 // ---- page ---------------------------------------------------------------------------------------
 
+/** Properties whose page opens with the labeled sample on: the demo inn and the Miami rental demo. */
+export const SAMPLE_ON = ['demo', 'miami'];
+
 export default function Property({ id, health }) {
   const [prop] = useApi(`/properties/${id}`);
   const [sessions, reloadSessions] = useApi(`/properties/${id}/sessions`);
   const [itin] = useApi(`/properties/${id}/itinerary-sample`);
   const [pick] = useApi('/sample-pick');
   const [radius, setRadius] = useState(2);
-  // The demo inn opens with the labeled sample on, so a first visit never lands on dark
+  // The demo inn and the Miami rental demo open with the labeled sample on, so a first visit never lands on dark
   // panels. Every panel it fills carries the sample badge. Other inns start on their own data.
-  const [sample, setSample] = useState(id === 'demo');
+  const [sample, setSample] = useState(SAMPLE_ON.includes(id));
   const [ins, reloadIns] = useApi(`/properties/${id}/insights?radius=${radius}${sample ? '&sample=1' : ''}`);
   const [fp] = useApi(`/properties/${id}/fingerprint${sample ? '?sample=1' : ''}`);
   return (
@@ -309,6 +312,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   const cfg = p.config;
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const isDemo = id === 'demo';
+  const rental = cfg.property.kind === 'rental';
   const badgeState = isDemo ? health.state : p.status === 'published' ? 'test' : 'paused';
   const list = sessions.data?.sessions ?? [];
   const total = sessions.data?.total ?? 0;
@@ -332,7 +336,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   return (
     <div className="container property">
       <header className="prop-head">
-        <p className="micro">Innkeeper dashboard{isDemo ? ', sample inn' : ''}</p>
+        <p className="micro">{rental ? `Rental host dashboard${id === 'miami' ? ', the Miami rental demo' : ''}` : `Innkeeper dashboard${isDemo ? ', sample inn' : ''}`}</p>
         <h1>{cfg.property.name}</h1>
         <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
         <div className="prop-chips">

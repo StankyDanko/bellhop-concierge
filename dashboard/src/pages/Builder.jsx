@@ -27,7 +27,19 @@ const FIELD_LABELS = {
   'handoff.name': 'Your first name', 'handoff.hours': 'When you are reachable', 'handoff.triggers': 'Send guests to you for', 'handoff.phone_last4': 'Last four digits',
   'picks.name': 'A favorite spot name', 'picks.why': 'Why you love a spot', 'faq.q': 'A guest question', 'faq.a': 'An answer', 'avoid.name': 'A place to skip',
   'rules.list': 'House rules', 'rules.never_bend': 'Rules you never bend', picks: 'Your favorite spots',
+  'property.kind': 'Inn or short-term rental', 'stay.welcome': 'Your welcome', 'stay.amenities': 'Pool or building amenities',
+  'stay.trash': 'Trash and recycling day', 'stay.quiet_hours': 'Quiet hours', 'stay.contact': 'How guests reach you', 'stay.transit': 'Getting around',
 };
+/** The stay sheet's fields, in the order the builder asks them (config/schema.js STAY_FIELDS). */
+const STAY_ROWS = [
+  ['welcome', 'Your welcome, in your words', 240, 'Welcome in. The coffee in the kitchen is yours.'],
+  ['amenities', 'Pool or building amenities, and their hours', 240, 'The pool is open from eight in the morning to ten at night.'],
+  ['trash', 'Trash and recycling day', 160, 'Trash and recycling go to the curb on Tuesday night.'],
+  ['quiet_hours', 'Quiet hours', 160, 'Ten at night to eight in the morning.'],
+  ['contact', 'How guests reach you', 200, 'Message me through the booking app.'],
+  ['transit', 'A tip for getting around', 200, 'The trolley stops at the corner.'],
+];
+const SAMPLES = { inn: ['demo', 'the sample inn'], rental: ['miami', 'the sample rental'] };
 const LINT_WORDS = {
   em_dash: 'A long dash the voice stumbles on',
   forbidden_word: 'A word this product never uses',
@@ -47,7 +59,7 @@ const HUMOR_TEXT = [
 function blankConfig() {
   return {
     schema_version: 1,
-    property: { name: '', address: '', lat: '', lng: '', timezone: 'America/New_York', website: '' },
+    property: { kind: 'inn', name: '', address: '', lat: '', lng: '', timezone: 'America/New_York', website: '' },
     voice: { persona_id: 'harper', humor_level: 1, languages: ['en'], feel: '' },
     guests: { typical: '', here_for: '' },
     logistics: { checkin: '', checkout: '', parking: '', access_note: '', wifi_note: '' },
@@ -56,6 +68,7 @@ function blankConfig() {
     handoff: { name: '', phone_last4: '', triggers: [], hours: '' },
     permissions: { send_itinerary_sms: true, suggest_partners: false, upsell: false },
     trust_level: 'test',
+    stay: Object.fromEntries(STAY_ROWS.map(([k]) => [k, ''])),
   };
 }
 const DEFAULT_PROV = Object.fromEntries(['property.timezone', 'voice.persona_id', 'voice.humor_level', 'voice.languages'].map((k) => [k, 'default']));
@@ -85,13 +98,19 @@ export function cleanConfig(d) {
   c.picks.forEach((p) => { if (p.partner === undefined) delete p.partner; });
   c.avoid = (c.avoid ?? []).filter((a) => a.name?.trim()).map((a) => ({ name: a.name.trim(), reason: (a.reason ?? '').trim() }));
   c.faq = (c.faq ?? []).filter((f) => f.q?.trim()).map((f) => ({ q: f.q.trim(), a: (f.a ?? '').trim() }));
+  // The stay sheet is optional: empty fields go, and so does a sheet with nothing in it.
+  const stay = Object.fromEntries(Object.entries(c.stay ?? {}).map(([k, v]) => [k, String(v ?? '').trim()]).filter(([, v]) => v));
+  if (Object.keys(stay).length) c.stay = stay; else delete c.stay;
+  // An inn is the default kind, so an inn's saved config stays exactly what it was.
+  if (c.property.kind !== 'rental') delete c.property.kind;
   return c;
 }
 
 /** Which question or step owns a schema path, for "Fix this" links on server errors. */
 function ownerOf(path) {
   const p = path.replace(/\[\d+\]/g, '');
-  if (p === 'property.website') return { q: 0 };
+  if (p === 'property.website' || p === 'property.kind') return { q: 0 };
+  if (p.startsWith('stay')) return { q: 5 };
   if (p.startsWith('property.') || p === 'voice.feel') return { q: 1 };
   if (p.startsWith('guests')) return { q: 2 };
   if (p === 'voice.humor_level') return { q: 3 };
@@ -124,21 +143,31 @@ function loadSaved() {
 
 function questions(ctx) {
   const d = ctx.draft;
+  const kind = d.property.kind === 'rental' ? 'rental' : 'inn';
+  const sampleName = SAMPLES[kind][1];
   return [
     {
       title: 'Start from your website or listing',
-      ask: 'Paste your website so the concierge can text it to guests, then choose where to begin.',
+      ask: 'Is this an inn or a short-term rental? Paste your website so the concierge can text it to guests, then choose where to begin.',
       body: (
         <>
-          <TextField ctx={ctx} path="property.website" label="Website" type="url" inputMode="url" autoComplete="url" placeholder="https://your-inn.example" help="Optional. Must start with https. It is texted, never read aloud." />
-          <Banner tone="info">Reading a listing automatically is coming in the hosted service. For now, start from the sample inn and change what you like, or start blank.</Banner>
+          <Segmented name="kind" legend="What kind of place" value={kind} describedBy="kind-help"
+            options={[{ value: 'inn', label: 'Inn' }, { value: 'rental', label: 'Short-term rental' }]}
+            onChange={ctx.setKind} />
+          <p className="help dim" id="kind-help" style={{ marginTop: 'var(--space-2)' }}>
+            {kind === 'rental'
+              ? 'A home with no front desk. Guests can ask about the stay, like checkout or trash day, and you are the rental host they message.'
+              : 'A front desk with an innkeeper. Guests ask about the evening, and you handle the rest.'}
+          </p>
+          <TextField ctx={ctx} path="property.website" label="Website" type="url" inputMode="url" autoComplete="url" placeholder="https://your-place.example" help="Optional. Must start with https. It is texted, never read aloud." />
+          <Banner tone="info">Reading a listing automatically is coming in the hosted service. For now, start from {sampleName} and change what you like, or start blank.</Banner>
           <div className="row" style={{ marginTop: 'var(--space-4)' }}>
             <button type="button" className="btn btn-secondary" onClick={ctx.loadSample} disabled={ctx.sampleState === 'loading'}>
-              {ctx.sampleState === 'loading' ? 'Loading the sample inn' : 'Start from the sample inn'}
+              {ctx.sampleState === 'loading' ? `Loading ${sampleName}` : `Start from ${sampleName}`}
             </button>
             <button type="button" className="btn btn-text" onClick={ctx.startBlank}>Start blank</button>
           </div>
-          {ctx.sampleState === 'error' && <Banner tone="danger">We couldn't load the sample inn. Start blank, or try again in a moment.</Banner>}
+          {ctx.sampleState === 'error' && <Banner tone="danger">We couldn't load {sampleName}. Start blank, or try again in a moment.</Banner>}
         </>
       ),
     },
@@ -147,7 +176,7 @@ function questions(ctx) {
       ask: 'What is the place called, where is it, and what feeling do you want guests to have?',
       body: (
         <>
-          <TextField ctx={ctx} path="property.name" label="Name of the inn" required maxLength={60} autoComplete="organization" />
+          <TextField ctx={ctx} path="property.name" label={kind === 'rental' ? 'Name of the rental' : 'Name of the inn'} required maxLength={60} autoComplete="organization" />
           <TextField ctx={ctx} path="property.address" label="Street address" required maxLength={160} autoComplete="street-address" help="Used to find picks nearby. Never read aloud." />
           <div className="field-row" style={{ marginTop: 'var(--space-4)' }}>
             <TextField ctx={ctx} path="property.lat" label="Latitude" type="number" inputMode="decimal" required help="From your map pin, for example 32.0749" />
@@ -202,8 +231,19 @@ function questions(ctx) {
     },
     {
       title: 'The house',
-      ask: 'Your wifi details. The concierge never says or texts them on a call; it points guests to their check-in message.',
-      body: <SecretField ctx={ctx} path="logistics.wifi_note" label="Wifi network and password" help="Stored as a secret. Never compiled into the concierge." />,
+      ask: 'Your wifi details, and the stay sheet guests can ask about. The concierge never says or texts wifi details on a call; it points guests to their check-in message.',
+      body: (
+        <>
+          <SecretField ctx={ctx} path="logistics.wifi_note" label="Wifi network and password" help="Stored as a secret. Never compiled into the concierge." />
+          <fieldset className="fieldset" style={{ marginTop: 'var(--space-4)' }}>
+            <legend>The stay sheet <span className="dim">(optional, every field)</span></legend>
+            <p className="help dim">When a guest asks about the stay, the concierge answers from these, in your words, one topic at a time. Check-in, checkout, parking, house rules, and your favorite spots come from your other answers. Never put a code or a password here.</p>
+            {STAY_ROWS.map(([k, label, max, placeholder]) => (
+              <TextField key={k} ctx={ctx} path={`stay.${k}`} label={label} multiline maxLength={max} placeholder={placeholder} />
+            ))}
+          </fieldset>
+        </>
+      ),
     },
     {
       title: 'House rules',
@@ -423,7 +463,9 @@ function Guardrails({ ctx, onNext }) {
 
 function PersonaStep({ ctx, onNext }) {
   const [list, setList] = useState(null);
-  useEffect(() => { api('/personas').then((r) => setList(r.ok ? r.data.personas : [])); }, []);
+  const kind = ctx.draft.property?.kind === 'rental' ? 'rental' : 'inn';
+  // Only the voices for this kind of place: the server refuses a rental with an inn voice, and the reverse.
+  useEffect(() => { api('/personas').then((r) => setList(r.ok ? r.data.personas.filter((p) => (p.kind ?? 'inn') === kind) : [])); }, [kind]);
   const sel = ctx.draft.voice.persona_id;
   const chosen = list?.find((p) => p.id === sel);
   return (
@@ -665,18 +707,28 @@ export default function Builder() {
     setPreview((p) => (p.passed ? { ...p, passed: false, stale: true } : p));
   }, []);
 
+  const kind = draft.property?.kind === 'rental' ? 'rental' : 'inn';
   const loadSample = async () => {
     setSampleState('loading');
-    const r = await api('/properties/demo');
+    const [id, label] = SAMPLES[kind];
+    const r = await api(`/properties/${id}`);
     if (!r.ok) { setSampleState('error'); return; }
-    setDraft(r.data.config);
+    // Fields the sample leaves out (an inn has no stay sheet) come back blank, so every input stays controlled.
+    const blank = blankConfig();
+    setDraft({ ...r.data.config, property: { ...r.data.config.property, kind }, stay: { ...blank.stay, ...(r.data.config.stay ?? {}) } });
     setProv(Object.fromEntries([...leafPaths(r.data.config), 'picks', 'avoid', 'faq', 'rules.list', 'rules.never_bend', 'handoff.triggers'].map((k) => [k, 'sample'])));
     setSampleState('idle');
     setErrors({});
-    setToast('Loaded the sample inn. Change anything you like.');
+    setToast(`Loaded ${label}. Change anything you like.`);
     setQ(1);
   };
-  const startBlank = () => { setDraft(blankConfig()); setProv(DEFAULT_PROV); setErrors({}); setQ(1); };
+  const startBlank = () => { const b = blankConfig(); b.property.kind = kind; b.voice.persona_id = kind === 'rental' ? 'marisol' : 'harper'; setDraft(b); setProv(DEFAULT_PROV); setErrors({}); setQ(1); };
+  /** Inn or rental, chosen first: the persona follows, so the preview never pairs a rental with an inn voice. */
+  const setKind = (next) => {
+    if (next === kind) return;
+    update('property.kind', next);
+    update('voice.persona_id', next === 'rental' ? 'marisol' : 'harper');
+  };
 
   const runPreview = async () => {
     setPreview((p) => ({ ...p, state: 'loading' }));
@@ -690,7 +742,7 @@ export default function Builder() {
     if (own.q !== undefined) { setStep('interview'); setQ(own.q); } else setStep(own.step);
     setCardOpen(false);
   };
-  const ctx = { draft, update, errors, loadSample, startBlank, sampleState };
+  const ctx = { draft, update, errors, loadSample, startBlank, sampleState, setKind };
   const { ready, total } = readiness(draft);
 
   return (

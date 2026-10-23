@@ -24,11 +24,14 @@ import { MEMORY_TOOLS, TOOLS } from '../server/app.js';
 import { SECRET_HEADER } from '../server/lib/auth.js';
 import { TARGETS } from '../server/tools/cross-domain.js';
 import { CLASSIFICATIONS } from '../server/tools/events-nearby.js';
+import { STAY_TOPICS } from '../server/tools/stay-info.js';
 
 /** Returning-guest memory tools: compiled only when the agent's memory webhook is on. */
 export const MEMORY_TOOL_NAMES = Object.freeze(Object.keys(MEMORY_TOOLS));
 export const SERVER_TOOL_NAMES = Object.freeze([...Object.keys(TOOLS), ...MEMORY_TOOL_NAMES]);
 export const SMS_TOOL_NAME = 'send_sms';
+/** Answers questions about the stay from the property's stay sheet: compiled only for a config that has one. */
+export const STAY_TOOL_NAME = 'stay_info';
 /** The route the server mounts each tool on (server/app.js: app.post(`/tools/${name}`)). */
 export const toolPath = (name) => `/tools/${name}`;
 export { SECRET_HEADER };
@@ -247,6 +250,18 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
           events_count: n('How many events you recommended on this call, zero if none'),
           sms_sent: b('True only if send_sms returned sent true on this call'),
           ...(memory ? { nights: n('How many nights the guest said they are in town, only if they said. Leave out otherwise.') } : {}),
+        },
+      },
+    },
+    stay_info: {
+      description: 'Answers one question about the stay from the stay sheet: check-in, checkout, parking, the pool and amenities, trash day, quiet hours, house rules, the favorite spots, how to reach the person who runs the place, or a transit tip. Say its say line, nothing more. It never gives a wifi password or a door code: for those, send topic wifi or door_code and say the line it returns.',
+      timeout: 8,
+      body: {
+        type: 'object',
+        required: ['topic', 'property_id'],
+        properties: {
+          topic: s(`What the guest asked about, one of ${STAY_TOPICS.join(', ')}. Use wifi for any network or password question and door_code for any door, gate, lockbox, or alarm question.`, { enum: [...STAY_TOPICS] }),
+          property_id: { type: 'string', constant_value: propertyId },
         },
       },
     },

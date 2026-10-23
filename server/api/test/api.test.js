@@ -312,10 +312,11 @@ describe('landing data', () => {
     assert.ok(r.json.picks.length >= 1);
   });
 
-  it('lists the two inn personas (never the road line) and the locked guardrails', async () => {
+  it('lists the two inn personas and the rental persona (never the road line), each with its kind, and the locked guardrails', async () => {
     const { req } = build();
     const p = await req('GET', '/api/personas');
-    assert.deepEqual(p.json.personas.map((x) => x.id).sort(), ['harper', 'maybelle']);
+    assert.deepEqual(p.json.personas.map((x) => x.id), ['harper', 'maybelle', 'marisol']);
+    assert.deepEqual(p.json.personas.map((x) => x.kind), ['inn', 'inn', 'rental']);
     assert.ok(p.json.personas.every((x) => x.sample && x.title));
     const g = await req('GET', '/api/guardrails');
     assert.ok(g.json.locked.length >= 9);

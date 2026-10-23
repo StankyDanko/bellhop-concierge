@@ -9,13 +9,15 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { assertValidConfig } from '../config/schema.js';
 import { RUNTIME_VARIABLES, lintCompiled } from './lint.js';
-import { SMS_TOOL_NAME, serverToolConfigs } from './tools.js';
+import { SMS_TOOL_NAME, STAY_TOOL_NAME, serverToolConfigs } from './tools.js';
 import { defaultVars } from '../server/conversation/choose.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const TEMPLATE_PATH = `${ROOT}template/concierge.md`;
 /** The road line's template: concierge.md with the inn taken out and the place question put in. */
 export const ROAD_TEMPLATE_PATH = `${ROOT}template/road.md`;
+/** The short-term rental's template: concierge.md with the front desk taken out and the stay sheet put in. */
+export const RENTAL_TEMPLATE_PATH = `${ROOT}template/rental.md`;
 export const PERSONAS_DIR = `${ROOT}personas`;
 
 /** Platform settings every compiled agent carries. Not host-configurable. */
@@ -26,15 +28,30 @@ export const LOCKED_SETTINGS = Object.freeze({
   tts_model_id: 'eleven_flash_v2',
 });
 
-/** inn: the persona answers for one inn at fixed coordinates. road: the caller says where they are. */
-export const PERSONA_MODES = Object.freeze(['inn', 'road']);
+/**
+ * inn: the persona answers for one inn at fixed coordinates. road: the caller says where they are.
+ * rental: one short-term rental at fixed coordinates, with a stay sheet instead of a front desk.
+ */
+export const PERSONA_MODES = Object.freeze(['inn', 'road', 'rental']);
 
-/** The road line's one transfer: the inn edition, reached when the guest asks for the inn demo. */
+/** The road line's first transfer: the inn edition, reached when the guest asks for the inn demo. */
 export const INN_DEMO_TRANSFER = Object.freeze({
   description: 'Hands the call to Harper, the concierge at The Juniper House, the inn edition of this line. Use it only when the guest asks for the inn demo, the inn, The Juniper House, or Harper. Say one short line first.',
   condition: 'The guest asks for the inn demo, the inn, The Juniper House, or Harper, at any point in the call. Transfer on the first clear ask. Never deny the inn demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
   placeholder: '<agent id of the inn demo>',
 });
+
+/** The road line's second transfer: the Miami rental demo, an Airbnb-style stay. */
+export const RENTAL_DEMO_TRANSFER = Object.freeze({
+  description: 'Hands the call to Marisol, the concierge at Casa Coralina, the Miami rental demo. Use it only when the guest asks for the Airbnb demo, the rental demo, the Miami rental, Casa Coralina, or Marisol. Say one short line first.',
+  condition: 'The guest asks for the Airbnb demo, the rental demo, the Miami rental, Casa Coralina, or Marisol, at any point in the call. Transfer on the first clear ask. Never deny the rental demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
+  placeholder: '<agent id of the rental demo>',
+});
+
+/** The road line's transfers, in order: [constant, compile option that carries the agent id]. */
+const ROAD_TRANSFERS = Object.freeze([[INN_DEMO_TRANSFER, 'innDemoAgentId'], [RENTAL_DEMO_TRANSFER, 'rentalDemoAgentId']]);
+/** The road line's transfer tool, which carries both transfers. */
+export const ROAD_TRANSFER_DESCRIPTION = 'Hands the call to one of the two demos of this line: Harper at The Juniper House, the inn demo, or Marisol at Casa Coralina, the Miami rental demo. Use it only when the guest asks for one of them. Say one short line first.';
 
 /** Call limits per trust level: test is the owner's preview line, live is the room card. */
 export const TRUST_LIMITS = Object.freeze({
@@ -85,7 +102,7 @@ export function loadPersona(id, dir = PERSONAS_DIR) {
   return {
     id: meta.id ?? id,
     display_name: meta.display_name ?? id,
-    mode: /** @type {'inn'|'road'} */ (mode),
+    mode: /** @type {'inn'|'road'|'rental'} */ (mode),
     humor_ceiling: Number(meta.humor_ceiling ?? 1),
     tts_stability: Number(meta.tts_stability ?? 0.5),
     opener: meta.opener,
@@ -139,8 +156,11 @@ function renderPersonaExamples(persona) {
   ].join('\n\n');
 }
 
+/** How the prompt names the place: "the inn" for an inn (unchanged since the first edition), "the rental" for a rental. */
+const placeWord = (c) => (c.property.kind === 'rental' ? 'the rental' : 'the inn');
+
 function renderProperty(c) {
-  const lines = [`About the inn. ${sentence(c.property.name)}`];
+  const lines = [`About ${placeWord(c)}. ${sentence(c.property.name)}`];
   if (c.voice.feel) lines.push(`The owner wants guests to feel this way. ${sentence(c.voice.feel)}`);
   lines.push(`Who usually stays. ${sentence(c.guests.typical)}`);
   lines.push(`What they come for. ${sentence(c.guests.here_for)}`);
@@ -167,7 +187,7 @@ function renderPicks(c) {
   if (c.picks.length) {
     out.push("The owner's picks. When one fits the guest's taste or need, you may name it as the owner's own favorite and give the owner's reason. These are the owner's word, not a tool result, so never add details to them.");
     for (const p of c.picks) {
-      const partner = p.partner && c.permissions.suggest_partners ? ' The inn works with this business, and you say so if you recommend it.' : '';
+      const partner = p.partner && c.permissions.suggest_partners ? ` ${placeWord(c).replace(/^t/, 'T')} works with this business, and you say so if you recommend it.` : '';
       out.push(`- ${speakable(p.name)}, ${p.category}. ${sentence(p.why)}${partner}`);
     }
   }
@@ -202,13 +222,27 @@ function renderHandoff(c) {
 
 function renderPermissions(c) {
   const out = [];
+  const place = placeWord(c);
   out.push(c.permissions.upsell
-    ? "Extras. If a guest asks about something the inn offers for a fee, you may mention it once, using only the owner's answers above. Never press."
-    : 'Extras. Do not offer anything the inn sells. If a guest asks, the owner can tell them.');
+    ? `Extras. If a guest asks about something ${place} offers for a fee, you may mention it once, using only the owner's answers above. Never press.`
+    : `Extras. Do not offer anything ${place} sells. If a guest asks, the owner can tell them.`);
   out.push(c.permissions.suggest_partners
-    ? 'Partners. You may recommend a business the inn works with when it truly fits, and you always say the inn works with them.'
-    : 'Partners. Never present any business as a partner of the inn, and never favor one for that reason.');
+    ? `Partners. You may recommend a business ${place} works with when it truly fits, and you always say ${place} works with them.`
+    : `Partners. Never present any business as a partner of ${place}, and never favor one for that reason.`);
   return out.join('\n');
+}
+
+/**
+ * The stay sheet's rule and its tool line, only when the config has a sheet (and so the agent
+ * has stay_info). Read by the rental template; the inn template does not carry these slots.
+ */
+function renderStayRule(c) {
+  if (!c.stay) return '';
+  return 'This step is important. Questions about the stay. When a guest asks about the stay itself, like check-in, checkout, parking, the pool, trash day, quiet hours, the house rules, the favorite spots nearby, how to reach the owner, or getting around, call stay_info with that topic and say its say line in your own short words, never adding to it. Answer the question first, then, if the guest sounds happy to stay on the line, offer to plan their night. A stay question is not a taste question and never counts toward the three. If stay_info says it does not have something, say so plainly, and never guess.';
+}
+
+function renderStayTool(c, n) {
+  return c.stay ? `${n}. stay_info. Use it for any question about the stay. Send one topic. For a wifi, network, or password question send wifi, and for a door, gate, lockbox, or alarm question send door_code, then say the line it returns.` : '';
 }
 
 /**
@@ -299,10 +333,15 @@ export function runtimeOpener(opener, personaId) {
  * @param {string} [opts.personasDir]
  * @param {boolean} [opts.memoryWebhook]
  * @param {string} [opts.innDemoAgentId] road line only: the agent id the inn demo transfer goes to
+ * @param {string} [opts.rentalDemoAgentId] road line only: the agent id the Miami rental demo transfer goes to
  */
 export function compile(config, opts = {}) {
   const c = assertValidConfig(config);
   const persona = loadPersona(opts.persona ?? c.voice.persona_id, opts.personasDir);
+  // A persona override still has to match the place: a rental template for a rental, never for an inn.
+  if ((persona.mode === 'rental') !== (c.property.kind === 'rental')) {
+    throw new Error(`persona ${persona.id} is for ${persona.mode === 'rental' ? 'a short-term rental' : 'an inn or the road line'}, and this config ${c.property.kind === 'rental' ? 'is' : 'is not'} a rental`);
+  }
   const humor = Math.min(c.voice.humor_level, persona.humor_ceiling);
   const handoffName = speakable(c.handoff.name);
   const propertyName = speakable(c.property.name);
@@ -325,10 +364,13 @@ export function compile(config, opts = {}) {
     sending: renderSending(c),
     forgetting: renderForgetting(memoryWebhook),
     forget_tool: renderForgetTool(memoryWebhook),
+    stay_rule: renderStayRule(c),
+    stay_tool: renderStayTool(c, 6),
   };
 
   const roaming = persona.mode === 'road';
-  const template = readFileSync(opts.templatePath ?? (roaming ? ROAD_TEMPLATE_PATH : TEMPLATE_PATH), 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
+  const templateFor = { road: ROAD_TEMPLATE_PATH, rental: RENTAL_TEMPLATE_PATH, inn: TEMPLATE_PATH };
+  const template = readFileSync(opts.templatePath ?? templateFor[persona.mode], 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
   const prompt = fillSlots(template, slots).replace(/\n{3,}/g, '\n\n').trim();
   const opened = memoryWebhook ? runtimeOpener(fillSlots(persona.opener, inner), persona.id) : null;
   const firstMessage = opened ? opened.firstMessage : fillSlots(persona.opener, inner);
@@ -337,21 +379,21 @@ export function compile(config, opts = {}) {
   const usesRuntime = RUNTIME_VARIABLES.some((v) => prompt.includes(`{{${v}}}`));
   const placeholders = opened ? opened.placeholders : usesRuntime ? defaultVars(persona.id) : null;
 
-  /** Road line only: the one transfer, to the inn edition. */
+  /** Road line only: the two transfers, to the inn demo and to the Miami rental demo. */
   const transferTools = roaming ? {
     transfer_to_agent: {
       type: 'system',
       name: 'transfer_to_agent',
-      description: INN_DEMO_TRANSFER.description,
+      description: ROAD_TRANSFER_DESCRIPTION,
       params: {
         system_tool_type: 'transfer_to_agent',
-        transfers: [{
-          agent_id: opts.innDemoAgentId ?? INN_DEMO_TRANSFER.placeholder,
-          condition: INN_DEMO_TRANSFER.condition,
+        transfers: ROAD_TRANSFERS.map(([t, opt]) => ({
+          agent_id: opts[opt] ?? t.placeholder,
+          condition: t.condition,
           delay_ms: 0,
           transfer_message: '',
           enable_transferred_agent_first_message: true,
-        }],
+        })),
       },
     },
   } : {};
@@ -364,7 +406,9 @@ export function compile(config, opts = {}) {
     secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
     memory: memoryWebhook,
     roaming,
-  }).filter((t) => c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME);
+  }).filter((t) => (c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME)
+    // stay_info only for a config with a stay sheet; every config without one compiles as before.
+    && (c.stay || t.tool_config.name !== STAY_TOOL_NAME));
 
   const agent = {
     name: `${c.property.name} Concierge, ${persona.display_name}${c.trust_level === 'test' ? ' [test]' : ''}`,
@@ -445,8 +489,10 @@ export function compile(config, opts = {}) {
     ...t.params.transfers.map((x, i) => [`built_in_tools.${t.name}.transfers[${i}].condition`, x.condition]),
   ]);
   const lint = lintCompiled({ prompt, firstMessage, tools, agent, secrets, extraTexts: builtInTexts });
-  if (roaming && !opts.innDemoAgentId) {
-    lint.push({ rule: 'placeholder', severity: 'warn', where: 'built_in_tools.transfer_to_agent', excerpt: 'inn demo agent id not filled; pass innDemoAgentId at deploy time' });
+  if (roaming) {
+    for (const [t, opt] of ROAD_TRANSFERS) {
+      if (!opts[opt]) lint.push({ rule: 'placeholder', severity: 'warn', where: 'built_in_tools.transfer_to_agent', excerpt: `${t.placeholder.slice(1, -1)} not filled; pass ${opt} at deploy time` });
+    }
   }
 
   return {

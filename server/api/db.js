@@ -14,6 +14,9 @@ import { ROAMING_PROPERTY_ID } from '../tools/log-session.js';
 export const DEFAULT_DB_PATH = fileURLToPath(new URL('../data/concierge.sqlite', import.meta.url));
 export const DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/demo-inn.json', import.meta.url));
 export const DEMO_PROPERTY_ID = 'demo';
+/** The Miami rental demo, an Airbnb-style stay with a stay sheet: seeded beside the demo inn. */
+export const RENTAL_DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/miami-rental.json', import.meta.url));
+export const RENTAL_DEMO_PROPERTY_ID = 'miami';
 /**
  * The built-in property any-city calls with no inn are filed under (tools/log-session.js): the
  * road line. Seeded from its example config when the repo has one, else from ROAMING_FALLBACK.
@@ -49,7 +52,17 @@ export function openDashboardDb({ path = DEFAULT_DB_PATH, now = () => new Date()
   db.exec(PROPERTIES_SCHEMA);
   seedDemo(db, now);
   seedRoaming(db, now);
+  seedRentalDemo(db, now);
   return db;
+}
+
+/** Insert the Miami rental demo as property `miami` if it is not there yet. Never overwrites. */
+export function seedRentalDemo(db, now = () => new Date()) {
+  if (!existsSync(RENTAL_DEMO_CONFIG_PATH)) return;
+  const config = readFileSync(RENTAL_DEMO_CONFIG_PATH, 'utf8');
+  if (JSON.parse(config).property?.id !== RENTAL_DEMO_PROPERTY_ID) throw new Error(`${RENTAL_DEMO_CONFIG_PATH} must have property.id ${RENTAL_DEMO_PROPERTY_ID}`);
+  db.prepare(`INSERT OR IGNORE INTO properties (id, config_json, status, updated_at) VALUES (?, ?, 'draft', ?)`)
+    .run(RENTAL_DEMO_PROPERTY_ID, config, now().toISOString());
 }
 
 /** Insert the demo inn as property `demo` if it is not there yet. Never overwrites. */

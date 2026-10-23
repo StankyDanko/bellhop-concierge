@@ -17,6 +17,7 @@ export function cells(d) {
       { label: 'Map pin', path: 'property.lat', q: 1, show: () => (filled(d.property?.lat) && filled(d.property?.lng) ? `${d.property.lat}, ${d.property.lng}` : '') },
       { label: 'Time zone', path: 'property.timezone', q: 1 },
       { label: 'Feel', path: 'voice.feel', q: 1 },
+      { label: 'Kind', path: 'property.kind', q: 0, show: (v) => (v === 'rental' ? 'Short-term rental' : v === 'inn' ? 'Inn' : '') },
       { label: 'Website', path: 'property.website', q: 0 },
     ] },
     { id: 'guests', title: 'Guests', q: 2, ready: filled(d.guests?.typical) && filled(d.guests?.here_for), rows: [
@@ -34,6 +35,7 @@ export function cells(d) {
       { label: 'Parking', path: 'logistics.parking', q: 4 },
       { label: 'Door note', path: 'logistics.access_note', q: 4, secret: true },
       { label: 'Wifi note', path: 'logistics.wifi_note', q: 5, secret: true },
+      { label: 'Stay sheet', path: 'stay', q: 5, show: (v) => plural(Object.values(v ?? {}).filter((x) => String(x ?? '').trim()).length, 'topic') },
       { label: 'House rules', path: 'rules.list', q: 6, show: (v) => plural(count(v), 'rule') },
       { label: 'Never bends', path: 'rules.never_bend', q: 6, show: (v) => plural(count(v), 'rule') },
       { label: 'Your picks', path: 'picks', q: 7, show: (v) => (v ?? []).map((p) => p?.name).filter(Boolean).join(', ') },

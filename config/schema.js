@@ -7,11 +7,19 @@
 // instruction-shaped text in fields that are meant to be data.
 
 export const SCHEMA_VERSION = 1;
-export const PERSONA_IDS = /** @type {const} */ (['harper', 'maybelle', 'road']);
+export const PERSONA_IDS = /** @type {const} */ (['harper', 'maybelle', 'road', 'marisol']);
 /** Personas with no inn behind them: the caller says where they are, so the config carries no place. */
 export const ROAD_PERSONA_IDS = /** @type {const} */ (['road']);
-/** Personas an innkeeper can pick for an inn: every persona except the road line. */
-export const INN_PERSONA_IDS = Object.freeze(PERSONA_IDS.filter((id) => !ROAD_PERSONA_IDS.includes(id)));
+/** Personas for a short-term rental (property.kind rental): a home with a stay sheet, not a front desk. */
+export const RENTAL_PERSONA_IDS = /** @type {const} */ (['marisol']);
+/** Personas an innkeeper can pick for an inn: every persona except the road line and the rental voices. */
+export const INN_PERSONA_IDS = Object.freeze(PERSONA_IDS.filter((id) => !ROAD_PERSONA_IDS.includes(id) && !RENTAL_PERSONA_IDS.includes(id)));
+/** Personas the builder offers: the inn voices and the rental voices, never the road line. */
+export const BUILDER_PERSONA_IDS = Object.freeze([...INN_PERSONA_IDS, ...RENTAL_PERSONA_IDS]);
+/** What kind of place a config describes. An inn is the default when property.kind is left out. */
+export const PROPERTY_KINDS = /** @type {const} */ (['inn', 'rental']);
+/** The stay sheet's own fields. stay_info also reads check-in, checkout, parking, the rules, and the picks. */
+export const STAY_FIELDS = /** @type {const} */ (['welcome', 'amenities', 'trash', 'quiet_hours', 'contact', 'transit']);
 export const TRUST_LEVELS = /** @type {const} */ (['test', 'suggest', 'live']);
 export const PICK_CATEGORIES = /** @type {const} */ (['food', 'drinks', 'music', 'outdoors', 'arts', 'shopping', 'coffee', 'other']);
 
@@ -35,6 +43,7 @@ export const SCHEMA = {
       required: ['name', 'timezone'],
       properties: {
         id: str(64, { pattern: '^[a-z0-9][a-z0-9-]{0,63}$', description: 'Optional slug the session log and the innkeeper dashboard file this inn under, for example demo. Defaults to a slug of the name.' }),
+        kind: { type: 'string', enum: [...PROPERTY_KINDS], description: 'Optional. inn, the default, or rental, a short-term rental. A rental uses a rental persona.' },
         name: str(60),
         address: str(160),
         lat: { type: 'number', minimum: -90, maximum: 90 },
@@ -144,6 +153,19 @@ export const SCHEMA = {
       },
     },
     trust_level: { type: 'string', enum: [...TRUST_LEVELS] },
+    stay: {
+      description: 'Optional stay sheet, answered by the stay_info tool one topic at a time. Check-in, checkout and parking come from logistics, house rules from rules, favorite spots from picks. Never a wifi password or a door code: those come in the check-in message.',
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        welcome: str(240, { description: 'What a guest hears as a welcome on arrival' }),
+        amenities: str(240, { description: 'Pool or building amenities, and their hours' }),
+        trash: str(160, { description: 'Trash and recycling day' }),
+        quiet_hours: str(160, { description: 'Quiet hours' }),
+        contact: str(200, { description: 'How to reach the person who runs the place. No phone numbers or email addresses.' }),
+        transit: str(200, { description: 'A local transit tip' }),
+      },
+    },
   },
 };
 
@@ -214,6 +236,7 @@ export function speakableHostText(config) {
   add('handoff.name', config.handoff?.name);
   add('handoff.hours', config.handoff?.hours);
   (config.handoff?.triggers ?? []).forEach((t, i) => add(`handoff.triggers[${i}]`, t));
+  for (const k of STAY_FIELDS) add(`stay.${k}`, config.stay?.[k]);
   return out;
 }
 
@@ -223,6 +246,8 @@ const EMAIL_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 const FORBIDDEN_WORD_RE = /\bA\.?I\b|artificial intelligence/i;
 /** Instruction-shaped text: the innkeeper fills data fields, never instructions to the agent. */
 const INJECTION_RE = /\b(ignore|disregard|forget)\b.{0,30}\b(instructions?|rules?|prompt|above|previous)\b|\bsystem prompt\b|\byou are now\b|\bact as\b|\bnew instructions?\b/i;
+/** Words that only appear next to a secret: the stay sheet never carries one. */
+export const CODE_WORDS_RE = /\b(password|passcode|pass code|door code|gate code|lockbox|keypad|pin code|alarm code)\b/i;
 /** The heteronym the voice mispronounces ("live" as in alive vs. to live). */
 const LIVE_RE = /\blives?\b/i;
 
@@ -253,9 +278,22 @@ function placeErrors(config) {
   return errors;
 }
 
+/**
+ * A rental speaks through a rental persona and an inn through an inn persona (or the road line),
+ * so the template a config compiles through always matches the place it describes.
+ * @param {any} config @returns {string[]}
+ */
+function kindErrors(config) {
+  const persona = config?.voice?.persona_id;
+  const rental = config?.property?.kind === 'rental';
+  if (rental && !RENTAL_PERSONA_IDS.includes(persona)) return [`voice.persona_id: a rental uses a rental persona, one of ${RENTAL_PERSONA_IDS.join(', ')}`];
+  if (!rental && RENTAL_PERSONA_IDS.includes(persona)) return ['property.kind: this persona is for a rental, so set kind to rental'];
+  return [];
+}
+
 /** @param {any} config @returns {string[]} */
 function semanticErrors(config) {
-  const errors = [];
+  const errors = [...kindErrors(config)];
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: config.property.timezone });
   } catch {
@@ -270,6 +308,12 @@ function semanticErrors(config) {
     if (INJECTION_RE.test(text)) errors.push(`${p}: reads like an instruction to the agent; write it as a fact about the inn`);
     if (LIVE_RE.test(text)) errors.push(`${p}: the word "live" is mispronounced by the voice; try "music on stage" or "a band playing"`);
     for (const s of secrets) if (text.includes(s)) errors.push(`${p}: contains part of the access or wifi note; those are never spoken`);
+  }
+  // The stay sheet is read out on request, so nothing in it may look like a code or a password.
+  for (const k of STAY_FIELDS) {
+    const text = config.stay?.[k];
+    if (typeof text !== 'string') continue;
+    if (CODE_WORDS_RE.test(text) || /\d{3,}/.test(text)) errors.push(`stay.${k}: no codes, passwords, or long numbers in the stay sheet; those come in the check-in message`);
   }
   const names = (config.avoid ?? []).map((a) => a.name.toLowerCase());
   (config.picks ?? []).forEach((pk, i) => { if (names.includes(pk.name.toLowerCase())) errors.push(`picks[${i}].name: is also on the avoid list`); });

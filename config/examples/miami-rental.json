@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "property": {
+    "id": "miami",
+    "kind": "rental",
+    "name": "Casa Coralina",
+    "address": "3150 Coralina Way, Miami, FL 33133",
+    "lat": 25.729,
+    "lng": -80.241,
+    "timezone": "America/New_York",
+    "website": "https://casacoralina.example"
+  },
+  "voice": {
+    "persona_id": "marisol",
+    "humor_level": 1,
+    "languages": ["en", "es"],
+    "feel": "Like borrowing a friend's bungalow in the Grove, with her notes on the fridge."
+  },
+  "guests": {
+    "typical": "Couples on a long weekend, small families, and friends in town for a wedding.",
+    "here_for": "Slow mornings by the pool, dinner near the water, and a night out with music."
+  },
+  "logistics": {
+    "checkin": "Four in the afternoon",
+    "checkout": "Ten in the morning",
+    "parking": "One spot in the driveway, on the left. Street parking on the block is free after six in the evening.",
+    "access_note": "Front door keypad 3812, then the spare key in the lockbox by the side gate, code 0475.",
+    "wifi_note": "Network CoralinaGuest, password MangoBreeze2290"
+  },
+  "rules": {
+    "list": [
+      "Quiet hours are ten at night to eight in the morning.",
+      "The pool closes at ten at night, and there is no lifeguard.",
+      "Beach towels stay inside overnight, in the hall closet."
+    ],
+    "never_bend": [
+      "No parties or events.",
+      "No smoking anywhere, the patio included.",
+      "No more than four guests overnight."
+    ]
+  },
+  "picks": [
+    { "name": "La Ventanita de Coralina", "why": "The cafecito is strong, the guava pastries are warm by seven, and it is a short walk.", "category": "coffee" },
+    { "name": "Bayline Fish Shack", "why": "Grilled snapper on the water, and the back deck has the best sunset seat in the Grove.", "category": "food" },
+    { "name": "Banyan Court Records", "why": "A tiny record shop with a listening booth, and the owner plays requests on Saturday afternoons.", "category": "music" }
+  ],
+  "avoid": [
+    { "name": "Sunset Party Catamaran", "reason": "Guests say it was loud and the drinks were watered down." }
+  ],
+  "faq": [
+    { "q": "Can I check in early?", "a": "Sometimes. Message Ines the day before, and she will tell you by noon." },
+    { "q": "Is there a crib?", "a": "Yes, a travel crib is in the second bedroom closet." }
+  ],
+  "handoff": {
+    "name": "Ines",
+    "phone_last4": "0187",
+    "triggers": ["a problem with the home", "a lockout", "anything about the booking or the bill", "a noise complaint"],
+    "hours": "eight in the morning to ten at night, every day"
+  },
+  "permissions": {
+    "send_itinerary_sms": true,
+    "suggest_partners": false,
+    "upsell": false
+  },
+  "trust_level": "test",
+  "stay": {
+    "welcome": "Welcome to Casa Coralina. Make yourself at home, the coffee in the kitchen is yours, and the hammock out back is the best seat in the house.",
+    "amenities": "The pool is shared with one other cottage and is open from eight in the morning to ten at night. Two bikes and the beach towels are in the hall closet.",
+    "trash": "Trash and recycling go out to the curb on Tuesday night, green bin for trash and blue bin for recycling.",
+    "quiet_hours": "Quiet hours are ten at night to eight in the morning, and the pool closes at ten.",
+    "contact": "Message Ines through the booking app. She answers from eight in the morning to ten at night.",
+    "transit": "The free neighborhood trolley stops at the corner, and the Metrorail station is about a fifteen minute walk."
+  }
+}

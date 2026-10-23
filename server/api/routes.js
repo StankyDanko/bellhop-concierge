@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { INN_PERSONA_IDS, validateConfig } from '../../config/schema.js';
+import { BUILDER_PERSONA_IDS, RENTAL_PERSONA_IDS, validateConfig } from '../../config/schema.js';
 import { secretMatches } from '../lib/auth.js';
 import { InputError, PiiViolation, UpstreamError } from '../lib/errors.js';
 import { areaInsights } from '../tools/area-insights.js';
@@ -283,8 +283,9 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     if (!row && !body.config) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
     const config = body.config ? unmaskSecrets(body.config, base) : base;
     const persona = body.persona ?? config?.voice?.persona_id;
-    if (!INN_PERSONA_IDS.includes(persona)) return c.json({ ok: false, error: { code: 'invalid_persona', message: `persona must be one of ${INN_PERSONA_IDS.join(', ')}` } }, 400);
-    const v = validateConfig(config);
+    if (!BUILDER_PERSONA_IDS.includes(persona)) return c.json({ ok: false, error: { code: 'invalid_persona', message: `persona must be one of ${BUILDER_PERSONA_IDS.join(', ')}` } }, 400);
+    // Validated with the persona it will compile with, so a rental never previews in an inn voice, or the reverse.
+    const v = validateConfig(config && typeof config === 'object' && config.voice ? { ...config, voice: { ...config.voice, persona_id: persona } } : config);
     if (!v.ok) return c.json({ ok: false, error: { code: 'invalid_config' }, errors: v.errors }, 400);
     const { compile } = await compiler();
     const out = compile(config, { persona });
@@ -489,13 +490,15 @@ async function readJson(c) {
 
 async function personaCards() {
   const { listPersonas, loadPersona, PERSONAS_DIR } = await compiler();
-  return listPersonas().filter((id) => INN_PERSONA_IDS.includes(id)).map((id) => {
+  return listPersonas().filter((id) => BUILDER_PERSONA_IDS.includes(id)).sort((a, b) => BUILDER_PERSONA_IDS.indexOf(a) - BUILDER_PERSONA_IDS.indexOf(b)).map((id) => {
     const p = loadPersona(id);
     const text = readFileSync(`${PERSONAS_DIR}/${id}.md`, 'utf8');
     const title = /^# (.+)$/m.exec(text)?.[1] ?? p.display_name;
     const quotes = [...p.sections['sample lines'].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     const character = p.sections.voice.split(/(?<=\.)\s+/).slice(1, 2).join(' ');
-    return { id: p.id, display_name: p.display_name, title, humor_ceiling: p.humor_ceiling, character, sample: quotes[0] ?? '', opener: p.opener };
+    // kind: which places the builder offers this voice for (an inn, or a short-term rental).
+    return { id: p.id, display_name: p.display_name, title, humor_ceiling: p.humor_ceiling, character, sample: quotes[0] ?? '', opener: p.opener,
+      kind: RENTAL_PERSONA_IDS.includes(p.id) ? 'rental' : 'inn' };
   });
 }
 

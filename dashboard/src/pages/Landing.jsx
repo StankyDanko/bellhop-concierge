@@ -133,7 +133,7 @@ export default function Landing({ health }) {
       <section className="hero" aria-labelledby="hero-h">
         <div className="hero-main">
           <p className="product-name">Bellhop Concierge</p>
-          <h1 id="hero-h">The front desk concierge for small inns.</h1>
+          <h1 id="hero-h">The front desk concierge for small inns and short-term rentals.</h1>
           {/* "three things": the stop rule (grep -n "three named things" template/concierge.md). "three places":
               compose_itinerary's "One to three picks" (grep -n "One to three picks" compiler/tools.js); "one to
               watch at the inn": cross_domain (grep -n "one to watch at the inn" template/concierge.md). */}

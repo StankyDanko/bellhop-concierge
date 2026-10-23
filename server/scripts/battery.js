@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on eighteen criteria
+// order the voice agent calls the tools, and scores each call on nineteen criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
@@ -140,8 +140,21 @@ export async function playScenario(call, scenario, property, opts = {}) {
     return res;
   };
   // With a locality the bodies take the road line's shape: the city, and no inn coordinates.
-  const where = locality ? { locality } : { lat: property.lat, lng: property.lng };
+  // A scenario may carry its own property (the Miami rental); offline, the fixture places all sit
+  // in the fictional demo town, so a mock run keeps the default coordinates for the place tools.
+  const at = scenario.property && !opts.fixturePlaces ? scenario.property : property;
+  const where = locality ? { locality } : { lat: at.lat, lng: at.lng };
   if (locality) rec.locality = locality;
+
+  // Questions about the stay come first, the way a rental guest asks them ("what time is
+  // checkout?"), then the taste game. stay_info reads the property's sheet and sends nothing upstream.
+  if (scenario.stay?.length) {
+    rec.stay = [];
+    for (const topic of scenario.stay) {
+      const res = await run('stay_info', withSession({ property_id: scenario.property_id ?? 'demo', topic }));
+      rec.stay.push({ topic, status: res.status, json: res.json });
+    }
+  }
 
   rec.resolve = await run('resolve_taste', withSession({
     mentions: scenario.mentions,
@@ -222,6 +235,7 @@ export async function playScenario(call, scenario, property, opts = {}) {
   const logged = await run('log_session', {
     session_id: sessionId, entities: scenario.mentions, picks_count: picks.length,
     events_count: ev ? 1 : 0, sms_sent: textedNow,
+    ...(scenario.property_id ? { property_id: scenario.property_id } : {}),
     ...(inSequence ? { caller_id: callerId } : {}),
     ...(locality ? { locality } : {}),
   }, { chain: false });
@@ -292,7 +306,7 @@ export const qlooLimited = (res) => (res?.json?.error?.code === 'rate_limited' &
 // two per-person scoring calls, two per-cuisine cover calls, the reduced rerun, cross_domain, the
 // tag lookups, and the init and memory probes of a sequence call. Was 14 before the cover calls.
 export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 18, onRecord = () => {},
-  sequences = [], library = scenarios, drivers = null, locality = null }) {
+  sequences = [], library = scenarios, drivers = null, locality = null, fixturePlaces = false }) {
   const records = [];
   const skipped = [];
   let liveUsed = 0;
@@ -310,7 +324,7 @@ export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP,
     if (liveUsed + perScenarioReserve > cap && liveUsed > 0) { stoppedBy = `cap ${cap} would be exceeded`; skipped.push(sc.id); continue; }
     if (p.opts.first) prior = null;
     if (p.days && drivers?.advance) drivers.advance(p.days * DAY_MS);
-    const where = locality ? { locality } : {};
+    const where = { ...(locality ? { locality } : {}), ...(fixturePlaces ? { fixturePlaces } : {}) };
     const rec = await playScenario(call, sc, property, p.opts.callerId ? { ...p.opts, prior, ...where } : where);
     if (p.opts.callerId) prior = rec;
     liveUsed += liveSpend(rec);
@@ -688,7 +702,7 @@ async function main() {
   try {
     result = cities
       ? await runCoverage({ call, scenarios, property, cities, cap: args.cap, onRecord })
-      : await runBattery({ call, scenarios, property, cap: args.cap, sequences, library: all, drivers, locality: args.locality, onRecord });
+      : await runBattery({ call, scenarios, property, cap: args.cap, sequences, library: all, drivers, locality: args.locality, fixturePlaces: args.mode === 'mock', onRecord });
   } finally {
     if (driver) await driver.stop();
   }

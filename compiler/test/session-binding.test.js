@@ -8,7 +8,8 @@ import { compile } from '../compile.js';
 import { CONVERSATION_ID_VAR, SERVER_TOOL_NAMES, SESSION_ID_BINDING, SMS_TOOL_NAME } from '../tools.js';
 import { demo } from './helpers.js';
 
-const r = compile(demo(), { toolBaseUrl: 'https://tools.example.org/', toolSecretId: 'sec_test', memoryWebhook: true });
+// With a stay sheet, so every server tool, stay_info included, is compiled.
+const r = compile({ ...demo(), stay: { trash: 'Trash goes out Tuesday night.' } }, { toolBaseUrl: 'https://tools.example.org/', toolSecretId: 'sec_test', memoryWebhook: true });
 const byName = Object.fromEntries(r.tools.map((t) => [t.tool_config.name, t.tool_config]));
 
 test('session_id is bound to system__conversation_id on every tool, send_sms included', () => {

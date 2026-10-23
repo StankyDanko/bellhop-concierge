@@ -25,6 +25,9 @@ if (!existsSync(join(W, 'dashboard/dist/index.html'))) { console.error('no build
 const D = join(W, 'dashboard');
 let fails = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`); if (!ok) fails += 1; };
+// "Host" is never the word for the person at the desk (that is the innkeeper). The one allowed sense,
+// besides servers, is the host of a short-term rental, and only in these two exact phrases.
+const withoutRentalHost = (text) => String(text).replace(/\brental hosts?\b|\bthe host of the rental\b/gi, '');
 
 // ---- 1. bundle ----
 const assets = readdirSync(join(D, 'dist/assets'));
@@ -174,7 +177,7 @@ try {
     const all = `${textOf(out)} ${attrs}`;
     check(!/\u2014/.test(all), `${label}: no em dash`);
     check(!/\bA\.?I\b/.test(all), `${label}: no "AI"`);
-    check(!/\bhosts?\b/i.test(all), `${label}: no "host"`);
+    check(!/\bhosts?\b/i.test(withoutRentalHost(all)), `${label}: no "host" (the rental host excepted)`);
     check(!/\bundefined\b|\bNaN\b|Invalid Date/.test(all), `${label}: no undefined, NaN, or Invalid Date`);
   }
 

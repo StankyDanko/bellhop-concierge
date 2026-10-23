@@ -23,12 +23,12 @@ These change only with a commit, and the command shows the current value.
 | Panels dark below five calls | README, ARCHITECTURE, PRIVACY | `grep -n "SESSION_GATE =" server/api/routes.js` |
 | Free-text taste capped at 80 characters | PRIVACY | `grep -n "MAX_FREE_TEXT =" server/lib/pii-guard.js` |
 | At most eight taste ids per place call | LEARNED | `grep -n "TASTE_MAX =" server/lib/validate.js` |
-| Nine tools | README | `curl -s localhost:8787/health` lists them under `tools` (eight in `TOOLS` plus `forget_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows nine tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
+| Ten tools | README | `curl -s localhost:8787/health` lists them under `tools` (nine in `TOOLS`, `stay_info` the newest, plus `forget_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows ten tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
 | One text per call | privacy page (dashboard/src/legal-content.js) | `grep -n "ONE_PER_CALL_SAY\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
 | Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
 | Calls a day by trust level: test 20, suggest 100, live 300 | README, the dashboard's line chip | `grep -n "daily_limit" compiler/compile.js` (`TRUST_LIMITS`; the demo inn is at trust level `test`); the chip labels are `grep -n "calls a day" dashboard/src/pages/Property.jsx` |
-| Sixteen battery callers, two two-call sequences, eighteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
+| Seventeen battery callers, two two-call sequences, nineteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
 | Rain reorder at 50 percent or more, judged at 7 pm inn time | README, server README | `grep -n "RAIN_THRESHOLD_PCT =\|TARGET_HOUR =" server/lib/weather.js` |
 | Forecast cached one hour per inn; 1.5 s timeout | server README | `grep -n "weather" server/lib/cache.js`; `grep -n "WEATHER_TIMEOUT_MS" server/config.js` |
 | Similar-artist shows: three weeks ahead, 100 miles out (from Savannah, Charleston and Jacksonville are in range), five lookups at once | README, server README | `grep -n "TASTE_DAYS =\|TASTE_RADIUS_MILES =\|TASTE_CONCURRENCY =" server/tools/events-by-taste.js` |
