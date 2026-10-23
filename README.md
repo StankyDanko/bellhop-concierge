@@ -1,8 +1,11 @@
 # Bellhop Concierge
 
-A phone concierge small inns put on the room card. A guest calls and names three things they
-love; Qloo's taste graph picks three places near the inn, each with the reason it was picked;
-the plan arrives as one text. The innkeeper gets a dashboard and a one-page brief to print.
+A phone concierge for small inns and short-term rentals, on the room card or the welcome card. A
+guest calls and names three things they love; Qloo's taste graph picks three places nearby, each
+with the reason it was picked; the plan arrives as one text. At a rental the same number also
+answers the stay questions a rental host gets all weekend: what time is checkout, where do I park,
+which night does the trash go out. The innkeeper, or the rental host, gets a dashboard and a
+one-page brief to print.
 
 A twelve-room inn doesn't have a concierge. It has an innkeeper who is also the plumber, the
 baker, and the person who picks up the phone at 11pm. This is for them.
@@ -86,6 +89,24 @@ is placed. A city name is the only location stored, and only for calls that name
 
 Coverage was measured in five cities (New York, Austin, Denver, Nashville, Boise) with the
 standard callers: see [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
+
+## Short-term rentals
+
+A rental is a home with no front desk, so half the calls are about the stay, not the evening. A
+rental config sets `property.kind` to `rental` and may carry a stay sheet: a welcome, the pool or
+building amenities and their hours, trash day, quiet hours, how to reach the rental host, and a
+transit tip. Check-in, checkout, parking, the house rules, and the favorite spots come from the
+answers the builder already asks for. With a sheet the agent gets a tenth tool, `stay_info`: the
+model sends one topic, the property id is compiled in, and the answer is the owner's own words,
+with nothing sent upstream. Wifi passwords and door codes are never answered on the phone; they
+come in the check-in message, and the concierge says so. An answer that looks like a code (three
+digits in a row, a word mixing letters and digits, a piece of the access or wifi note) is refused
+even if someone typed it into the sheet, and battery criterion C19 holds every stay answer to it.
+
+The demo is Casa Coralina, a fictional two bedroom bungalow in Coconut Grove, Miami
+(`config/examples/miami-rental.json`), with Marisol as the voice (`personas/marisol.md`,
+compiled through `template/rental.md`). Every place tool looks around its own coordinates, and
+"tonight" is judged on its clock. (`npm test -- --test-name-pattern "stay_info|Marisol|rental"`)
 
 ## Why Qloo is load-bearing
 
@@ -217,6 +238,8 @@ Live mode reads keys from `server/.env` (`npm run live`). The variables are list
 
 AGPL-3.0-only. See [LICENSE](LICENSE). This is the reference implementation. The hosted
 product's hardening, client configs, and credentials are not in this repository.
+
+Not affiliated with Airbnb or any booking platform.
 
 Weather data by Open-Meteo.com (CC BY 4.0)
 

@@ -199,6 +199,26 @@ caller at every inn, marks the call's link forgotten so nothing is written back,
 `caller_hash` to NULL on the caller's past session rows. Answers `{ forgotten: true, say }` the same
 way whether or not anything was stored.
 
+### `stay_info`
+
+Body `{ session_id, property_id, topic }`. `property_id` is a compiled constant and `session_id`
+is bound by the platform; the model fills only `topic`, one of `welcome`, `checkin`, `checkout`,
+`parking`, `amenities`, `trash`, `quiet_hours`, `house_rules`, `favorites`, `contact`, `transit`,
+`wifi`, `door_code`. The sheet is the property's own config: the dashboard database first (so a
+builder edit is answered on the next call, with no agent to republish), then
+`config/examples/` (`server/lib/stay.js`). Nothing goes upstream: `trace` and `meta.upstream`
+are always empty.
+
+| `status` | When | `say` |
+|---|---|---|
+| `ok` | the sheet has the topic | the owner's words, one or a few sentences |
+| `none` | no sheet, an unknown property, or a sheet without the topic | "I don't have that for this stay." |
+| `refused` | `wifi`, `door_code`, any topic naming a password, network, code, lock, key, gate or alarm, or an answer shaped like a code | "I can't give out wifi passwords or door codes on the phone. Those come in your check-in message." |
+
+Compiled only for a config that has a `stay` sheet, so the demo inn compiles exactly as before
+(`compiler/test/rental.test.js`). The config schema refuses a sheet field holding a code word,
+three digits in a row, a phone number, or any piece of the access or wifi note.
+
 ### Returning-guest memory (`server/lib/memory.js`)
 
 On a call the webhook linked, recommend_nearby sends places already texted to this caller as
@@ -944,6 +964,10 @@ shared-secret auth, the why trace, the PII guard (including that a refused reque
 reaches the transport), the cache and its modes, the fingerprint floor, and the battery's own
 scoring. It stays offline even with a live key in the shell. What each layer proves and how to
 read a scorecard: [`docs/TESTING.md`](../docs/TESTING.md).
+
+The rental has its own: `server/test/stay-info.test.js` (every topic of the Miami sheet, the
+refusals, the sheet-less property) and `server/test/battery-stay.test.js` (the Miami caller and
+C19).
 
 Two battery flags point the callers at another city:
 
