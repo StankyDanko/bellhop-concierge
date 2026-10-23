@@ -213,3 +213,22 @@ test('road tools: a body built from each place schema reaches the server', async
     assert.notEqual(json.reason, 'locality_unavailable', name);
   }
 });
+
+test('a transfer fires only on the full demo phrase, never on the bare word', async () => {
+  const { INN_DEMO_TRANSFER, RENTAL_DEMO_TRANSFER } = await import('../compile.js');
+  assert.match(INN_DEMO_TRANSFER.condition, /"the inn demo"/);
+  assert.match(INN_DEMO_TRANSFER.condition, /never transfer on the word inn alone/);
+  assert.doesNotMatch(INN_DEMO_TRANSFER.condition, /the inn,|The Juniper House|Harper/, 'no bare name or word triggers it');
+  assert.match(RENTAL_DEMO_TRANSFER.condition, /"the rental demo" or "the Airbnb demo"/);
+  assert.match(RENTAL_DEMO_TRANSFER.condition, /never transfer on the word rental or Airbnb alone/);
+  assert.doesNotMatch(RENTAL_DEMO_TRANSFER.condition, /the Miami rental,|Casa Coralina|Marisol/);
+});
+
+test('the compiler refuses a road line whose inn, rental, and road agent ids are not all different', async () => {
+  const { assertDistinctAgents } = await import('../compile.js');
+  assert.throws(() => compile(road(), { ...OPTS, innDemoAgentId: 'agent_fx_same', rentalDemoAgentId: 'agent_fx_same' }), /inn demo and the rental demo have the same agent id/);
+  assert.throws(() => compile(road(), { ...OPTS, innDemoAgentId: 'agent_fx_road', roadAgentId: 'agent_fx_road' }), /inn demo and the road line/);
+  assert.throws(() => assertDistinctAgents({ rentalDemoAgentId: 'agent_fx_r', roadAgentId: ' agent_fx_r ' }), /rental demo and the road line/);
+  assert.doesNotThrow(() => compile(road(), { ...OPTS, innDemoAgentId: 'agent_fx_inn', rentalDemoAgentId: 'agent_fx_rental', roadAgentId: 'agent_fx_road' }));
+  assert.doesNotThrow(() => compile(road(), OPTS), 'placeholders are fine');
+});

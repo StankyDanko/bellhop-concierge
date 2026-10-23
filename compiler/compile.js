@@ -36,15 +36,15 @@ export const PERSONA_MODES = Object.freeze(['inn', 'road', 'rental']);
 
 /** The road line's first transfer: the inn edition, reached when the guest asks for the inn demo. */
 export const INN_DEMO_TRANSFER = Object.freeze({
-  description: 'Hands the call to Harper, the concierge at The Juniper House, the inn edition of this line. Use it only when the guest asks for the inn demo, the inn, The Juniper House, or Harper. Say one short line first.',
-  condition: 'The guest asks for the inn demo, the inn, The Juniper House, or Harper, at any point in the call. Transfer on the first clear ask. Never deny the inn demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
+  description: 'Hands the call to Harper, the concierge at The Juniper House, the inn edition of this line. Use it only when the guest says the full phrase "the inn demo". Say one short line first.',
+  condition: 'The guest asks for "the inn demo", in those words, at any point in the call. A guest asking about an inn, a hotel, or a place to stay is asking for a place, not the demo: never transfer on the word inn alone. Transfer on the first clear ask. Never deny the inn demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
   placeholder: '<agent id of the inn demo>',
 });
 
 /** The road line's second transfer: the Miami rental demo, an Airbnb-style stay. */
 export const RENTAL_DEMO_TRANSFER = Object.freeze({
-  description: 'Hands the call to Marisol, the concierge at Casa Coralina, the Miami rental demo. Use it only when the guest asks for the Airbnb demo, the rental demo, the Miami rental, Casa Coralina, or Marisol. Say one short line first.',
-  condition: 'The guest asks for the Airbnb demo, the rental demo, the Miami rental, Casa Coralina, or Marisol, at any point in the call. Transfer on the first clear ask. Never deny the rental demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
+  description: 'Hands the call to Marisol, the concierge at Casa Coralina, the Miami rental demo. Use it only when the guest says the full phrase "the rental demo" or "the Airbnb demo". Say one short line first.',
+  condition: 'The guest asks for "the rental demo" or "the Airbnb demo", in those words, at any point in the call. A guest asking about a rental, an Airbnb, or a place to stay is asking for a place, not the demo: never transfer on the word rental or Airbnb alone. Transfer on the first clear ask. Never deny the rental demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
   placeholder: '<agent id of the rental demo>',
 });
 
@@ -52,6 +52,21 @@ export const RENTAL_DEMO_TRANSFER = Object.freeze({
 const ROAD_TRANSFERS = Object.freeze([[INN_DEMO_TRANSFER, 'innDemoAgentId'], [RENTAL_DEMO_TRANSFER, 'rentalDemoAgentId']]);
 /** The road line's transfer tool, which carries both transfers. */
 export const ROAD_TRANSFER_DESCRIPTION = 'Hands the call to one of the two demos of this line: Harper at The Juniper House, the inn demo, or Marisol at Casa Coralina, the Miami rental demo. Use it only when the guest asks for one of them. Say one short line first.';
+
+/**
+ * The road line's two transfer targets and its own id must all differ: one mistyped id would
+ * hand a caller back to the same agent, or bounce them between two, forever.
+ * @param {{ innDemoAgentId?: string, rentalDemoAgentId?: string, roadAgentId?: string }} opts
+ */
+export function assertDistinctAgents(opts) {
+  const named = [['inn demo', opts.innDemoAgentId], ['rental demo', opts.rentalDemoAgentId], ['road line', opts.roadAgentId]]
+    .filter(([, id]) => typeof id === 'string' && id.trim());
+  for (let i = 0; i < named.length; i += 1) {
+    for (let j = i + 1; j < named.length; j += 1) {
+      if (named[i][1].trim() === named[j][1].trim()) throw new Error(`the ${named[i][0]} and the ${named[j][0]} have the same agent id; a transfer would loop`);
+    }
+  }
+}
 
 /** Call limits per trust level: test is the owner's preview line, live is the room card. */
 export const TRUST_LIMITS = Object.freeze({
@@ -334,6 +349,7 @@ export function runtimeOpener(opener, personaId) {
  * @param {boolean} [opts.memoryWebhook]
  * @param {string} [opts.innDemoAgentId] road line only: the agent id the inn demo transfer goes to
  * @param {string} [opts.rentalDemoAgentId] road line only: the agent id the Miami rental demo transfer goes to
+ * @param {string} [opts.roadAgentId] road line only: the road agent's own id, when known, so no transfer points back at it
  */
 export function compile(config, opts = {}) {
   const c = assertValidConfig(config);
@@ -369,6 +385,7 @@ export function compile(config, opts = {}) {
   };
 
   const roaming = persona.mode === 'road';
+  if (roaming) assertDistinctAgents(opts);
   const templateFor = { road: ROAD_TEMPLATE_PATH, rental: RENTAL_TEMPLATE_PATH, inn: TEMPLATE_PATH };
   const template = readFileSync(opts.templatePath ?? templateFor[persona.mode], 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
   const prompt = fillSlots(template, slots).replace(/\n{3,}/g, '\n\n').trim();
