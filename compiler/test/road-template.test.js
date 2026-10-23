@@ -47,7 +47,7 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['{{faq}}', 'no owner answers', '09f788d85f6836b7'],
   ['2. recommend_nearby.', 'takes the locality, ranks near that city', '2451f09d0caf3f2f'],
   ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'ace30c7b138aa345'],
-  ['When results come back, say the top pick', 'no owner avoid list', '269d12ea34e75d96'],
+  ['When results come back, say up to three picks', 'no owner avoid list', 'ad9f627857d5bee9'],
   ['If a lookup is taking a while', "no owner's picks to fall back on", '95c84f8102088e67'],
 ]).map(([start, reason, pin]) => [start, { reason, pin }]));
 
