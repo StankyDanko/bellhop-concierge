@@ -35,6 +35,10 @@ export const MAX_LOCALITY = 80;
  */
 export const WELL_KNOWN_POPULATION = 1_000_000;
 
+/** A namesake abroad at least this big, and this many times the US town, makes a bare name a question. */
+export const FOREIGN_NAMESAKE_MIN = 100_000;
+export const FOREIGN_NAMESAKE_RATIO = 10;
+
 export const AMBIGUOUS_SAY = (name, state) => `Which ${name}, the one in ${state}?`;
 export const UNKNOWN_SAY = "I couldn't place that town, what state is it in?";
 export const UNKNOWN_IN_STATE_SAY = (name, state) => `I couldn't find ${name} in ${state}. What's a bigger town nearby?`;
@@ -127,6 +131,11 @@ export function chooseLocality(body, { city, state, foreign = false }) {
   }
   if (!towns.length) return { status: 'unknown', say: UNKNOWN_SAY };
   const [top] = towns;
+  // The same name abroad, far bigger ("Toronto" said by a caller in Toronto): never a silent pick
+  // of the small US town. Asked as the same yes-or-no question.
+  const foreignBigger = list.some((r) => r && r.country_code !== 'US' && norm(r.name) === want
+    && (r.population ?? 0) >= Math.max(FOREIGN_NAMESAKE_MIN, FOREIGN_NAMESAKE_RATIO * (top.population ?? 0)));
+  if (foreignBigger) return { status: 'ambiguous', say: AMBIGUOUS_SAY(top.name, top.admin1 ?? 'the United States') };
   const otherStates = towns.some((r) => r.admin1 !== top.admin1);
   if (!otherStates || (top.population ?? 0) >= WELL_KNOWN_POPULATION) return ok(top);
   return { status: 'ambiguous', say: AMBIGUOUS_SAY(top.name, top.admin1 ?? 'the United States') };

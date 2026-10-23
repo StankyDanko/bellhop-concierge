@@ -8,51 +8,67 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ROAD_TEMPLATE_PATH, TEMPLATE_PATH } from '../compile.js';
+import { createHash } from 'node:crypto';
 import { RULES } from '../lint.js';
+
+const sha = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
 const body = (path) => readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
 const lines = (path) => body(path).split('\n').filter((l) => l.trim());
 
-/** Lines of concierge.md the road template rewrites or drops, by their opening words. */
-const REWRITTEN = new Map([
-  ['You answer the phone for {{property_name}}.', 'the line has no inn: a concierge for wherever the caller is'],
-  ['This is a phone call. Everything you say', 'the caller is anywhere, and the inn timezone is gone'],
-  ['You already know where the guest is.', 'the opposite on the road: ask the city and state, say it back once'],
-  ['{{property}}', 'no inn to describe'],
-  ['If the first words carry urgency', 'no room problem; get the place first on the practical path'],
-  ['1. The anchor.', 'the band comes after the place'],
-  ['2. The echo and a choice.', 'carries the variety pair variable from the pending proposals'],
-  ['3. The bet.', 'carries the bet domain variable from the pending proposals'],
-  ['4. The defaults.', 'carries the plan window variable from the pending proposals'],
-  ['These rules come before everything above.', 'no innkeeper settings on the road line'],
-  ['This step is important. Codes and passwords.', 'no innkeeper or check-in message to point at'],
-  ['This step is important. No promises you cannot keep.', 'no innkeeper to send rates and bookings to'],
-  ['This step is important. Only what you know.', "no owner's picks or answers; never name a place from memory of a city"],
-  ['This step is important. Emergencies.', 'no innkeeper to tell afterward'],
-  ['This step is important. Handing off to a person.', 'no person; the one transfer is the inn demo'],
-  ['{{rules}}', 'no house rules'],
-  ['{{permissions}}', 'nothing sold, no partners'],
-  ["# Owner's notes", 'no owner'],
-  ['The sections below come from the owner of', 'no owner'],
-  ['{{picks}}', 'no owner picks'],
-  ['{{faq}}', 'no owner answers'],
-  ['2. recommend_nearby.', 'takes the locality, ranks near that city'],
-  ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight'],
-  ['When results come back, say the top pick', 'no owner avoid list'],
-  ['If a lookup is taking a while', "no owner's picks to fall back on"],
-]);
+/**
+ * Lines of concierge.md the road template rewrites or drops, by their opening words, with the
+ * reason and a pin: the first 16 hex of the sha256 of the whole concierge.md line as it was when
+ * road.md was last brought in line with it. Opening words alone would excuse any later edit to
+ * the rest of the line (a new sentence in Emergencies would never reach road.md), so the pin
+ * makes a change anywhere in a rewritten line fail until road.md is reviewed and the pin moved.
+ */
+const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
+  ['You answer the phone for {{property_name}}.', 'the line has no inn: a concierge for wherever the caller is', '06db428661ee2ef6'],
+  ['This is a phone call. Everything you say', 'the caller is anywhere, and the inn timezone is gone', '2799c37f63ef8909'],
+  ['You already know where the guest is.', 'the opposite on the road: ask the city and state, say it back once', 'f3c40e8dcfa4bc68'],
+  ['{{property}}', 'no inn to describe', '1484505eef256e4b'],
+  ['If the first words carry urgency', 'no room problem; get the place first on the practical path', 'dfcfaca2cd926aac'],
+  ['1. The anchor.', 'the band comes after the place', 'b5dc36cb0b5a41db'],
+  ['2. The echo and a choice.', 'carries the variety pair variable from the pending proposals', '0a7e70007c7ea0b6'],
+  ['3. The bet.', 'carries the bet domain variable from the pending proposals', '32b7765cea07dea1'],
+  ['4. The defaults.', 'carries the plan window variable from the pending proposals', 'f58b20b9a676cd87'],
+  ['These rules come before everything above.', 'no innkeeper settings on the road line', 'ee81fddba1d05bfb'],
+  ['This step is important. Codes and passwords.', 'no innkeeper or check-in message to point at', '79a3007fa39e361f'],
+  ['This step is important. No promises you cannot keep.', 'no innkeeper to send rates and bookings to', 'e2ef37d76960a99e'],
+  ['This step is important. Only what you know.', "no owner's picks or answers; never name a place from memory of a city", 'e25621c3d8eb8578'],
+  ['This step is important. Emergencies.', 'no innkeeper to tell afterward', '638cf14c71c4ca6d'],
+  ['This step is important. Handing off to a person.', 'no person; the one transfer is the inn demo', 'b6ee834806ccc944'],
+  ['{{rules}}', 'no house rules', '03835ae7cab2398a'],
+  ['{{permissions}}', 'nothing sold, no partners', '0fc579b0f0e7fbef'],
+  ["# Owner's notes", 'no owner', '04166d0b7adc4057'],
+  ['The sections below come from the owner of', 'no owner', '3b3a6f2e2f81cc1d'],
+  ['{{picks}}', 'no owner picks', '7a1b466493c5c0ed'],
+  ['{{faq}}', 'no owner answers', '09f788d85f6836b7'],
+  ['2. recommend_nearby.', 'takes the locality, ranks near that city', '2451f09d0caf3f2f'],
+  ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'ace30c7b138aa345'],
+  ['When results come back, say the top pick', 'no owner avoid list', '269d12ea34e75d96'],
+  ['If a lookup is taking a while', "no owner's picks to fall back on", '95c84f8102088e67'],
+]).map(([start, reason, pin]) => [start, { reason, pin }]));
 
 test('every line of concierge.md is in road.md, or is listed as rewritten for the road', () => {
   const road = new Set(lines(ROAD_TEMPLATE_PATH));
   const missing = [];
+  const changed = [];
   const used = new Set();
   for (const line of lines(TEMPLATE_PATH)) {
     if (road.has(line)) continue;
     const key = [...REWRITTEN.keys()].find((k) => line.startsWith(k));
-    if (key) { used.add(key); continue; }
+    if (key) {
+      used.add(key);
+      const { pin } = REWRITTEN.get(key);
+      if (sha(line) !== pin) changed.push(`${key.slice(0, 50)} (now ${sha(line)})`);
+      continue;
+    }
     missing.push(line.slice(0, 90));
   }
   assert.deepEqual(missing, [], 'a concierge.md line changed or was added; copy it to road.md, or list it here with a reason');
+  assert.deepEqual(changed, [], 'a concierge.md line road.md rewrites has changed: bring road.md in line, then move the pin');
   // A listed line that is no longer rewritten is stale: drop it from the list.
   const stale = [...REWRITTEN.keys()].filter((k) => !used.has(k));
   assert.deepEqual(stale, [], 'listed as rewritten, but road.md has it unchanged (or concierge.md lost it)');

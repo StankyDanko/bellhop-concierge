@@ -171,16 +171,19 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
 
   /**
    * The roaming desk's calls by city name only: how many calls asked about each city. A city
-   * with fewer than SESSION_GATE calls is folded into other_cities, so no single caller's city
+   * with fewer than SESSION_GATE distinct callers is folded into other_cities, so no single caller's city
    * shows on its own. Nothing finer than the city name is stored to begin with (log_session).
    */
   const callsByCity = (propertyId) => {
     const hasCol = sessionsAvailable() && sdb.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'locality');
     if (!hasCol) return { min: SESSION_GATE, cities: [], other_cities: 0 };
-    const rows = sdb.prepare(`SELECT locality AS city, COUNT(*) AS calls FROM sessions WHERE property_id = ?${notTest()} AND locality IS NOT NULL
+    // The floor counts distinct callers, not calls: one guest calling five times about one town
+    // is one person. A call with no caller hash (withheld, or forgotten) counts as its own caller.
+    const rows = sdb.prepare(`SELECT locality AS city, COUNT(*) AS calls, COUNT(DISTINCT COALESCE(caller_hash, 'call:' || id)) AS callers
+                              FROM sessions WHERE property_id = ?${notTest()} AND locality IS NOT NULL
                               GROUP BY locality ORDER BY calls DESC, locality`).all(propertyId);
-    const shown = rows.filter((r) => r.calls >= SESSION_GATE).map((r) => ({ city: r.city, calls: r.calls }));
-    const other = rows.filter((r) => r.calls < SESSION_GATE).reduce((n, r) => n + r.calls, 0);
+    const shown = rows.filter((r) => r.callers >= SESSION_GATE).map((r) => ({ city: r.city, calls: r.calls }));
+    const other = rows.filter((r) => r.callers < SESSION_GATE).reduce((n, r) => n + r.calls, 0);
     return { min: SESSION_GATE, cities: shown, other_cities: other };
   };
 
