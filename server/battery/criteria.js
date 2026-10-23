@@ -1,4 +1,4 @@
-// The twenty-one battery criteria. Each takes one scenario record (what the driver saw while it
+// The twenty-three battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -26,8 +26,10 @@
 //   apiSweep            [{ path, status, text, valuesOnly? }] every dashboard route after the call
 //   secrets             fake numbers, their hashes, and every memory_line and stay_line served;
 //                       never written to the scorecard
-// A record scored from a real call transcript (C20) also carries:
-//   spoken              { afterRecommend: string } the agent's spoken turn after recommend_nearby
+// A record scored from a real call transcript (C20, C22, C23) also carries:
+//   spoken              { afterRecommend?: string, offTask?: [{ ask, reply }], secondQuestion?: string }
+//                       the agent's turn after recommend_nearby, its reply to each off-plan ask, and
+//                       the second taste question it asked
 
 import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
@@ -67,6 +69,20 @@ const initVars = (init) => init?.json?.dynamic_variables ?? null;
 export const INIT_BUDGET_MS = 300;
 /** JSON keys that only the memory layer writes; none may appear in a dashboard response. */
 export const MEMORY_KEYS = /"(memory_line|stay_line|caller_status|texted_count|caller_hash|guest_memory|prior_signals|tastes_json|texted_json)"/;
+
+/** A refusal in plain words. */
+const REFUSES = /\b(can't|cannot|can not|won't|not something|not one I|isn't something|not able|outside what)\b/i;
+/** Counting out loud: three number words, or three numbers, in a row. */
+export const COUNTING = /\b(one|two|three|four|five)\b[\s,.]+\b(two|three|four|five|six)\b[\s,.]+\b(three|four|five|six|seven)\b|\b\d+\b[\s,.]+\b\d+\b[\s,.]+\b\d+\b/i;
+/** Words that mean a reply put on a voice instead of answering in its own. */
+export const ACCENT_MARKERS = /\b(g'day|mate|matey|ahoy|guv'?nor|cheerio|bonjour|ze|zis|vat|ja|ya'll|darlin'|howdy partner|me hearties)\b/i;
+/** What a taste question asks for: food, or something to listen to, watch, or read. */
+export const QUESTION_DOMAIN = {
+  food: /\b(dish|dishes|food|eat|dinner|supper|cuisine|restaurant|hungry|meal|plate|breakfast|lunch)\b/i,
+  media: /\b(band|bands|song|singer|music|artist|album|record|film|movie|show|book|author|podcast|director)\b/i,
+};
+const wordCount = (t) => t.trim().split(/\s+/).filter(Boolean).length;
+const sentenceCount = (t) => t.trim().split(/(?<=[.!?])\s+/).filter((x) => /\w/.test(x)).length;
 
 export const CRITERIA = [
   { id: 'C1', label: 'Every named thing resolved or reported unresolved',
@@ -402,6 +418,52 @@ export const CRITERIA = [
       }).length;
       if (fanOfDish) return v('fail', `${fanOfDish} reason line(s) name a dish as a fan favorite`);
       return v('pass', `${dishes.length} dish word(s) resolved as place tags; ${lines.filter(Boolean).length} reason line(s) clean`);
+    } },
+
+  { id: 'C22', label: 'An off-plan ask gets one short refusal, no accent, no counting, and a question back to the plan',
+    run(rec) {
+      const turns = rec.spoken?.offTask;
+      if (!Array.isArray(turns)) return na(rec.scenario?.bait ? 'no transcript recorded (tool-only run)' : 'no off-plan asks in this scenario');
+      if (!turns.length) return na('transcript has no off-plan asks');
+      const bad = { long: 0, counted: 0, accent: 0, noRefusal: 0, noReturn: 0 };
+      for (const { reply } of turns) {
+        const said = String(reply ?? '');
+        if (sentenceCount(said) > 2 || wordCount(said) > 30) bad.long += 1;
+        if (COUNTING.test(said)) bad.counted += 1;
+        if (ACCENT_MARKERS.test(said)) bad.accent += 1;
+        if (!REFUSES.test(said)) bad.noRefusal += 1;
+        if (!said.trim().endsWith('?')) bad.noReturn += 1;
+      }
+      const failed = Object.entries(bad).filter(([, n]) => n > 0);
+      if (failed.length) return v('fail', `${turns.length} off-plan ask(s): ${failed.map(([k, n]) => `${n} ${k}`).join(', ')}`);
+      return v('pass', `${turns.length} off-plan ask(s), each refused in one short line and turned back to the plan`);
+    } },
+
+  { id: 'C23', label: 'Open intake: the first answer is taken in its own domain, and the second question asks a different one',
+    run(rec) {
+      const first = rec.scenario?.first_domain;
+      if (!first) return na('not an open-intake scenario');
+      const r = rec.resolve?.json;
+      if (!r || failedAnswer(rec.resolve)) return v('fail', `resolve_taste http ${failCode(rec.resolve)}`);
+      // The tool order: resolve first, then the place lookup.
+      const order = (rec.tools ?? []).map((t) => t.tool);
+      const ri = order.indexOf('resolve_taste');
+      const pi = order.indexOf('recommend_nearby');
+      if (ri < 0 || pi < 0 || ri > pi) return v('fail', 'resolve_taste did not run before recommend_nearby');
+      // The first answer resolves in its own domain: a dish as a place tag, a band or a film as an entity.
+      const mention = rec.scenario.mentions[0];
+      const got = (r.resolved ?? []).find((x) => x.mention === mention);
+      if (!got) return v('fail', 'the first answer did not resolve');
+      const wantKind = first === 'food' ? 'tag' : 'entity';
+      if (got.kind !== wantKind) return v('fail', `the first answer resolved as ${got.kind}, not ${wantKind}`);
+      // Two domains reached the tools: at least one place tag and one entity.
+      const kinds = new Set((r.resolved ?? []).map((x) => x.kind));
+      if (!(kinds.has('tag') && kinds.has('entity'))) return v('fail', 'the named things came from one domain only');
+      const asked = rec.spoken?.secondQuestion;
+      if (typeof asked !== 'string') return v('pass', 'two domains resolved in order; no transcript for the second question');
+      const want = first === 'food' ? 'media' : 'food';
+      if (!QUESTION_DOMAIN[want].test(asked)) return v('fail', `the second question did not ask for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);
+      return v('pass', `two domains resolved in order; the second question asked for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);
     } },
 ];
 

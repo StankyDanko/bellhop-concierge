@@ -108,14 +108,15 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     recommend_nearby: {
-      description: `Places ${near} ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met.`,
+      description: `Places ${near} ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met. Set kind to dining when the guest wants somewhere to eat or drink, which is the usual case, activity for things to do, and any only when they want both.`,
       timeout: 15,
       body: {
         type: 'object',
-        required: ['taste', ...whereKeys],
+        required: ['taste', 'kind', ...whereKeys],
         properties: {
           taste: TASTE,
           companion_taste: { ...TASTE, description: 'Optional. The companion_resolved items exactly as resolve_taste returned them, one to eight. Only when the guest has a plus-one.' },
+          kind: s('What the guest asked for: dining for restaurants, bars, and cafes, activity for things to do, any for both. Use dining when they ask where to eat or drink.', { enum: ['dining', 'activity', 'any'] }),
           ...where,
           radius_miles: n('How far to look, in miles. Default three. Use one for walking.'),
           take: n('How many places to return, one to five. Use three.'),

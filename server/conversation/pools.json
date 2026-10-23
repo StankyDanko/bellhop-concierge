@@ -11,16 +11,16 @@
     "harper": {
       "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "h-band", "anchor": "artist", "text": "Tell me one band you've had on repeat, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "h-song", "anchor": "artist", "text": "Name one song that's been stuck in your head, and I'll build the evening around it.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "h-movie", "anchor": "movie", "text": "Give me one movie you could watch again tonight, and I'll plan around it.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "h-drive", "anchor": "artist", "text": "Tell me one artist you'd drive an hour to see, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-album", "anchor": "artist", "text": "Name one album you'd want on a long drive, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-cuisine", "anchor": "cuisine", "text": "Tell me one cuisine you'd never turn down, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-show", "anchor": "tv_show", "text": "Name one show you'd happily binge, and I'll work from that.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-car", "anchor": "artist", "text": "Tell me what's been playing in your car this week, and I'll plan the rest.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-weekend", "anchor": "artist", "text": "It's the weekend, so tell me one band you'd stay up late for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "h-sunday", "anchor": "cuisine", "text": "Tell me one comfort meal you'd want on a Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+        { "id": "h-band", "anchor": "any", "text": "I can find you dinner, drinks, things to do, and a film for the room, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "h-song", "anchor": "any", "text": "I can plan your <window>, dinner, drinks, or a show, so tell me one thing you can't get enough of, a song, a meal, anything.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "h-movie", "anchor": "any", "text": "I find dinner, drinks, and a film for the room, so what's one thing you'd happily have again tonight, a movie, a dish, a band?", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "h-drive", "anchor": "any", "text": "I find places to eat or drink and things to do, so what have you been into lately, a band, a show, a place you'd go back to?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-album", "anchor": "any", "text": "I plan dinner, drinks, and things to do around your taste, so what's been on repeat for you lately, music, food, a show?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-cuisine", "anchor": "any", "text": "I find dinner, drinks, and things to do, so tell me something you've loved lately, a dish, a band, a show, anything at all.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-show", "anchor": "any", "text": "I can find dinner, drinks, events, or a film for the room, so what have you been into lately, a show, a dish, a band?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-car", "anchor": "any", "text": "I put together dinner, drinks, and things to do, so what's something you've been loving lately, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "h-weekend", "anchor": "any", "text": "It's the weekend, and I can find dinner, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "h-sunday", "anchor": "any", "text": "I find dinner, drinks, and slow Sunday things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
       ],
       "returning": [
         { "id": "h-r1", "text": "More like last time, or something new tonight?" },
@@ -37,16 +37,16 @@
     "maybelle": {
       "greeting": { "new": "Hey there,", "returning": "Well, welcome back,", "same_day": "Well, hello again," },
       "openers": [
-        { "id": "m-band", "anchor": "artist", "text": "Tell me a band you can't stop playing, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "m-supper", "anchor": "cuisine", "text": "Tell me a supper you still daydream about, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-windows", "anchor": "artist", "text": "Name a song you'd sing along to with the windows down, and I'll plan around it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-movie", "anchor": "movie", "text": "Tell me a movie you could watch a dozen times, and I'll build your <window> from it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-county", "anchor": "artist", "text": "Tell me one singer you'd cross the county to hear, and I'll do the rest.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-dish", "anchor": "cuisine", "text": "Name a dish you'd never pass up, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-radio", "anchor": "artist", "text": "Tell me what's been on your radio this week, and I'll put something together.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-porch", "anchor": "artist", "text": "Tell me one record you'd want on a porch on a slow evening, and I'll start there.", "dayparts": ["afternoon", "evening"], "days": ["any"] },
-        { "id": "m-weekend", "anchor": "artist", "text": "Well, it's the weekend, so tell me a band worth staying up for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "m-sunday", "anchor": "cuisine", "text": "Tell me a Sunday supper you'd never turn down, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+        { "id": "m-band", "anchor": "any", "text": "I can find you supper, drinks, things to do, and a film for tonight, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "m-supper", "anchor": "any", "text": "I find supper, drinks, and things to do, so tell me something you've been sweet on lately, a dish, a song, a show, anything.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-windows", "anchor": "any", "text": "I can put your <window> together, supper, drinks, or a show, so what's been on your mind lately, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-movie", "anchor": "any", "text": "I find supper, drinks, and a film for the evening, so tell me one thing you'd happily have again, a movie, a dish, a band.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-county", "anchor": "any", "text": "I find supper, drinks, and things worth the drive, so what have you been loving lately, a singer, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-dish", "anchor": "any", "text": "I can find supper, drinks, or things to do, so what have you been enjoying lately, a dish, a band, a show, anything at all?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-radio", "anchor": "any", "text": "I put together supper, drinks, and things to do, so what's been on your radio or your plate lately?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "m-porch", "anchor": "any", "text": "I find supper, drinks, and slow evening things to do, so what have you been loving lately, a record, a dish, a show?", "dayparts": ["afternoon", "evening"], "days": ["any"] },
+        { "id": "m-weekend", "anchor": "any", "text": "Well, it's the weekend, and I can find supper, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "m-sunday", "anchor": "any", "text": "I find Sunday supper, drinks, and easy things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
       ],
       "returning": [
         { "id": "m-r1", "text": "More like last time, or something new this evening?" },
@@ -63,16 +63,16 @@
     "road": {
       "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "r-city", "anchor": "artist", "text": "Tell me what city and state you're in, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "r-tonight", "anchor": "artist", "text": "Where are you tonight, city and state, so I can plan around it?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "r-landed", "anchor": "artist", "text": "Tell me the city and state you've landed in, and I'll find you something good.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-town", "anchor": "artist", "text": "Tell me what town and state you're in, and I'll plan your <window> from there.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-road", "anchor": "artist", "text": "Tell me where the road has you, city and state, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-stop", "anchor": "artist", "text": "Tell me where you're stopping tonight, city and state, and I'll find you a good night.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "r-now", "anchor": "artist", "text": "Name the city and state you're in right now, and I'll plan around it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-home", "anchor": "artist", "text": "Tell me the city and state you're in, home or away, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-weekend", "anchor": "artist", "text": "It's the weekend, so tell me what city and state you're in, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "r-sunday", "anchor": "artist", "text": "Tell me what city and state you're in this Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+        { "id": "r-city", "anchor": "any", "text": "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "r-tonight", "anchor": "any", "text": "Where are you tonight, city and state, so I can find you dinner, drinks, or something to do?", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "r-landed", "anchor": "any", "text": "Tell me the city and state you've landed in, and I'll find you dinner, drinks, or things to do.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-town", "anchor": "any", "text": "Tell me what town and state you're in, and I'll find dinner, drinks, or a show for your <window>.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-road", "anchor": "any", "text": "Tell me where the road has you, city and state, and I'll find you food, drinks, and things to do.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-stop", "anchor": "any", "text": "Tell me where you're stopping tonight, city and state, and I'll find dinner, drinks, or a show.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "r-now", "anchor": "any", "text": "Name the city and state you're in right now, and I'll find dinner, drinks, or things to do nearby.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-home", "anchor": "any", "text": "Tell me the city and state you're in, home or away, and I'll find dinner, drinks, or things to do for your <window>.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-weekend", "anchor": "any", "text": "It's the weekend, so tell me what city and state you're in, and I'll find dinner, drinks, or a show.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "r-sunday", "anchor": "any", "text": "Tell me what city and state you're in this Sunday, and I'll find food, drinks, or something easy to do.", "dayparts": ["any"], "days": ["sun"] }
       ],
       "returning": [
         { "id": "r-r1", "text": "What city and state are you in, and do you want more like last time or something new?" },
@@ -89,16 +89,16 @@
     "marisol": {
       "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "mr-band", "anchor": "artist", "text": "Tell me one band you've had on repeat, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "mr-porch", "anchor": "artist", "text": "Name one song you'd play on the porch here, and I'll build the evening around it.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "mr-movie", "anchor": "movie", "text": "Give me one movie you'd watch on the couch tonight, and I'll plan around it.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "mr-trip", "anchor": "artist", "text": "Tell me one artist you'd plan a trip around, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-album", "anchor": "artist", "text": "Name one album that sounds like vacation to you, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-cuisine", "anchor": "cuisine", "text": "Tell me one cuisine you came here hoping to find, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-show", "anchor": "tv_show", "text": "Name one show you'd binge on a rainy day here, and I'll work from that.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-drive", "anchor": "artist", "text": "Tell me what played on the drive down, and I'll plan the rest.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-weekend", "anchor": "artist", "text": "It's the weekend, so tell me one band you'd stay out late for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "mr-sunday", "anchor": "cuisine", "text": "Tell me one breakfast you'd want on a slow Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+        { "id": "mr-band", "anchor": "any", "text": "I can find dinner, drinks, things to do, and a film for the couch, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "mr-porch", "anchor": "any", "text": "I can plan your <window>, dinner, drinks, or a show, so what's been on repeat for you lately, a song, a dish, anything?", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "mr-movie", "anchor": "any", "text": "I find dinner, drinks, and a film for the couch, so what's one thing you'd happily have again, a movie, a dish, a band?", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "mr-trip", "anchor": "any", "text": "I find places to eat or drink and things to do, so what have you been into lately, a band, a show, a place you'd go back to?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-album", "anchor": "any", "text": "I plan dinner, drinks, and things to do around your taste, so what sounds like vacation to you, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-cuisine", "anchor": "any", "text": "I find dinner, drinks, and things to do, so tell me something you came here hoping to find, a dish, a band, a show, anything.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-show", "anchor": "any", "text": "I can find dinner, drinks, events, or a film for the couch, so what have you been into lately, a show, a dish, a band?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-drive", "anchor": "any", "text": "I put together dinner, drinks, and things to do, so what song played on the drive down, or what are you hungry for?", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-weekend", "anchor": "any", "text": "It's the weekend, and I can find dinner, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "mr-sunday", "anchor": "any", "text": "I find breakfast, drinks, and slow Sunday things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
       ],
       "returning": [
         { "id": "mr-r1", "text": "More like last time, or something new for this stay?" },

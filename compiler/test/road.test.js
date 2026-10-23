@@ -56,7 +56,7 @@ test('road compiles with zero lint errors and the same hardening as Harper', () 
 
 test('road: the opener names Hollis, discloses, asks for the city and state, and stays two sentences', () => {
   const first = compile(road(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, "Hi, this is Hollis, the automated concierge at Bellhop, this call is recorded, and any text I send goes only to the number you are calling from. Tell me what city and state you're in, and I'll plan your night.");
+  assert.equal(first, "Hi, this is Hollis, the automated concierge at Bellhop, this call is recorded, and any text I send goes only to the number you are calling from. Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your night.");
   assert.equal(sentences(first).length, 2);
 });
 

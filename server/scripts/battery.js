@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on twenty-one criteria
+// order the voice agent calls the tools, and scores each call on twenty-three criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
@@ -170,6 +170,7 @@ export async function playScenario(call, scenario, property, opts = {}) {
 
   if (taste.length) {
     const body = { taste, ...(companion.length ? { companion_taste: companion } : {}), ...where, constraints,
+      ...(scenario.kind ? { kind: scenario.kind } : {}),
       ...(scenario.radius_miles ? { radius_miles: scenario.radius_miles } : {}), take: 3 };
     rec.recommend = await run('recommend_nearby', withSession(body));
     if (rec.recommend.json?.weather?.checked && !lean) {

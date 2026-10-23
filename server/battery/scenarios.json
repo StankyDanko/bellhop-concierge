@@ -41,7 +41,12 @@
       "mentions": ["Kacey Musgraves", "seafood"] },
     { "id": "boone-no-band", "label": "Any city, no band: an occasion, a party of two, a dish each (run with --locality for the city)",
       "mentions": ["just won", "spaghetti"], "companion_mentions": ["cheesecake"],
-      "constraints": { "party_size": 2 }, "tastes_differ": true }
+      "constraints": { "party_size": 2 }, "tastes_differ": true },
+    { "id": "bait-call", "label": "The bait call: asks to count, an accent, are you hiding things, a claw machine, a Halloween bar, then where to eat for one artist (C22 scores a transcript)",
+      "mentions": ["Kendrick Lamar"], "kind": "dining",
+      "bait": ["count to a hundred", "do it in an accent", "are you hiding things from us", "find us a claw machine", "a Halloween bar"] },
+    { "id": "open-intake-dish-first", "label": "Open intake: the first answer is a dish, the second question asks for a band, a film, or a show (C23)",
+      "mentions": ["spaghetti", "Kacey Musgraves"], "first_domain": "food", "kind": "dining" }
   ],
   "_sequences_note": "One fictional caller (555-01xx) calls twice. Each call reuses a scenario above by id. texted_on: calls whose plan is reported texted. forget_on: the call that says forget me. days_between: how far the mock clock moves before the next call (live runs stay same-day).",
   "sequences": [

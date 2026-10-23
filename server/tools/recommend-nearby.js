@@ -17,6 +17,55 @@ export const MILES_PER_MINUTE = 0.4;
 const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|speakeasy|wine bar|tavern)s?\b/i;
 
 // ---------------------------------------------------------------------------
+// The kind of place (dining intent). A guest who asks where to eat, with only an artist as
+// taste, used to get any place the artist's fans like, a stadium or a tree farm. kind says what
+// the guest asked for:
+//   dining    restaurants, bars, cafes: filter.tags carries the restaurant genre parent tag, so
+//             every place is one Qloo files under a restaurant genre (bars, bakeries and coffee
+//             shops included). A stated cuisine is already a restaurant genre tag and stays the
+//             filter on its own, since two tags in one filter.tags mean either one.
+//   activity  things to do: the same tag goes out as filter.exclude.tags, and a cuisine stays a
+//             signal only, never a filter.
+//   any       no restriction, the old behavior and the default when kind is absent.
+// The scope is applied on the client the tool hands to every insights call (the first ask, the
+// relaxed retry, the cuisine cover, and the counterfactual), so a relaxed cuisine filter falls
+// back to dining places, never to every place in town.
+// Measured live 2026-10-23 in a small college town, an artist-only signal, nine places a call:
+// unfiltered, zero and two of nine were places to eat or drink; with the parent tag, nine of nine.
+// ---------------------------------------------------------------------------
+
+export const KINDS = Object.freeze(['dining', 'activity', 'any']);
+/** The restaurant genre parent: every cuisine tag sits under it, and bars and cafes carry it too. */
+export const DINING_TAG = 'urn:tag:genre:place:restaurant';
+
+/** Add one tag to a comma list param, once. */
+const withTag = (list, tag) => {
+  const ids = String(list ?? '').split(',').filter(Boolean);
+  return (ids.includes(tag) ? ids : [...ids, tag]).join(',');
+};
+
+/**
+ * Insights params scoped to a kind. Dining sets the parent tag only when no filter.tags is
+ * there (a cuisine filter is already a restaurant genre). Activity always excludes it.
+ * @param {Record<string,string>} params
+ * @param {'dining'|'activity'|'any'} kind
+ */
+export function scopeParams(params, kind) {
+  if (params['filter.type'] !== ENTITY_TYPES.place || params[PER_PERSON_FILTER]) return params;
+  if (kind === 'dining' && !params['filter.tags']) return { ...params, 'filter.tags': DINING_TAG };
+  if (kind === 'activity') return { ...params, 'filter.exclude.tags': withTag(params['filter.exclude.tags'], DINING_TAG) };
+  return params;
+}
+
+/** The client every insights call of this tool goes through, scoped to the kind. */
+function scopedClient(qloo, kind) {
+  if (kind === 'any') return qloo;
+  const scoped = { ...qloo, insights: (params) => qloo.insights(scopeParams(params, kind)) };
+  if (typeof qloo.popularNearby === 'function') scoped.popularNearby = (params) => qloo.popularNearby(scopeParams(params, kind));
+  return scoped;
+}
+
+// ---------------------------------------------------------------------------
 // Companion scoring (the plus-one beat). See "Companion scoring" in server/README.md.
 //
 // With a companion_taste, the shortlist comes from ONE insights call on both people's
@@ -153,7 +202,9 @@ function addPriorSignals(params, own, remembered) {
  * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, memory?: import('../lib/memory.js').GuestMemory|null,
  *           weather?: import('../lib/weather.js').WeatherClient|null, timezone?: string, now?: () => Date }} ctx
  */
-export async function recommendNearby(body, { qloo, toolSecret, memory, weather = null, timezone, now = () => new Date() }) {
+export async function recommendNearby(body, { qloo: client, toolSecret, memory, weather = null, timezone, now = () => new Date() }) {
+  const kind = body?.kind === undefined || body?.kind === null ? 'any' : oneOf(body.kind, 'kind', [...KINDS]);
+  const qloo = scopedClient(client, kind);
   const taste = tasteSignals(body?.taste);
   const companion = companionSignals(body?.companion_taste);
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
@@ -176,6 +227,11 @@ export async function recommendNearby(body, { qloo, toolSecret, memory, weather 
 
   // A stated cuisine is a hard filter; every other taste is a signal (see places.js).
   const shaped = placeTasteParams(signalsIn);
+  // Things to do are not restaurants: a cuisine rides as a signal only.
+  if (kind === 'activity' && shaped.cuisine.length) {
+    delete shaped.params['filter.tags'];
+    shaped.cuisine = [];
+  }
   /** @type {Record<string,string>} */
   const firstParams = {
     'filter.type': ENTITY_TYPES.place,
@@ -308,7 +364,7 @@ export async function recommendNearby(body, { qloo, toolSecret, memory, weather 
     // pick_token signs each place's name and favors, so compose_itinerary can tell a favors
     // value this tool returned from one the model wrote (lib/pick-token.js).
     places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
-    applied: { radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
+    applied: { kind, radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
       // 'hard': every pick is one of the guest's cuisines; 'relaxed': fewer than three fit
       // nearby, so the ones that fit come first and the rest are the best matches overall

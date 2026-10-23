@@ -84,9 +84,9 @@ test('Marisol compiles through the rental template with zero lint errors and the
   for (const v of [miami().stay.trash, miami().stay.welcome, '3812', '0475', 'MangoBreeze2290', 'CoralinaGuest']) assert.ok(!all.includes(v), `compiled: ${v}`);
 });
 
-test('Marisol: the opener discloses, says she answers stay questions, asks for a band, and stays two sentences', () => {
+test('Marisol: the opener discloses, says she answers stay questions, asks what the guest has been loving, and stays two sentences', () => {
   const first = compile(miami(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, "Hi, this is Marisol, the automated concierge at Casa Coralina, this call is recorded, any text I send goes only to the number you are calling from, and I can answer questions about your stay. Tell me one band you've had on repeat, and I'll plan your night.");
+  assert.equal(first, "Hi, this is Marisol, the automated concierge at Casa Coralina, this call is recorded, any text I send goes only to the number you are calling from, and I can answer questions about your stay. I can find dinner, drinks, things to do, and a film for the couch, so what have you been loving lately, a band, a dish, a show?");
   assert.equal(sentences(first).length, 2);
   // With the memory webhook the greeting and hook vary, and the disclosure stays compiled.
   const on = compile(miami(), { ...OPTS, memoryWebhook: true }).agent.conversation_config.agent;

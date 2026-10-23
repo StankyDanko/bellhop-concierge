@@ -177,9 +177,12 @@ test('daypart and weekday tags are honored', () => {
   assert.equal(choose({ persona: 'harper', now: WED.morning, rng: () => 0 }).vars.plan_window, 'today');
   assert.equal(choose({ persona: 'harper', now: WED.afternoon, rng: () => 0 }).vars.plan_window, 'this afternoon');
   assert.equal(choose({ persona: 'harper', now: WED.late, rng: () => 0 }).vars.plan_window, 'tonight');
-  assert.match(choose({ persona: 'harper', now: WED.morning, rng: () => 0 }).vars.opener_hook, /plan your day\.$/);
-  assert.match(choose({ persona: 'maybelle', now: WED.evening, rng: () => 0 }).vars.opener_hook, /your evening together\.$/);
-  assert.match(choose({ persona: 'maybelle', now: WED.late, rng: () => 0 }).vars.opener_hook, /your night together\.$/);
+  // The window word lands in the hooks that carry one: the road default, and Maybelle's windows-down hook.
+  assert.match(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, /for your day\.$/);
+  assert.match(choose({ persona: 'road', now: WED.late, rng: () => 0 }).vars.opener_hook, /for your night\.$/);
+  const windowsDown = (now) => choose({ persona: 'maybelle', now, last: { openerIds: ['m-band'] }, rng: () => 0.2 }).vars.opener_hook;
+  assert.match(windowsDown(WED.evening), /put your evening together,/);
+  assert.match(windowsDown(WED.late), /put your night together,/);
 });
 
 test('daypart edges and the inn\'s own timezone', () => {
@@ -248,6 +251,20 @@ test('an empty pool for a daypart falls back to the persona default and never th
   }
 });
 
+test('open intake: every first-time hook names what the concierge finds and asks across at least two domains', () => {
+  const DOMAINS = /\b(band|song|singer|record|music|dish|meal|food|plate|hungry|show|movie|film|place you'd go back to|radio)\b/g;
+  for (const name of PERSONAS) {
+    for (const o of POOLS.personas[name].openers) {
+      assert.match(o.text, /\b(dinner|supper|breakfast|food|places to eat)\b/, `${name}.${o.id} says what the line can find`);
+      assert.match(o.text, /\bdrink/, `${name}.${o.id} says drinks`);
+      assert.equal(o.anchor, 'any', `${name}.${o.id} leans on no one domain`);
+      if (name === 'road') continue;
+      const kinds = new Set((o.text.split(/, so /)[1] ?? '').match(DOMAINS) ?? []);
+      assert.ok(kinds.size >= 2, `${name}.${o.id} asks across domains: ${[...kinds]}`);
+    }
+  }
+});
+
 test('the road persona: every pool line asks for a city and state, and its default rebuilds the opener', () => {
   const road = POOLS.personas.road;
   for (const o of [...road.openers, ...road.returning, ...road.same_day]) {
@@ -257,8 +274,8 @@ test('the road persona: every pool line asks for a city and state, and its defau
   const persona = readFileSync(new URL('../../personas/road.md', import.meta.url), 'utf8');
   const opener = persona.match(/^opener: (.+)$/m)[1];
   const v = defaultVars('road');
-  assert.equal(v.opener_hook, "Tell me what city and state you're in, and I'll plan your night.");
+  assert.equal(v.opener_hook, "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your night.");
   assert.equal(opener, `${v.greeting} this is Hollis, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`);
   // A morning call keeps the place question and swaps only the window word.
-  assert.equal(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, "Tell me what city and state you're in, and I'll plan your day.");
+  assert.equal(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your day.");
 });

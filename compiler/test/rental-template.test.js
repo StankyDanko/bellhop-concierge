@@ -27,7 +27,7 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['This is a phone call. Everything you say', 'a welcome card, not a room card, and the rental keeps the time', '2799c37f63ef8909'],
   ['If the first words carry urgency', 'a problem with the home, not the room', 'dfcfaca2cd926aac'],
   ['These rules come before everything above.', 'no innkeeper on a rental; the owner sets it', 'ee81fddba1d05bfb'],
-  ['2. recommend_nearby.', 'places near the rental', '2451f09d0caf3f2f'],
+  ['2. recommend_nearby.', 'places near the rental', '8eb8678922d59dcc'],
   ['4. cross_domain.', 'something to watch at the rental', 'ace30c7b138aa345'],
 ]).map(([start, reason, pin]) => [start, { reason, pin }]));
 
