@@ -14,7 +14,7 @@
 // A property with no stay sheet, or a sheet without the topic, answers NO_INFO_SAY.
 
 import { InputError } from '../lib/errors.js';
-import { CODE_WORDS_RE, secretTokens } from '../../config/schema.js';
+import { codeShaped, secretTokens } from '../../config/schema.js';
 
 export const STAY_TOPICS = Object.freeze(['welcome', 'checkin', 'checkout', 'parking', 'amenities', 'trash', 'quiet_hours',
   'house_rules', 'favorites', 'contact', 'transit', 'wifi', 'door_code']);
@@ -61,9 +61,10 @@ export function stayAnswer(config, topic) {
 
 /** True when a line could carry a code: digits in a run, a code word, or a piece of a secret note. */
 export function looksLikeCode(text, config) {
-  if (/\d{3,}/.test(text) || CODE_WORDS_RE.test(text)) return true;
+  if (codeShaped(text)) return true;
   const notes = [config?.logistics?.access_note, config?.logistics?.wifi_note].filter(Boolean);
-  return notes.flatMap(secretTokens).some((t) => text.includes(t));
+  const lower = text.toLowerCase();
+  return notes.flatMap(secretTokens).some((t) => lower.includes(t.toLowerCase()));
 }
 
 /**

@@ -83,8 +83,15 @@ leak "a phone number"             '(\+1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4
 leak "an email address"           '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' '@(example\.(com|org|net)|users\.noreply\.github\.com)\b|\bsupport@southernsky\.cloud\b'
 
 # 4. Code changed? Then the tests run. (Build and smoke are on you; see CONTRIBUTING.md.)
+# The suite runs on exactly what is staged, exported to a temporary tree, so a file left out of
+# the commit cannot make it pass (the working tree may hold files the commit does not).
 if printf '%s\n' "${staged[@]}" | grep -q -E '\.(js|jsx|mjs|json)$|^(template|personas|config)/'; then
-  npm test --silent >/dev/null 2>&1 || fail "npm test failed. Run it, fix it, then commit."
+  top=$(git rev-parse --show-toplevel)
+  snap=$(mktemp -d "${TMPDIR:-/tmp}/bc-precommit-XXXXXX") || fail "could not make a temporary tree for the tests."
+  trap 'rm -rf "$snap"' EXIT
+  git checkout-index -a --prefix="$snap/" || fail "could not export the staged tree for the tests."
+  [ -d "$top/node_modules" ] && ln -s "$top/node_modules" "$snap/node_modules"
+  (cd "$snap" && npm test --silent >/dev/null 2>&1) || fail "npm test failed on the staged files. Stage what the change needs, or fix it, then commit."
 fi
 
 echo "pre-commit: clean. Nothing private, nothing off-voice. Lay the brick."

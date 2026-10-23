@@ -84,3 +84,22 @@ test('the denylist reads CONTRIBUTING.md and SCREENS.md too, except the one trai
     assert.match(r.hook().stderr, /SCREENS\.md:1 matches the local denylist/);
   } finally { r.done(); }
 });
+
+test('the suite runs on the staged tree: a file left unstaged cannot make a commit pass', { skip: process.platform === 'win32' }, () => {
+  const r = repo();
+  try {
+    // A fake package whose test needs fx-needed.js. The file exists in the working tree only.
+    r.write('package.json', JSON.stringify({ name: 'fx-hook', version: '0.0.0', private: true,
+      scripts: { test: "node -e \"require('fs').accessSync('fx-needed.js')\"" } }));
+    r.write('fx-needed.js', 'export const fx = 1;\n');
+    r.write('fx-user.js', "import { fx } from './fx-needed.js';\nexport default fx;\n");
+    r.stage('package.json');
+    r.stage('fx-user.js');
+    const missing = r.hook();
+    assert.notEqual(missing.status, 0, 'the staged tree lacks fx-needed.js, so the suite fails');
+    assert.match(missing.stderr, /npm test failed/);
+    r.stage('fx-needed.js');
+    const whole = r.hook();
+    assert.equal(whole.status, 0, whole.stderr);
+  } finally { r.done(); }
+});

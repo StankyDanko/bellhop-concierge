@@ -248,6 +248,15 @@ const FORBIDDEN_WORD_RE = /\bA\.?I\b|artificial intelligence/i;
 const INJECTION_RE = /\b(ignore|disregard|forget)\b.{0,30}\b(instructions?|rules?|prompt|above|previous)\b|\bsystem prompt\b|\byou are now\b|\bact as\b|\bnew instructions?\b/i;
 /** Words that only appear next to a secret: the stay sheet never carries one. */
 export const CODE_WORDS_RE = /\b(password|passcode|pass code|door code|gate code|lockbox|keypad|pin code|alarm code)\b/i;
+/**
+ * Three or more digits, however they are written: in a row ("4417"), with separators between
+ * them ("4-4-1-7", "44 17", or dots between the digits), or as spoken digit words ("four four one seven"). Times
+ * ("9:30") and short counts ("10 to 7") do not match.
+ */
+export const DIGIT_RUN_RE = /\d(?:[\s.\-/]?\d){2,}/;
+export const SPOKEN_DIGITS_RE = /\b(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)(?:[\s,-]+(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b){2,}/i;
+/** True when a line could carry a code by its shape alone. @param {string} text */
+export const codeShaped = (text) => CODE_WORDS_RE.test(text) || DIGIT_RUN_RE.test(text) || SPOKEN_DIGITS_RE.test(text);
 /** The heteronym the voice mispronounces ("live" as in alive vs. to live). */
 const LIVE_RE = /\blives?\b/i;
 
@@ -307,13 +316,13 @@ function semanticErrors(config) {
     if (FORBIDDEN_WORD_RE.test(text)) errors.push(`${p}: describe the software plainly; the two-letter abbreviation is not used in this product`);
     if (INJECTION_RE.test(text)) errors.push(`${p}: reads like an instruction to the agent; write it as a fact about the inn`);
     if (LIVE_RE.test(text)) errors.push(`${p}: the word "live" is mispronounced by the voice; try "music on stage" or "a band playing"`);
-    for (const s of secrets) if (text.includes(s)) errors.push(`${p}: contains part of the access or wifi note; those are never spoken`);
+    for (const s of secrets) if (text.toLowerCase().includes(s.toLowerCase())) errors.push(`${p}: contains part of the access or wifi note; those are never spoken`);
   }
   // The stay sheet is read out on request, so nothing in it may look like a code or a password.
   for (const k of STAY_FIELDS) {
     const text = config.stay?.[k];
     if (typeof text !== 'string') continue;
-    if (CODE_WORDS_RE.test(text) || /\d{3,}/.test(text)) errors.push(`stay.${k}: no codes, passwords, or long numbers in the stay sheet; those come in the check-in message`);
+    if (codeShaped(text)) errors.push(`stay.${k}: no codes, passwords, or long numbers in the stay sheet; those come in the check-in message`);
   }
   const names = (config.avoid ?? []).map((a) => a.name.toLowerCase());
   (config.picks ?? []).forEach((pk, i) => { if (names.includes(pk.name.toLowerCase())) errors.push(`picks[${i}].name: is also on the avoid list`); });
