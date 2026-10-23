@@ -973,7 +973,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # twenty simulated callers and two two-call sequences, twenty-three criteria, offline
+npm run battery -- --mock    # twenty simulated callers and two two-call sequences, twenty-four criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

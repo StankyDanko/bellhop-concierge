@@ -7,7 +7,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 |---|---|---|---|
 | Unit and contract suite | `npm test` | nothing | every tool, the text composer, the privacy guard, the cache, the battery's own scoring |
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
-| Battery, offline | `npm run battery -- --mock` | nothing | twenty simulated callers and two two-call sequences pass twenty-three criteria on fixtures |
+| Battery, offline | `npm run battery -- --mock` | nothing | twenty simulated callers and two two-call sequences pass twenty-four criteria on fixtures |
 | Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API; Ticketmaster is live too when `server/.env` holds its key with `TICKETMASTER_MOCK=0` (add `--tm-mock` to keep the fixture listing) |
 | Coverage, live | `npm run battery -- --live --coverage --port <free port> --out <dir outside the repo>` | a Qloo key | the coverage callers in five cities; `--locality "City, ST"` points any run at one city, offline too with `--mock` |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
@@ -43,7 +43,7 @@ twenty-mile radius, a film request, a book request, a guest who names three thin
 a touring artist, a guest at the Miami rental demo who asks what time checkout is and for the
 wifi before the taste game, a couple with no band at all (an occasion and a dish each), a caller who tries off-plan asks before asking where to eat, and a caller whose first answer is a dish.
 
-The twenty-three criteria, in plain words:
+The twenty-four criteria, in plain words:
 
 | | Criterion | What trips it (a warn or a fail) |
 |---|---|---|
@@ -70,6 +70,7 @@ The twenty-three criteria, in plain words:
 | C21 | No dish or food word resolves as an entity or goes to /search, and no reason line, spoken or texted, calls a dish a fan favorite | a dish resolved as an entity, sent to /search, or "fans of" a dish name |
 | C22 | An off-plan ask (count, an accent, a game, something the tools do not cover) gets one short refusal, no accent, no counting, and a question back to the plan. Scored from a call transcript; a bait caller with none warns, since the spoken refusal was not measured | an accent, counting, more than one refusal line, or no question back to the plan |
 | C23 | Open intake: the first answer is taken in its own domain, and the second question asks a different domain. The tool half is checked always; without a transcript the spoken second question is not, so it warns | the first answer forced into music, or a second question in the same domain |
+| C24 | A yes to the text is followed by compose_itinerary and then send_sms in the same call. Scored from a call transcript; a caller who says yes with none warns | a yes with no send, or a send with no compose before it |
 
 In the offline battery the fixture places carry no outdoor tags, so C17 passes with zero places
 moved; the reorder itself is proved by `server/test/weather.test.js`.

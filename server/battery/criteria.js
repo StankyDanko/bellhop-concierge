@@ -26,10 +26,12 @@
 //   apiSweep            [{ path, status, text, valuesOnly? }] every dashboard route after the call
 //   secrets             fake numbers, their hashes, and every memory_line and stay_line served;
 //                       never written to the scorecard
-// A record scored from a real call transcript (C20, C22, C23) also carries:
-//   spoken              { afterRecommend?: string, offTask?: [{ ask, reply }], secondQuestion?: string }
-//                       the agent's turn after recommend_nearby, its reply to each off-plan ask, and
-//                       the second taste question it asked
+// A record scored from a real call transcript (C20, C22, C23, C24) also carries:
+//   spoken              { afterRecommend?: string, offTask?: [{ ask, reply }], secondQuestion?: string,
+//                         textYes?: { toolsAfter: string[] } }
+//                       the agent's turn after recommend_nearby, its reply to each off-plan ask, the
+//                       second taste question it asked, and the tools it called after the guest said
+//                       yes to the text
 
 import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
@@ -466,6 +468,18 @@ export const CRITERIA = [
       const want = first === 'food' ? 'media' : 'food';
       if (!QUESTION_DOMAIN[want].test(asked)) return v('fail', `the second question did not ask for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);
       return v('pass', `two domains resolved in order; the second question asked for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);
+    } },
+  { id: 'C24', label: 'A yes to the text is followed by compose_itinerary and send_sms in the same call',
+    run(rec) {
+      const yes = rec.spoken?.textYes;
+      // Tool-only runs: the battery itself sends for a caller who says yes, so only a transcript
+      // shows what the agent did. A caller who says yes with no transcript is a warn.
+      if (!yes) return rec.sms ? v('warn', 'the caller said yes to the text, but no transcript, so the agent\'s send was not checked') : na('no yes to the text in this call');
+      const after = Array.isArray(yes.toolsAfter) ? yes.toolsAfter : [];
+      if (!after.includes('send_sms')) return v('fail', 'the guest said yes to the text and send_sms was never called');
+      const ci = after.indexOf('compose_itinerary');
+      if (ci < 0 || ci > after.indexOf('send_sms')) return v('fail', 'send_sms ran without compose_itinerary before it');
+      return v('pass', 'compose_itinerary then send_sms after the yes');
     } },
 ];
 

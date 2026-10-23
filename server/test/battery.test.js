@@ -27,8 +27,8 @@ test('scenarios.json: 12 to 20 callers, unique ids, guest words only', () => {
   assert.doesNotMatch(JSON.stringify(scenarios), /@|\d{7}|room\s*\d/i);
 });
 
-test('criteria: exactly twenty-three, C1 to C23', () => {
-  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 23 }, (_, i) => `C${i + 1}`));
+test('criteria: exactly twenty-four, C1 to C24', () => {
+  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 24 }, (_, i) => `C${i + 1}`));
 });
 
 test('scenarios.json sequences: fictional 555-01xx callers, known scenarios, two calls each', () => {
@@ -221,7 +221,7 @@ test('end to end through the mock app: every scenario plays, every criterion ans
   assert.match(card, /\| solo \|/);
   assert.ok(!card.includes(String.fromCharCode(0x2014)));
   const counts = tally(result.records.map((r) => r.eval));
-  assert.equal(Object.keys(counts).length, 23);
+  assert.equal(Object.keys(counts).length, 24);
 });
 
 test('playScenario never calls send_sms and logs a session row', async () => {

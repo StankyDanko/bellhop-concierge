@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on twenty-three criteria
+// order the voice agent calls the tools, and scores each call on twenty-four criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
