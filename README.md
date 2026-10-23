@@ -59,6 +59,15 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 6. Ticketmaster adds what's on tonight or this weekend.
 7. One text, at most 320 characters, goes to the number that called, and only that number.
 
+**Weather can reorder, never replace.** For a tonight plan the server asks Open-Meteo for the
+hourly rain chance once per call (no key, cached for the hour per inn). If the chance at seven
+in the evening, inn time, is 50 percent or more, picks whose own Qloo tags read outdoor (patio,
+rooftop, beer garden, park, market and the like) move after the indoor ones, and the concierge
+adds one clause: "Rain likely tonight, so the indoor pick goes first." The set of places is
+whatever Qloo picked; weather changes only their order. If the forecast is unavailable the
+picks go out exactly as Qloo ranked them. Battery criterion C17 checks the sets match.
+(`grep -n "RAIN_THRESHOLD_PCT\|OUTDOOR_TAG" server/lib/weather.js`)
+
 The picture, the nine tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Why Qloo is load-bearing
@@ -127,13 +136,19 @@ The whole data flow, one table: [docs/PRIVACY.md](docs/PRIVACY.md).
    call count and stays dark under five.
 6. **Hackathon keys are switched off after the event.** Cache freeze (`CACHE_FREEZE=1`) keeps a
    pre-warmed demo answering the questions it was asked while the key was live, and nothing new.
+7. **Weather data is free-tier, non-commercial.** The forecast comes from Open-Meteo's free API,
+   which is licensed for non-commercial use and requires attribution (below). A commercial
+   deployment of Bellhop Concierge needs Open-Meteo's paid plan; swap the base URL with
+   `WEATHER_BASE_URL` and nothing else changes. The frozen demo serves the cached forecast of the
+   day it was warmed, so the reorder shows only for a demo run on that same local day; on any
+   other day the forecast is skipped and the picks stand alone.
 
 ## Tested
 
 ```bash
 npm test                         # unit and contract suite, offline, mock transports
 npm run smoke:dashboard          # boots the server, loads the pages a judge opens
-npm run battery -- --mock        # fifteen simulated callers and two two-call sequences, sixteen criteria, offline
+npm run battery -- --mock        # fifteen simulated callers and two two-call sequences, seventeen criteria, offline
 ```
 
 The battery plays callers against the tool server in the order the voice agent calls the
@@ -181,6 +196,8 @@ Live mode reads keys from `server/.env` (`npm run live`). The variables are list
 
 AGPL-3.0-only. See [LICENSE](LICENSE). This is the reference implementation. The hosted
 product's hardening, client configs, and credentials are not in this repository.
+
+Weather data by Open-Meteo.com (CC BY 4.0)
 
 ---
 

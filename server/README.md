@@ -69,7 +69,7 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 | **Mock** | `QLOO_MOCK=1` and/or `TICKETMASTER_MOCK=1` (`npm run mock` sets both) | none; answers from `server/fixtures/*.json` | bypassed |
 | **Live** | set `QLOO_API_KEY` (and `TICKETMASTER_API_KEY`) in `server/.env`, then `npm run live` | real, logged, retried | read-through, TTL per endpoint |
 | **Cache-only** | `CACHE_ONLY=1` | none; a request not in the cache returns `cache_miss` | serves entries even past their TTL |
-| **Cache freeze** | `CACHE_FREEZE=1` | none, same as cache-only; `/health` reports `"cache": "frozen"` | serves entries even past their TTL; the file is opened read-only, and the server refuses to start when it is missing or empty |
+| **Cache freeze** | `CACHE_FREEZE=1` | none, same as cache-only; `/health` reports `"cache": "frozen"` | serves entries even past their TTL; the file is opened read-only, and the server refuses to start when it is missing or empty. The weather forecast is served from the cache like every other answer; with nothing cached for today it is skipped |
 
 Mock and live share every line of code above the transport, including normalization, so a
 tool that works in mock mode exercises the same paths it will use live. Cache-only mode
@@ -96,6 +96,9 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `CACHE_PATH` | `server/data/cache.sqlite` | |
 | `CACHE_ONLY` | | `1` = never call upstream |
 | `CACHE_FREEZE` | | `1` = cache-only for the period after the key goes dark, read-only, and refused at startup when `CACHE_PATH` is missing or holds no responses; `/health` says `frozen` |
+| `WEATHER` | on | `0` switches the Open-Meteo forecast off. Never on in mock mode (`QLOO_MOCK=1`), which never leaves the machine |
+| `WEATHER_BASE_URL` | `https://api.open-meteo.com` | point it at the commercial endpoint in a paid deployment |
+| `WEATHER_TIMEOUT_MS` | `1500` | short on purpose: a caller is on the line and a missed forecast costs nothing |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
@@ -125,6 +128,9 @@ shapes next to what the normalizers extracted. Run it the day a key arrives.
   taste mention) is capped at 80 characters and refused if it contains an email address, a
   phone number, or a room number. Guest names and phone numbers have no parameter to travel
   in.
+- **The forecast carries no guest data.** The Open-Meteo request leaves the server with the
+  inn's coordinates rounded to about a kilometre, its time zone, and the two series names. No
+  guest data, no Qloo data.
 - **Credentials never reach a log line or a cache key.** Qloo's key is a header. Ticketmaster's
   key is a query parameter by that API's design, so it is appended inside the transport,
   below the logging and caching layer.
@@ -359,6 +365,38 @@ drivers Qloo attributed ("Fans of X love it") and then, when the pick's own tag 
 one of the guest's cuisine or vibe tags, "tagged Thai". That second part is a fact about the
 place, not an attribution: Qloo's explainability names entity signals only, so a tag is never
 said as "fans of".
+
+### Weather order
+
+After Qloo's picks are chosen, `recommend_nearby` may reorder them by tonight's rain chance. It
+never adds, drops, or swaps a place.
+
+- **One call.** A single GET to Open-Meteo `/v1/forecast` per guest call, with the inn's
+  coordinates (rounded to two decimals), `hourly=precipitation_probability,temperature_2m`, the
+  inn's time zone, and `forecast_days=1`. It runs alongside the Qloo calls, so it adds no
+  latency. Only for `when: tonight`.
+- **Cached and frozen like Qloo.** Service `weather`, one hour TTL per inn
+  (`server/lib/cache.js`), served from the cache alone under `CACHE_FREEZE`, shown in the call
+  trace as service `weather` (the result count is the number of hourly points, 24). A frozen
+  forecast is used only on the local day it was cached; on any other day it is skipped.
+- **The rule.** Target hour is 7 pm inn time (the current hour once 7 pm has started). At
+  `RAIN_THRESHOLD_PCT` (50) or more, picks whose own Qloo tag names match `OUTDOOR_TAG`
+  (`server/lib/weather.js`) move after indoor ones, each group keeping Qloo's order, and `say`
+  gets the one clause. Nothing is guessed from a place name. A cuisine-relaxed list is not
+  reordered, since its order already carries a promise.
+- **The response.** `weather: { checked, hour, precip_pct, temp_c, threshold_pct, hourly_points,
+  reordered, moved }`: the forecast's own numbers and counts, no place. When the call failed,
+  `weather: { checked: false }` and nothing else changes. The clause is spoken only; the text
+  message does not carry it.
+- **Privacy.** The forecast request carries coordinates, a time zone and two series names. It has
+  its own allowlist in `server/lib/pii-guard.js`, scoped to `/v1/forecast`, so none of those keys
+  becomes legal on a Qloo request (`server/test/weather.test.js`).
+- **Test hook.** `skip_weather: true` in the body (not in the agent's tool schema) skips the
+  forecast; the battery uses it to prove the pick set is identical with and without weather (C17).
+
+Terms: Open-Meteo's free tier is for non-commercial use and requires the attribution line
+"Weather data by Open-Meteo.com (CC BY 4.0)", which the site footer carries. A paid deployment
+needs their commercial plan.
 
 ### Companion scoring
 
@@ -802,7 +840,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # fifteen simulated callers and two two-call sequences, sixteen criteria, offline
+npm run battery -- --mock    # fifteen simulated callers and two two-call sequences, seventeen criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the
