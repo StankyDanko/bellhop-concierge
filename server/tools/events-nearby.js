@@ -20,6 +20,10 @@
 //
 // Each event is also signed with a pick_token over its name and when_label (lib/pick-token.js),
 // so compose_itinerary can tell this tool's when_label from one the model wrote.
+//
+// With an artist (the { id, name } resolve_taste returned for a band the guest named), the
+// answer also carries by_taste: at most two shows, tonight or this weekend, by artists Qloo
+// ranks close to that one, each with Qloo's reason (events-by-taste.js).
 
 import { timeWindow, tmDate } from '../lib/timewin.js';
 import { InputError } from '../lib/errors.js';
@@ -27,6 +31,7 @@ import { signPick } from '../lib/pick-token.js';
 import { traceUnavailable } from '../lib/upstream.js';
 import { EVENTS_ENDPOINT } from '../lib/ticketmaster.js';
 import { latLng, num, oneOf } from '../lib/validate.js';
+import { eventsByTaste, namedArtist } from './events-by-taste.js';
 
 export const CLASSIFICATIONS = /** @type {const} */ (['music', 'sports', 'arts & theatre', 'film', 'family', 'comedy']);
 
@@ -168,6 +173,8 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
     : oneOf(String(body.classification).toLowerCase(), 'classification', CLASSIFICATIONS);
   const take = num(body?.take ?? 5, 'take', { min: 1, max: 10 });
   const tz = body?.timezone ? validTimezone(body.timezone) : timezone;
+  // Optional: the artist the guest named, as resolve_taste returned it. Validated before any call.
+  const artist = body?.artist === undefined || body?.artist === null ? null : namedArtist(body.artist);
 
   if (!ticketmaster.enabled) {
     return { status: 'degraded', reason: 'ticketmaster_not_configured', events: [], say: EVENTS_UNAVAILABLE_SAY, calls: [] };
@@ -181,11 +188,19 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
 
   const at = now();
   const win = when === 'tonight' ? { start: at, end: tonightEnds(at, tz) } : timeWindow(when, { now: at, timezone: tz });
-  const { events, call } = await ticketmaster.events({
-    lat, lng, radiusMiles, start: tmDate(win.start), end: tmDate(win.end), classification, size: take,
-  });
+  // A named artist adds shows by the artists Qloo ranks close to them (events-by-taste.js),
+  // fetched beside the plain listing so the two waits overlap.
+  // The request's start is rounded down to the hour (as events_by_taste does), so two calls in
+  // the same hour make the same request and the one-hour cache can answer the second.
+  const fetchStart = new Date(Math.floor(win.start.getTime() / 3_600_000) * 3_600_000);
+  const [{ events, call }, byTaste] = await Promise.all([
+    ticketmaster.events({ lat, lng, radiusMiles, start: tmDate(fetchStart), end: tmDate(win.end), classification, size: take }),
+    artist ? eventsByTaste({ artist, lat, lng, radiusMiles, timezone: tz }, { qloo, ticketmaster, now: () => at, toolSecret }) : null,
+  ]);
+  const { calls: tasteCalls = [], ...byTasteOut } = byTaste ?? {};
 
   return {
+    ...(byTaste ? { by_taste: byTasteOut } : {}),
     status: events.length ? 'ok' : 'empty',
     window: { when, start: win.start.toISOString(), end: win.end.toISOString(), timezone: tz },
     events: events.slice(0, take).map((e) => {
@@ -193,6 +208,6 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
       const out = { ...e, when_label: w.when_label, tonight: w.tonight, say: sayLine(e, w.say_when) };
       return toolSecret ? { ...out, pick_token: signPick(toolSecret, out) } : out;
     }),
-    calls: [call],
+    calls: [call, ...tasteCalls],
   };
 }

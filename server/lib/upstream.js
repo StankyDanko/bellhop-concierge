@@ -135,9 +135,10 @@ function errorFor(service, status, body) {
  * @param {UpstreamOptions} opts
  * @param {string} endpoint
  * @param {Record<string,string>} params
+ * @param {{ ttlSeconds?: number }} [request]  ttlSeconds: how long this answer stays fresh, when not its endpoint's TTL
  * @returns {Promise<{ body: any, call: CallRecord }>}
  */
-export async function callUpstream(opts, endpoint, params) {
+export async function callUpstream(opts, endpoint, params, request = {}) {
   const { service, transport, cache, logger, mock, retries } = opts;
   const sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const started = Date.now();
@@ -169,7 +170,7 @@ export async function callUpstream(opts, endpoint, params) {
       const { status, body } = await transport(endpoint, params);
       logger({ ...logBase, via, status, attempt, ms: Date.now() - started });
       if (status >= 200 && status < 300) {
-        if (!mock && cache) cache.put(key, service, endpoint, body);
+        if (!mock && cache) cache.put(key, service, endpoint, body, request.ttlSeconds);
         close({ results: countResults(body) });
         return { body, call: { service, endpoint, via, ms: Date.now() - started } };
       }

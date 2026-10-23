@@ -65,6 +65,7 @@ const SAMPLE = {
   mentions: ['Sturgill Simpson', 'thai food'],
   taste: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }, { id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' }],
   interests: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }],
+  artist: { id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' },
   picks: [{ name: 'Lemongrass Lantern', why: 'Fans of Thai food love it', url: 'https://example.com/lemongrass-lantern' }],
   body: 'Tonight for 2: 1. Lemongrass Lantern https://example.com/lemongrass-lantern Reply STOP to opt out.',
   entities: ['Thai food'],

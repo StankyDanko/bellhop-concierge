@@ -136,7 +136,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films.',
+      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.',
       timeout: 12,
       body: {
         type: 'object',
@@ -147,6 +147,15 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
           when: WHEN,
           classification: s(`The kind of event the guest asked for, one of ${CLASSIFICATIONS.join(', ')}. Set it whenever the guest named a kind, film for a movie, music for a band. Leave it out only when they want anything at all.`, { enum: [...CLASSIFICATIONS] }),
           take: n('How many events to return, one to five. Use three.'),
+          artist: {
+            type: 'object',
+            description: 'Optional. The band or singer the guest named, exactly as resolve_taste returned it. Leave out when the guest named no artist.',
+            required: ['id', 'name'],
+            properties: {
+              id: s('The id from resolve_taste for that artist'),
+              name: s('The name from resolve_taste for that artist'),
+            },
+          },
           timezone: { type: 'string', constant_value: property.timezone },
         },
       },

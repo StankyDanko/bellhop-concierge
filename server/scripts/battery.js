@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on seventeen criteria
+// order the voice agent calls the tools, and scores each call on eighteen criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
@@ -147,7 +147,11 @@ export async function playScenario(call, scenario, property, opts = {}) {
   }
 
   if (scenario.events) {
-    rec.events = await run('events_nearby', withSession({ ...where, when: scenario.constraints?.when ?? 'tonight', take: 3 }));
+    // by_taste scenarios pass the first named artist, as the agent does when a guest names a band.
+    const named = scenario.by_taste ? (r.resolved ?? []).find((x) => x.type === 'artist') : null;
+    rec.namedArtist = named ? { id: named.id, name: named.name } : null;
+    rec.events = await run('events_nearby', withSession({ ...where, when: scenario.constraints?.when ?? 'tonight', take: 3,
+      ...(named ? { classification: 'music', artist: rec.namedArtist } : {}) }));
   }
   if (scenario.cross && taste.length) {
     rec.cross = await run('cross_domain', withSession({ taste, target: scenario.cross.target, take: 3 }));
@@ -160,8 +164,9 @@ export async function playScenario(call, scenario, property, opts = {}) {
   for (const p of (rec.recommend?.json?.places ?? []).slice(0, 2)) {
     picks.push({ name: p.name, why: p.why, url: p.url, favors: p.favors, pick_token: p.pick_token });
   }
-  const ev = rec.events?.json?.events?.[0];
-  if (ev) picks.push({ name: ev.name, url: ev.url, when_label: ev.when_label, pick_token: ev.pick_token });
+  // A show by a similar artist goes first when there is one; it carries Qloo's reason as its why.
+  const ev = rec.events?.json?.by_taste?.events?.[0] ?? rec.events?.json?.events?.[0];
+  if (ev) picks.push({ name: ev.name, ...(ev.why ? { why: ev.why } : {}), url: ev.url, when_label: ev.when_label, pick_token: ev.pick_token });
   const cr = rec.cross?.json?.results?.[0];
   if (cr) picks.push({ name: cr.name, why: cr.why, pick_token: cr.pick_token });
   if (picks.length) {

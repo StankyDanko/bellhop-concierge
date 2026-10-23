@@ -24,8 +24,11 @@ export const TTL_SECONDS = {
   'qloo:/v2/analysis/compare': 7 * DAY,
   'ticketmaster:/events.json': 1 * HOUR,
   'weather:/v1/forecast': 1 * HOUR, // one forecast per inn per hour
+  'ticketmaster:/attractions.json': 30 * DAY, // a performer's attraction id does not move
 };
 const DEFAULT_TTL = 1 * DAY;
+/** Similar artists (artist to artist insights) move slowly; that request asks for this TTL itself. */
+export const SIMILAR_ARTISTS_TTL = 30 * DAY;
 
 /**
  * Stable cache key: service + endpoint + params sorted by name.
@@ -117,11 +120,14 @@ export class ResponseCache {
     return row ? JSON.parse(row.body) : undefined;
   }
 
-  /** @param {string} key @param {string} service @param {string} endpoint @param {unknown} body */
-  put(key, service, endpoint, body) {
+  /**
+   * @param {string} key @param {string} service @param {string} endpoint @param {unknown} body
+   * @param {number} [ttlSeconds]  this one request's TTL, in place of its endpoint's
+   */
+  put(key, service, endpoint, body, ttlSeconds) {
     if (!this.putStmt) return; // a frozen file cache is read-only
     const now = this.now();
-    const ttl = TTL_SECONDS[`${service}:${endpoint}`] ?? DEFAULT_TTL;
+    const ttl = ttlSeconds ?? TTL_SECONDS[`${service}:${endpoint}`] ?? DEFAULT_TTL;
     this.putStmt.run({ key, service, endpoint, body: JSON.stringify(body), created_at: now, expires_at: now + ttl });
   }
 

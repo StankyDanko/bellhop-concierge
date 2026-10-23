@@ -27,8 +27,8 @@ test('scenarios.json: 12 to 16 callers, unique ids, guest words only', () => {
   assert.doesNotMatch(JSON.stringify(scenarios), /@|\d{7}|room\s*\d/i);
 });
 
-test('criteria: exactly seventeen, C1 to C17', () => {
-  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 17 }, (_, i) => `C${i + 1}`));
+test('criteria: exactly eighteen, C1 to C18', () => {
+  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 18 }, (_, i) => `C${i + 1}`));
 });
 
 test('scenarios.json sequences: fictional 555-01xx callers, known scenarios, two calls each', () => {
@@ -221,7 +221,7 @@ test('end to end through the mock app: every scenario plays, every criterion ans
   assert.match(card, /\| solo \|/);
   assert.ok(!card.includes(String.fromCharCode(0x2014)));
   const counts = tally(result.records.map((r) => r.eval));
-  assert.equal(Object.keys(counts).length, 17);
+  assert.equal(Object.keys(counts).length, 18);
 });
 
 test('playScenario never calls send_sms and logs a session row', async () => {
@@ -251,4 +251,24 @@ test('--strict: exits 1 on any criterion fail, never on warns alone', () => {
   assert.equal(exitCodeFor([rec(['pass', 'warn']), rec(['fail'])], true), 1);
   assert.equal(exitCodeFor([rec(['fail'])], false), 0);
   assert.equal(exitCodeFor([], false), 1);
+});
+
+test('C18: a show by a similar artist passes; the named artist\'s own show, an untraced one, or a third show fails', async () => {
+  const { app } = makeApp();
+  const call = async (tool, body) => ({ ...(await callTool(app, tool, body)), ms: 1 });
+  const { records } = await runBattery({ call, scenarios: [
+    { id: 'shows', mentions: ['Kacey Musgraves'], events: true, by_taste: true, constraints: { when: 'weekend' } },
+    { id: 'plain', mentions: ['Kacey Musgraves'], events: true },
+  ], property: PROPERTY });
+  const [shows, plain] = records;
+  assert.equal(shows.eval.C18.verdict, 'pass', shows.eval.C18.reason);
+  assert.equal(plain.eval.C18.verdict, 'na');
+  assert.ok(shows.compose.submitted.includes(shows.events.json.by_taste.events[0].name), 'the show goes into the text');
+  assert.equal(shows.compose.json.when_dropped, 0);
+  const hit = shows.events.json.by_taste.events[0];
+  const withShows = (events) => ({ ...shows, events: { ...shows.events, json: { ...shows.events.json, by_taste: { ...shows.events.json.by_taste, events } } } });
+  assert.equal(evaluate(withShows([{ ...hit, name: `Kacey Musgraves with ${hit.artist}` }])).C18.verdict, 'fail');
+  assert.equal(evaluate(withShows([{ ...hit, artist: 'Lonely Pier Collective', why: 'Fans of x also love Lonely Pier Collective' }])).C18.verdict, 'fail');
+  assert.equal(evaluate(withShows([hit, hit, hit])).C18.verdict, 'fail');
+  assert.equal(evaluate(withShows([])).C18.verdict, 'na');
 });

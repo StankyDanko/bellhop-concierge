@@ -1,0 +1,40 @@
+{
+  "_note": "Synthetic fixture, hand-written to the Ticketmaster Discovery v2 /events.json shape. An overlay of ticketmaster.events.json: it answers only requests that carry an attractionId. Shows and venues are fictional. Dates sit around the test clock, Friday 2026-10-16 2pm in New York: the Marigold Ferry soundcheck has already started (outside the window), its Saturday show is inside it, The Saltgrass Sisters play tonight, Copper Wren plays Sunday.",
+  "cases": [
+    {
+      "match": { "attractionId": "fx-att-marigold-ferry" },
+      "response": { "_embedded": { "events": [
+        { "id": "fx-evt-mf-soundcheck", "name": "Marigold Ferry Open Soundcheck", "url": "https://example.com/events/mf-soundcheck",
+          "dates": { "start": { "localDate": "2026-10-16", "localTime": "13:00:00", "dateTime": "2026-10-16T17:00:00Z" } },
+          "classifications": [ { "segment": { "name": "Music" } } ],
+          "_embedded": { "venues": [ { "name": "The Tidewater Hall" } ] } },
+        { "id": "fx-evt-mf-sat", "name": "Marigold Ferry: Low Tide Tour", "url": "https://example.com/events/mf-low-tide",
+          "dates": { "start": { "localDate": "2026-10-17", "localTime": "20:00:00", "dateTime": "2026-10-18T00:00:00Z" } },
+          "classifications": [ { "segment": { "name": "Music" } } ],
+          "_embedded": { "venues": [ { "name": "The Tidewater Hall" } ] } }
+      ] }, "page": { "size": 5, "totalElements": 2, "totalPages": 1, "number": 0 } }
+    },
+    {
+      "match": { "attractionId": "fx-att-saltgrass-sisters" },
+      "response": { "_embedded": { "events": [
+        { "id": "fx-evt-saltgrass", "name": "The Saltgrass Sisters", "url": "https://example.com/events/saltgrass",
+          "dates": { "start": { "localDate": "2026-10-16", "localTime": "21:00:00", "dateTime": "2026-10-17T01:00:00Z" } },
+          "classifications": [ { "segment": { "name": "Music" } } ],
+          "_embedded": { "venues": [ { "name": "Bluff Street Lyric" } ] } }
+      ] }, "page": { "size": 5, "totalElements": 1, "totalPages": 1, "number": 0 } }
+    },
+    {
+      "match": { "attractionId": "fx-att-copper-wren" },
+      "response": { "_embedded": { "events": [
+        { "id": "fx-evt-copper-wren", "name": "Copper Wren", "url": "https://example.com/events/copper-wren",
+          "dates": { "start": { "localDate": "2026-10-18", "localTime": "19:00:00", "dateTime": "2026-10-18T23:00:00Z" } },
+          "classifications": [ { "segment": { "name": "Music" } } ],
+          "_embedded": { "venues": [ { "name": "Pinecone Yard" } ] } }
+      ] }, "page": { "size": 5, "totalElements": 1, "totalPages": 1, "number": 0 } }
+    },
+    {
+      "match": { "attractionId": "*" },
+      "response": { "page": { "size": 5, "totalElements": 0, "totalPages": 0, "number": 0 } }
+    }
+  ]
+}

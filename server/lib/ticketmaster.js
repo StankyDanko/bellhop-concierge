@@ -3,8 +3,27 @@
 
 import { fixtureTransport, httpTransport } from './transport.js';
 import { callUpstream } from './upstream.js';
+import { assertNoPii } from './pii-guard.js';
 
 export const EVENTS_ENDPOINT = '/events.json';
+export const ATTRACTIONS_ENDPOINT = '/attractions.json';
+
+/** A Ticketmaster attraction id: letters, digits, dash, underscore. Anything else is never sent. */
+export const ATTRACTION_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * @typedef {object} Attraction  A performer as Ticketmaster lists it.
+ * @property {string} id
+ * @property {string} name
+ */
+
+/** @returns {Attraction[]} */
+export function normalizeAttractions(body) {
+  const list = body?._embedded?.attractions;
+  if (!Array.isArray(list)) return [];
+  return list.map((a) => ({ id: String(a?.id ?? ''), name: String(a?.name ?? '') }))
+    .filter((a) => a.name && ATTRACTION_ID.test(a.id));
+}
 
 /**
  * @typedef {object} EventItem
@@ -80,7 +99,8 @@ export function filterByClassification(body, classification) {
 export function createTicketmasterClient({ config, cache, logger, transport }) {
   const enabled = config.mock || Boolean(config.apiKey) || Boolean(cache?.only);
   const t = transport ?? (config.mock
-    ? fixtureTransport({ service: 'ticketmaster', dir: new URL('../fixtures/', import.meta.url), files: { [EVENTS_ENDPOINT]: 'ticketmaster.events' } })
+    ? fixtureTransport({ service: 'ticketmaster', dir: new URL('../fixtures/', import.meta.url),
+      files: { [EVENTS_ENDPOINT]: 'ticketmaster.events', [ATTRACTIONS_ENDPOINT]: 'ticketmaster.attractions' } })
     // Ticketmaster authenticates by query string; it is added inside the transport,
     // below the logging and cache-key layer, so it is never logged or hashed.
     : httpTransport({ service: 'ticketmaster', baseUrl: config.baseUrl, queryAuth: { apikey: config.apiKey }, timeoutMs: config.timeoutMs }));
@@ -90,10 +110,23 @@ export function createTicketmasterClient({ config, cache, logger, transport }) {
     enabled,
     mode: config.mock ? 'mock' : (enabled ? 'live' : 'disabled'),
     /**
-     * @param {{ lat: number, lng: number, radiusMiles: number, start: string, end: string,
-     *           classification?: string, size?: number }} q
+     * Performers whose name matches a keyword. The keyword is an artist name Qloo returned, never
+     * the guest's words, and it still passes the same free-text rule as a Qloo query (length cap,
+     * nothing shaped like an email, phone, or room number) before it leaves the process.
+     * @param {{ keyword: string, size?: number }} q
      */
-    async events({ lat, lng, radiusMiles, start, end, classification, size = 10 }) {
+    async attractions({ keyword, size = 5 }) {
+      assertNoPii(ATTRACTIONS_ENDPOINT, { query: keyword });
+      const params = { keyword, classificationName: 'music', size: String(size) };
+      const { body, call } = await callUpstream(upstream, ATTRACTIONS_ENDPOINT, params);
+      return { attractions: normalizeAttractions(body), call };
+    },
+
+    /**
+     * @param {{ lat: number, lng: number, radiusMiles: number, start: string, end: string,
+     *           classification?: string, size?: number, attractionId?: string }} q
+     */
+    async events({ lat, lng, radiusMiles, start, end, classification, size = 10, attractionId }) {
       /** @type {Record<string,string>} */
       const params = {
         latlong: `${lat},${lng}`,
@@ -107,6 +140,10 @@ export function createTicketmasterClient({ config, cache, logger, transport }) {
       // classificationName, not segmentName: Discovery v2 matches it against any level (segment,
       // genre, subgenre, type, subtype), and comedy and family are genres, not segments.
       if (classification) params.classificationName = classification;
+      if (attractionId !== undefined) {
+        if (!ATTRACTION_ID.test(attractionId)) throw new Error('attractionId is not an attraction id');
+        params.attractionId = attractionId;
+      }
       const { body, call } = await callUpstream(upstream, EVENTS_ENDPOINT, params);
       return { events: normalizeEvents(filterByClassification(body, classification)), call };
     },

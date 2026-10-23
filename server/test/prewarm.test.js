@@ -51,3 +51,9 @@ test('the step list also plays each returning-caller sequence, both calls, and t
     assert.ok(Number(/new (\d+)/.exec(line)[1]) > 0, `${id} adds request shapes of its own`);
   }
 });
+
+test('the step list warms similar artists for the sample guest and every named battery mention, not food or mood words', () => {
+  const battery = { property: { lat: 1, lng: 2 }, scenarios: [{ id: 'fx-a', mentions: ['Fx Band', 'thai food', 'spicy and loud'] }, { id: 'fx-b', mentions: ['Fx Band'], companion_mentions: ['Fx Singer'] }] };
+  const labels = buildSteps(battery).map((s) => s.label).filter((l) => l.startsWith('similar artists:'));
+  assert.deepEqual(labels, ['similar artists: Sturgill Simpson', 'similar artists: Fx Band', 'similar artists: Fx Singer']);
+});

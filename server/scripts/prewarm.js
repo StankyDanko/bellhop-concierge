@@ -9,6 +9,9 @@
 //   4. the battery's returning-caller sequences, both calls each, with memory on: the second call
 //      excludes the places the first one texted and carries its tastes, so those shapes are cached
 //      too. The calls run same-day, exactly as the live and frozen batteries play them.
+//   5. Qloo's similar artists for every named artist the sample guest and the battery callers
+//      say (events_nearby's shows by similar artists). A cold call takes about three seconds,
+//      over the per-tool budget, so the dark-period demo must find them cached.
 // Nothing is mocked in --apply: later requests use the entity ids earlier answers returned,
 // exactly as a real call does, which is why the shape list is only exact after a live run.
 //
@@ -36,6 +39,8 @@ import { openDashboardDb } from '../api/db.js';
 import { dashboardEnv } from '../api/index.js';
 import { BATTERY_AGENT, loadScenarios, playScenario, sequencePlays } from './battery.js';
 import { GuestMemory } from '../lib/memory.js';
+import { SIMILAR_TAKE } from '../tools/events-by-taste.js';
+import { placeShape, vibeOf } from '../tools/resolve-taste.js';
 
 export const DEFAULT_PACE_MS = 2000;
 export const DEFAULT_CAP = 120;
@@ -60,6 +65,21 @@ export function buildSteps(battery) {
   steps.push({ label: 'dashboard: itinerary sample', run: ({ get }) => get('/api/properties/demo/itinerary-sample') });
   for (const sc of battery.scenarios) {
     steps.push({ label: `battery: ${sc.id}`, run: ({ call }) => playScenario(call, sc, battery.property) });
+  }
+  // Names only (no cuisine, place, or mood words): each is resolved, and the ones Qloo files as
+  // artists get the same similar-artists request events_nearby makes.
+  const said = ['Sturgill Simpson', ...battery.scenarios.flatMap((sc) => [...(sc.mentions ?? []), ...(sc.companion_mentions ?? [])])];
+  const names = [...new Set(said)].filter((m) => typeof m === 'string' && !placeShape(m) && !vibeOf(m));
+  for (const name of names) {
+    steps.push({
+      label: `similar artists: ${name}`,
+      run: async ({ call, qloo }) => {
+        const r = await call('resolve_taste', { mentions: [name] });
+        for (const a of (r.json?.resolved ?? []).filter((x) => x.type === 'artist' && x.entity_id)) {
+          await qloo.similarArtists({ entityId: a.entity_id, take: SIMILAR_TAKE });
+        }
+      },
+    });
   }
   for (const { seq, calls } of sequencePlays(battery.sequences ?? [], battery.scenarios)) {
     steps.push({
@@ -213,7 +233,7 @@ async function main() {
   const mode = dry ? 'dry-run (fixtures; ids differ from live, so counts are an estimate)' : live ? `live, one call per ${args.paceMs} ms, cap ${args.cap}` : 'verify only (cache frozen, no upstream calls)';
   console.log(`prewarm: ${mode}`);
   const { rows, shapes } = await runSteps({
-    steps, ctx: { call, get, drivers }, events, capReached: () => Boolean(paced) && paced.log.length >= args.cap,
+    steps, ctx: { call, get, drivers, qloo }, events, capReached: () => Boolean(paced) && paced.log.length >= args.cap,
     onStep: (r) => console.log(`${r.label}\trequests ${r.requests}\tnew ${r.new_shapes}\tlive ${r.live}\thits ${r.cache_hits}\tmisses ${r.misses}\terrors ${r.errors}`),
   });
   const skipped = rows.filter((r) => r.skipped).map((r) => r.label);

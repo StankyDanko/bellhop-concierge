@@ -1,0 +1,15 @@
+{
+  "_note": "Synthetic fixture, hand-written to the /v2/insights envelope. Not Qloo response data. An overlay of qloo.insights.json on purpose: it answers only artist insights that exclude an entity, which is the similar-artists request (lib/qloo.js similarArtists) and nothing else. Every artist is fictional.",
+  "cases": [
+    {
+      "match": { "filter.type": "urn:entity:artist", "filter.exclude.entities": "*" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Marigold Ferry", "entity_id": "fx-artist-marigold-ferry", "type": "urn:entity", "subtype": "urn:entity:artist", "query": { "affinity": 0.97 } },
+        { "name": "Dune Lantern", "entity_id": "fx-artist-dune-lantern", "type": "urn:entity", "subtype": "urn:entity:artist", "query": { "affinity": 0.96 } },
+        { "name": "The Saltgrass Sisters", "entity_id": "fx-artist-saltgrass-sisters", "type": "urn:entity", "subtype": "urn:entity:artist", "query": { "affinity": 0.95 } },
+        { "name": "Copper Wren", "entity_id": "fx-artist-copper-wren", "type": "urn:entity", "subtype": "urn:entity:artist", "query": { "affinity": 0.94 } },
+        { "name": "Harbor Static", "entity_id": "fx-artist-harbor-static", "type": "urn:entity", "subtype": "urn:entity:artist", "query": { "affinity": 0.93 } }
+      ] } }
+    }
+  ]
+}

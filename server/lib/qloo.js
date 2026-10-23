@@ -10,6 +10,7 @@ import { assertNoPii } from './pii-guard.js';
 import { fixtureTransport, httpTransport } from './transport.js';
 import { callUpstream } from './upstream.js';
 import { UpstreamError } from './errors.js';
+import { SIMILAR_ARTISTS_TTL } from './cache.js';
 
 export const ENDPOINTS = {
   search: '/search',
@@ -165,9 +166,9 @@ export function createQlooClient({ config, cache, logger, transport }) {
   const upstream = { service: 'qloo', transport: t, cache, logger, mock: config.mock, retries: config.retries };
 
   /** Every Qloo request passes the PII guard, then the shared upstream path. */
-  async function get(endpoint, params) {
+  async function get(endpoint, params, request) {
     assertNoPii(endpoint, params);
-    const { body, call } = await callUpstream(upstream, endpoint, params);
+    const { body, call } = await callUpstream(upstream, endpoint, params, request);
     if (body?.success === false) {
       throw new UpstreamError(`qloo reported failure on ${endpoint}`, { service: 'qloo', code: 'qloo_failure' });
     }
@@ -222,6 +223,22 @@ export function createQlooClient({ config, cache, logger, transport }) {
       p.take = '5';
       const { body, call } = await get(ENDPOINTS.insights, p);
       return { entities: entitiesOf(body).map(normalizeEntity), call };
+    },
+
+    /**
+     * Artists Qloo ranks close to one artist: insights for artists with that artist as the only
+     * signal, and the artist itself excluded so it never comes back as its own neighbor. Checked
+     * live 2026-10-22: five artists for take=5, every one with an affinity, highest first, about
+     * three seconds a call, which is why the answer is cached for 30 days. No explainability:
+     * with a single signal there is nothing for it to attribute.
+     * @param {{ entityId: string, take?: number }} q
+     */
+    async similarArtists({ entityId, take = 5 }) {
+      /** @type {Record<string,string>} */
+      const params = { 'filter.type': ENTITY_TYPES.artist, 'signal.interests.entities': entityId,
+        'filter.exclude.entities': entityId, take: String(take) };
+      const { body, call } = await get(ENDPOINTS.insights, params, { ttlSeconds: SIMILAR_ARTISTS_TTL });
+      return { entities: entitiesOf(body).map(normalizeEntity).filter((e) => e.entity_id !== entityId && e.name), call };
     },
 
     /** Raw insights call for non-entity outputs (heatmap, demographics). */

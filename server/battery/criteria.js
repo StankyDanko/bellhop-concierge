@@ -1,4 +1,4 @@
-// The seventeen battery criteria. Each takes one scenario record (what the driver saw while it
+// The eighteen battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -10,6 +10,7 @@
 //   reduced             { json } recommend_nearby rerun without the second named taste, or null
 //   unweathered         { json } recommend_nearby rerun with the forecast skipped, or null (C17)
 //   events, cross       { status, json, ms } or null
+//   namedArtist         { id, name } passed to events_nearby as artist (by_taste scenarios), or null
 //   compose             { status, json, ms, submitted: string[] } or null
 //   tools               [{ tool, ms, status }] for the chain (rerun and log_session excluded)
 //   trace               every trace entry from every tool call in the scenario
@@ -309,6 +310,31 @@ export const CRITERIA = [
       if (clauses > 1) return v('fail', `rain clause said ${clauses} times`);
       if ((clauses === 1) !== (w.reordered === true)) return v('fail', 'the clause and the reorder disagree');
       return v('pass', `${a.length} pick(s), same set; reordered ${w.moved} (rain chance ${w.precip_pct}%, threshold ${w.threshold_pct}%)`);
+    } },
+
+  { id: 'C18', label: 'Shows by similar artists: each names an artist Qloo ranked close, never the named artist',
+    run(rec) {
+      const named = rec.namedArtist;
+      if (!named) return na('no artist passed to events_nearby');
+      if (failedAnswer(rec.events)) return v('fail', `events_nearby http ${failCode(rec.events)}`);
+      const bt = rec.events.json.by_taste;
+      if (!bt) return rec.events.json.status === 'degraded' ? na('events not checked (no live listing on this server)') : v('fail', 'by_taste missing');
+      if (bt.status === 'degraded') return v('warn', `by_taste degraded: ${bt.reason ?? 'unknown'}`);
+      const shows = Array.isArray(bt.events) ? bt.events : [];
+      if (!shows.length) return na('no show by a similar artist in the window');
+      if (shows.length > 2) return v('fail', `${shows.length} shows, cap is 2`);
+      const asked = rec.trace.some((t) => t.source === 'qloo' && t.params?.['filter.type'] === 'urn:entity:artist'
+        && t.params?.['signal.interests.entities'] === named.id);
+      if (!asked) return v('fail', 'no Qloo artist insights call for the named artist in the trace');
+      const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const keywords = new Set(rec.trace.filter((t) => t.endpoint === '/attractions.json').map((t) => norm(t.params?.keyword)));
+      const own = shows.filter((e) => norm(e.artist) === norm(named.name) || norm(e.name).includes(norm(named.name))).length;
+      if (own) return v('fail', `${own} show(s) are the named artist's own`);
+      const unsourced = shows.filter((e) => e.reason_source !== 'Qloo' || !keywords.has(norm(e.artist))).length;
+      if (unsourced) return v('fail', `${unsourced} show(s) not traced to a Qloo similar artist`);
+      const unsigned = shows.filter((e) => !e.when_label || !e.pick_token || !String(e.why ?? '').includes(e.artist)).length;
+      if (unsigned) return v('fail', `${unsigned} show(s) missing when_label, pick_token, or the reason`);
+      return v('pass', `${shows.length} show(s), each a similar artist, none the named one`);
     } },
 ];
 
