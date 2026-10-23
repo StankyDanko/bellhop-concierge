@@ -23,12 +23,13 @@
 //                      rate limit is shared with every other process using the same key.
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { CRITERIA, CHAIN_BUDGET_MS, TOOL_BUDGET_MS, evaluate, tally } from '../battery/criteria.js';
+import { frozenCacheProblem } from '../lib/cache.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = join(HERE, '..');
@@ -534,7 +535,8 @@ async function main() {
   let drivers;
   if (args.mode === 'mock') ({ call, drivers } = await mockCall());
   else {
-    if (args.mode === 'frozen' && !existsSync(args.cache)) throw new Error(`no cache at ${args.cache}; run npm run prewarm -- --apply --cache ${args.cache} first`);
+    const problem = args.mode === 'frozen' ? frozenCacheProblem(args.cache) : null;
+    if (problem) throw new Error(`${problem}; run npm run prewarm -- --apply --cache ${args.cache} first`);
     driver = await startLiveServer({ port: args.port, runDir, frozenCache: args.mode === 'frozen' ? resolve(args.cache) : null });
     call = driver.call; drivers = driver.drivers;
   }

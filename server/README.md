@@ -69,7 +69,7 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 | **Mock** | `QLOO_MOCK=1` and/or `TICKETMASTER_MOCK=1` (`npm run mock` sets both) | none; answers from `server/fixtures/*.json` | bypassed |
 | **Live** | set `QLOO_API_KEY` (and `TICKETMASTER_API_KEY`) in `server/.env`, then `npm run live` | real, logged, retried | read-through, TTL per endpoint |
 | **Cache-only** | `CACHE_ONLY=1` | none; a request not in the cache returns `cache_miss` | serves entries even past their TTL |
-| **Cache freeze** | `CACHE_FREEZE=1` | none, same as cache-only; `/health` reports `"cache": "frozen"` | serves entries even past their TTL |
+| **Cache freeze** | `CACHE_FREEZE=1` | none, same as cache-only; `/health` reports `"cache": "frozen"` | serves entries even past their TTL; the file is opened read-only, and the server refuses to start when it is missing or empty |
 
 Mock and live share every line of code above the transport, including normalization, so a
 tool that works in mock mode exercises the same paths it will use live. Cache-only mode
@@ -95,7 +95,7 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `TICKETMASTER_TIMEOUT_MS` | `4000` | |
 | `CACHE_PATH` | `server/data/cache.sqlite` | |
 | `CACHE_ONLY` | | `1` = never call upstream |
-| `CACHE_FREEZE` | | `1` = cache-only for the period after the key goes dark; `/health` says `frozen` |
+| `CACHE_FREEZE` | | `1` = cache-only for the period after the key goes dark, read-only, and refused at startup when `CACHE_PATH` is missing or holds no responses; `/health` says `frozen` |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |

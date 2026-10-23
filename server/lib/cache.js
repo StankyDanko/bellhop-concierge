@@ -10,7 +10,7 @@
 
 import Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const HOUR = 3600;
@@ -35,13 +35,43 @@ export function cacheKey(service, endpoint, params) {
   return createHash('sha256').update(JSON.stringify([service, endpoint, sorted])).digest('hex');
 }
 
+/**
+ * Why a file cannot serve as a frozen cache, or null when it can: it must exist and hold at
+ * least one cached response. Opened read-only, so checking never changes it.
+ * @param {string} path @returns {string | null}
+ */
+export function frozenCacheProblem(path) {
+  if (!path || !existsSync(path)) return `no cache file at ${path}`;
+  let db;
+  try {
+    db = new Database(path, { readonly: true, fileMustExist: true });
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM responses').get();
+    return n > 0 ? null : `the cache at ${path} holds no responses`;
+  } catch (err) {
+    return `the cache at ${path} cannot be read: ${String(err?.message ?? err)}`;
+  } finally {
+    db?.close();
+  }
+}
+
 export class ResponseCache {
   /** @param {{ path: string, only?: boolean, frozen?: boolean, now?: () => number }} opts */
   constructor({ path, only = false, frozen = false, now = () => Math.floor(Date.now() / 1000) }) {
-    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     this.frozen = frozen;
     this.only = only || frozen;
     this.now = now;
+    if (frozen && path !== ':memory:') {
+      // Frozen serves a prewarmed file as it is: it must exist and hold responses (a wrong path
+      // must not quietly create an empty cache that misses everything), and it is opened
+      // read-only, so nothing is written next to it or into it.
+      const problem = frozenCacheProblem(path);
+      if (problem) throw new Error(`CACHE_FREEZE is set, but ${problem}`);
+      this.db = new Database(path, { readonly: true, fileMustExist: true });
+      this.getStmt = this.db.prepare('SELECT body, expires_at FROM responses WHERE key = ?');
+      this.putStmt = null;
+      return;
+    }
+    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     this.db = new Database(path);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
@@ -88,6 +118,7 @@ export class ResponseCache {
 
   /** @param {string} key @param {string} service @param {string} endpoint @param {unknown} body */
   put(key, service, endpoint, body) {
+    if (!this.putStmt) return; // a frozen file cache is read-only
     const now = this.now();
     const ttl = TTL_SECONDS[`${service}:${endpoint}`] ?? DEFAULT_TTL;
     this.putStmt.run({ key, service, endpoint, body: JSON.stringify(body), created_at: now, expires_at: now + ttl });

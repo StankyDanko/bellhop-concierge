@@ -25,7 +25,14 @@ if (!config.toolSecret) {
 }
 
 const needsCache = !(config.qloo.mock && config.ticketmaster.mock);
-const cache = needsCache ? new ResponseCache({ path: config.cache.path, only: config.cache.only, frozen: config.cache.freeze }) : null;
+let cache = null;
+try {
+  cache = needsCache ? new ResponseCache({ path: config.cache.path, only: config.cache.only, frozen: config.cache.freeze }) : null;
+} catch (err) {
+  // A frozen server with no real cache would answer every request with a miss: refuse instead.
+  console.error(`Refusing to start: ${err.message}`);
+  process.exit(1);
+}
 const logger = jsonLogger;
 
 const sessions = new SessionStore({ path: config.sessionsPath, hashKey: config.toolSecret });
