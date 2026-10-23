@@ -94,8 +94,9 @@ test('empty memory and default variables give today\'s first message, byte for b
   for (const name of PERSONAS) {
     const persona = readFileSync(new URL(`../../personas/${name}.md`, import.meta.url), 'utf8');
     const opener = persona.match(/^opener: (.+)$/m)[1];
+    const display = persona.match(/^display_name: (.+)$/m)[1];
     const v = defaultVars(name);
-    const rebuilt = `${v.greeting} this is ${name[0].toUpperCase()}${name.slice(1)}, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`;
+    const rebuilt = `${v.greeting} this is ${display}, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`;
     assert.equal(rebuilt, opener, `${name} first message`);
     assert.equal(v.caller_status, 'new');
     assert.equal(v.plan_window, 'tonight');
@@ -106,6 +107,7 @@ test('empty memory and default variables give today\'s first message, byte for b
   }
   assert.equal(defaultVars('harper').choice_pair, 'spicy and loud, or slow and candlelit');
   assert.equal(defaultVars('maybelle').choice_pair, 'spicy and lively, or slow and candlelit');
+  assert.equal(defaultVars('road').choice_pair, 'spicy and loud, or slow and candlelit');
   // An unknown persona is Harper, never an exception.
   assert.deepEqual(defaultVars('nobody'), defaultVars('harper'));
 });
@@ -229,7 +231,7 @@ test('an empty pool for a daypart falls back to the persona default and never th
   }
   for (const p of pools.pairs) p.enabled = false;
   for (const b of pools.bets) b.enabled = false;
-  for (const [persona, opener, pair] of [['harper', 'h-band', 'p-spicy'], ['maybelle', 'm-band', 'p-lively']]) {
+  for (const [persona, opener, pair] of [['harper', 'h-band', 'p-spicy'], ['maybelle', 'm-band', 'p-lively'], ['road', 'r-city', 'p-spicy']]) {
     for (const status of ['new', 'returning']) {
       const { vars, ids } = choose({ persona, status, now: WED.evening, rng: seeded(3), pools });
       assert.equal(ids.opener, opener, `${persona} ${status}`);
@@ -238,4 +240,19 @@ test('an empty pool for a daypart falls back to the persona default and never th
       assert.ok(vars.opener_hook && vars.choice_pair && vars.bet_domain);
     }
   }
+});
+
+test('the road persona: every pool line asks for a city and state, and its default rebuilds the opener', () => {
+  const road = POOLS.personas.road;
+  for (const o of [...road.openers, ...road.returning, ...road.same_day]) {
+    assert.match(o.text, /\b(city|town)\b/, `${o.id} must ask where the caller is`);
+    assert.match(o.text, /\bstate\b/, `${o.id} must ask for the state too`);
+  }
+  const persona = readFileSync(new URL('../../personas/road.md', import.meta.url), 'utf8');
+  const opener = persona.match(/^opener: (.+)$/m)[1];
+  const v = defaultVars('road');
+  assert.equal(v.opener_hook, "Tell me what city and state you're in, and I'll plan your night.");
+  assert.equal(opener, `${v.greeting} this is Hollis, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`);
+  // A morning call keeps the place question and swaps only the window word.
+  assert.equal(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, "Tell me what city and state you're in, and I'll plan your day.");
 });

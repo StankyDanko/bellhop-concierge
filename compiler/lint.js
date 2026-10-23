@@ -81,21 +81,22 @@ const excerpt = (text, re) => {
  * @param {Array<{ tool_config: any }>} p.tools
  * @param {object} p.agent                 the full agent body (searched for secret leaks)
  * @param {{ access_note?: string, wifi_note?: string }} [p.secrets]
+ * @param {Array<[string, string]>} [p.extraTexts]  other model-visible text, such as a transfer rule's condition
  * @returns {Array<{ rule: string, severity: 'error'|'warn', where: string, excerpt: string }>}
  */
-export function lintCompiled({ prompt, firstMessage, tools, agent, secrets = {} }) {
+export function lintCompiled({ prompt, firstMessage, tools, agent, secrets = {}, extraTexts = [] }) {
   const findings = [];
   const add = (rule, severity, where, text, re) => findings.push({ rule, severity, where, excerpt: re ? excerpt(text, re) : text });
 
   /** @type {Array<[string, string]>} */
-  const speakable = [['prompt', prompt], ['first_message', firstMessage], ...toolTexts(tools)];
+  const speakable = [['prompt', prompt], ['first_message', firstMessage], ...toolTexts(tools), ...extraTexts];
   for (const [where, text] of speakable) {
     for (const rule of ['em_dash', 'forbidden_word', 'phone_number', 'url', 'heteronym_live', 'unfilled_slot']) {
       if (RULES[rule].test(text)) add(rule, 'error', where, text, RULES[rule]);
     }
     for (const rule of ['heteronym', 'punctuation']) {
       // Tool parameter descriptions are read by the model, not spoken; only warn on prose.
-      if (where.startsWith('tools.') && rule === 'punctuation') continue;
+      if ((where.startsWith('tools.') || where.startsWith('built_in_tools.')) && rule === 'punctuation') continue;
       if (RULES[rule].test(text)) add(rule, 'warn', where, text, RULES[rule]);
     }
   }

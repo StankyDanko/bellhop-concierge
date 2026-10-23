@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "property": {
+    "id": "road",
+    "name": "Bellhop",
+    "timezone": "America/New_York"
+  },
+  "voice": {
+    "persona_id": "road",
+    "humor_level": 1,
+    "languages": ["en"],
+    "feel": "Like calling a friend who always knows a good kitchen two exits up."
+  },
+  "guests": {
+    "typical": "Anyone in the United States, at home, on a road trip, or in town for one night.",
+    "here_for": "Something good to eat, a show, or a plan for tonight near wherever they are."
+  },
+  "logistics": {
+    "checkin": "No check-in, the road line has no rooms",
+    "checkout": "No checkout, the road line has no rooms"
+  },
+  "rules": {
+    "list": [],
+    "never_bend": []
+  },
+  "picks": [],
+  "avoid": [],
+  "faq": [],
+  "handoff": {
+    "name": "the inn demo",
+    "triggers": [],
+    "hours": "any time"
+  },
+  "permissions": {
+    "send_itinerary_sms": true,
+    "suggest_partners": false,
+    "upsell": false
+  },
+  "trust_level": "test"
+}

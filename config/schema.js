@@ -7,7 +7,11 @@
 // instruction-shaped text in fields that are meant to be data.
 
 export const SCHEMA_VERSION = 1;
-export const PERSONA_IDS = /** @type {const} */ (['harper', 'maybelle']);
+export const PERSONA_IDS = /** @type {const} */ (['harper', 'maybelle', 'road']);
+/** Personas with no inn behind them: the caller says where they are, so the config carries no place. */
+export const ROAD_PERSONA_IDS = /** @type {const} */ (['road']);
+/** Personas an innkeeper can pick for an inn: every persona except the road line. */
+export const INN_PERSONA_IDS = Object.freeze(PERSONA_IDS.filter((id) => !ROAD_PERSONA_IDS.includes(id)));
 export const TRUST_LEVELS = /** @type {const} */ (['test', 'suggest', 'live']);
 export const PICK_CATEGORIES = /** @type {const} */ (['food', 'drinks', 'music', 'outdoors', 'arts', 'shopping', 'coffee', 'other']);
 
@@ -25,10 +29,10 @@ export const SCHEMA = {
   properties: {
     schema_version: { type: 'integer', enum: [SCHEMA_VERSION] },
     property: {
-      description: 'Q0 and Q1. Where the inn is. The address and website are never spoken.',
+      description: 'Q0 and Q1. Where the inn is. The address and website are never spoken. address, lat and lng are required for an inn and absent for a road line, whose callers say where they are.',
       type: 'object',
       additionalProperties: false,
-      required: ['name', 'address', 'lat', 'lng', 'timezone'],
+      required: ['name', 'timezone'],
       properties: {
         id: str(64, { pattern: '^[a-z0-9][a-z0-9-]{0,63}$', description: 'Optional slug the session log and the innkeeper dashboard file this inn under, for example demo. Defaults to a slug of the name.' }),
         name: str(60),
@@ -232,6 +236,23 @@ export function secretTokens(note) {
   return [note.trim(), ...new Set(tokens)];
 }
 
+/**
+ * An inn needs its address and coordinates; a road line has none, because each caller says
+ * where they are. Checked with the structure, so a missing coordinate reads like any missing field.
+ * @param {any} config @returns {string[]}
+ */
+function placeErrors(config) {
+  const errors = [];
+  const property = config?.property;
+  if (!property || typeof property !== 'object') return errors;
+  const road = ROAD_PERSONA_IDS.includes(config.voice?.persona_id);
+  for (const k of ['address', 'lat', 'lng']) {
+    if (!road && property[k] === undefined) errors.push(`property.${k}: is required`);
+    if (road && property[k] !== undefined) errors.push(`property.${k}: a road line has no fixed place, so leave it out`);
+  }
+  return errors;
+}
+
 /** @param {any} config @returns {string[]} */
 function semanticErrors(config) {
   const errors = [];
@@ -265,6 +286,7 @@ function semanticErrors(config) {
 export function validateConfig(config) {
   const errors = [];
   checkNode(config, SCHEMA, '', errors);
+  errors.push(...placeErrors(config));
   if (errors.length) return { ok: false, errors };
   const semantic = semanticErrors(config);
   return semantic.length ? { ok: false, errors: semantic } : { ok: true, errors: [] };

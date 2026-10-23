@@ -2,7 +2,8 @@
   "version": 1,
   "windows": {
     "harper": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
-    "maybelle": { "morning": "day", "afternoon": "afternoon", "evening": "evening", "late": "night" }
+    "maybelle": { "morning": "day", "afternoon": "afternoon", "evening": "evening", "late": "night" },
+    "road": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" }
   },
   "plan_windows": { "morning": "today", "afternoon": "this afternoon", "evening": "tonight", "late": "tonight" },
   "personas": {
@@ -57,10 +58,36 @@
         { "id": "m-s2", "text": "Did that plan treat you right, or shall I find a change?" },
         { "id": "m-s3", "text": "Back for seconds, more of the same, or something new?" }
       ]
+    },
+    "road": {
+      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
+      "openers": [
+        { "id": "r-city", "anchor": "artist", "text": "Tell me what city and state you're in, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "r-tonight", "anchor": "artist", "text": "Where are you tonight, city and state, so I can plan around it?", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "r-landed", "anchor": "artist", "text": "Tell me the city and state you've landed in, and I'll find you something good.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-town", "anchor": "artist", "text": "Tell me what town and state you're in, and I'll plan your <window> from there.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-road", "anchor": "artist", "text": "Tell me where the road has you, city and state, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-stop", "anchor": "artist", "text": "Tell me where you're stopping tonight, city and state, and I'll find you a good night.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "r-now", "anchor": "artist", "text": "Name the city and state you're in right now, and I'll plan around it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-home", "anchor": "artist", "text": "Tell me the city and state you're in, home or away, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "r-weekend", "anchor": "artist", "text": "It's the weekend, so tell me what city and state you're in, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "r-sunday", "anchor": "artist", "text": "Tell me what city and state you're in this Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+      ],
+      "returning": [
+        { "id": "r-r1", "text": "What city and state are you in, and do you want more like last time or something new?" },
+        { "id": "r-r2", "text": "Tell me the city and state you're in, and whether you want more like last time or a change of pace." },
+        { "id": "r-r3", "text": "Where are you tonight, city and state, and same direction as last time or a surprise?" },
+        { "id": "r-r4", "text": "Tell me the city and state, and whether I should build on last time or start fresh." }
+      ],
+      "same_day": [
+        { "id": "r-s1", "text": "Tell me the city and state you're in now, and I'll find you something different from earlier." },
+        { "id": "r-s2", "text": "Where are you now, city and state, and did the earlier plan hold up?" },
+        { "id": "r-s3", "text": "Round two, so tell me the city and state you're in, and I'll take it from there." }
+      ]
     }
   },
   "pairs": [
-    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper"] },
+    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper", "road"] },
     { "id": "p-lively", "text": "spicy and lively, or slow and candlelit", "sides": [["spicy", "lively"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["maybelle"] },
     { "id": "p-adventure", "text": "adventurous and fun, or familiar and quiet", "sides": [["adventurous", "fun"], ["familiar", "quiet"]], "dayparts": ["any"], "enabled": true },
     { "id": "p-noise", "text": "loud and fun, or quiet and candlelit", "sides": [["loud", "fun"], ["quiet", "candlelit"]], "dayparts": ["any"], "enabled": true },

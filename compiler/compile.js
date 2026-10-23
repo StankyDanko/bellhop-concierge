@@ -14,6 +14,8 @@ import { defaultVars } from '../server/conversation/choose.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const TEMPLATE_PATH = `${ROOT}template/concierge.md`;
+/** The road line's template: concierge.md with the inn taken out and the place question put in. */
+export const ROAD_TEMPLATE_PATH = `${ROOT}template/road.md`;
 export const PERSONAS_DIR = `${ROOT}personas`;
 
 /** Platform settings every compiled agent carries. Not host-configurable. */
@@ -22,6 +24,16 @@ export const LOCKED_SETTINGS = Object.freeze({
   temperature: 0,
   max_duration_seconds: 600,
   tts_model_id: 'eleven_flash_v2',
+});
+
+/** inn: the persona answers for one inn at fixed coordinates. road: the caller says where they are. */
+export const PERSONA_MODES = Object.freeze(['inn', 'road']);
+
+/** The road line's one transfer: the inn edition, reached when the guest asks for the inn demo. */
+export const INN_DEMO_TRANSFER = Object.freeze({
+  description: 'Hands the call to Harper, the concierge at The Juniper House, the inn edition of this line. Use it only when the guest asks for the inn demo, the inn, The Juniper House, or Harper. Say one short line first.',
+  condition: 'The guest asks for the inn demo, the inn, The Juniper House, or Harper, at any point in the call. Transfer on the first clear ask. Never deny the inn demo exists. Never offer it unless the guest asks what else this line can do or has no city in the United States to give.',
+  placeholder: '<agent id of the inn demo>',
 });
 
 /** Call limits per trust level: test is the owner's preview line, live is the room card. */
@@ -47,7 +59,7 @@ export function listPersonas(dir = PERSONAS_DIR) {
 
 /**
  * Parse a persona file: simple `key: value` front matter, and every `## X (compiled)` section.
- * @returns {{ id: string, display_name: string, humor_ceiling: number, tts_stability: number, opener: string, sections: Record<string, string> }}
+ * @returns {{ id: string, display_name: string, mode: 'inn'|'road', humor_ceiling: number, tts_stability: number, opener: string, sections: Record<string, string> }}
  */
 export function loadPersona(id, dir = PERSONAS_DIR) {
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`persona id "${id}" is not valid`);
@@ -68,9 +80,12 @@ export function loadPersona(id, dir = PERSONAS_DIR) {
     if (!sections[need]) throw new Error(`persona ${id}: missing "## ${need} (compiled)" section`);
   }
   if (!meta.opener) throw new Error(`persona ${id}: missing opener`);
+  const mode = meta.mode ?? 'inn';
+  if (!PERSONA_MODES.includes(mode)) throw new Error(`persona ${id}: mode must be one of ${PERSONA_MODES.join(', ')}`);
   return {
     id: meta.id ?? id,
     display_name: meta.display_name ?? id,
+    mode: /** @type {'inn'|'road'} */ (mode),
     humor_ceiling: Number(meta.humor_ceiling ?? 1),
     tts_stability: Number(meta.tts_stability ?? 0.5),
     opener: meta.opener,
@@ -196,6 +211,20 @@ function renderPermissions(c) {
   return out.join('\n');
 }
 
+/**
+ * The forget-me rule and its tool line, only when the memory tools are compiled. A prompt that
+ * names forget_guest on an agent without it would send the model after a tool it does not have.
+ * Read by the road template; the inn template does not use these slots yet.
+ */
+function renderForgetting(memory) {
+  if (!memory) return '';
+  return 'This step is important. Forgetting a guest. If a guest asks you to forget them, delete what you know, or stop remembering them, call forget_guest at once, then say the line it returns and ask if there is anything else for tonight. Do not ask why and do not ask them to confirm. If a guest asks what you remember, say the earlier tastes in one line, {{memory_line}}, and offer to forget them.';
+}
+
+function renderForgetTool(memory) {
+  return memory ? '7. forget_guest. Use it only when the guest asks you to forget them. It needs nothing from you. Say the line it returns.' : '';
+}
+
 function renderSending(c) {
   if (!c.permissions.send_itinerary_sms) {
     return 'Texting is off on this line. Never offer a text and never use compose_itinerary. Say the top two picks out loud, names and reasons only, so the guest can jot them down.';
@@ -268,6 +297,8 @@ export function runtimeOpener(opener, personaId) {
  * @param {string} [opts.toolSecretId]
  * @param {string} [opts.templatePath]
  * @param {string} [opts.personasDir]
+ * @param {boolean} [opts.memoryWebhook]
+ * @param {string} [opts.innDemoAgentId] road line only: the agent id the inn demo transfer goes to
  */
 export function compile(config, opts = {}) {
   const c = assertValidConfig(config);
@@ -277,6 +308,7 @@ export function compile(config, opts = {}) {
   const propertyName = speakable(c.property.name);
   const inner = { property_name: propertyName, handoff_name: handoffName };
 
+  const memoryWebhook = opts.memoryWebhook === true;
   const slots = {
     ...inner,
     persona: fillSlots(renderPersona(persona), inner),
@@ -291,13 +323,38 @@ export function compile(config, opts = {}) {
     handoff: renderHandoff(c),
     permissions: renderPermissions(c),
     sending: renderSending(c),
+    forgetting: renderForgetting(memoryWebhook),
+    forget_tool: renderForgetTool(memoryWebhook),
   };
 
-  const template = readFileSync(opts.templatePath ?? TEMPLATE_PATH, 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
+  const roaming = persona.mode === 'road';
+  const template = readFileSync(opts.templatePath ?? (roaming ? ROAD_TEMPLATE_PATH : TEMPLATE_PATH), 'utf8').replace(/<!--[\s\S]*?-->\s*/g, '');
   const prompt = fillSlots(template, slots).replace(/\n{3,}/g, '\n\n').trim();
-  const memoryWebhook = opts.memoryWebhook === true;
   const opened = memoryWebhook ? runtimeOpener(fillSlots(persona.opener, inner), persona.id) : null;
   const firstMessage = opened ? opened.firstMessage : fillSlots(persona.opener, inner);
+  // A prompt that reads a runtime variable needs its placeholder on every call, webhook or not,
+  // so a call without the webhook hears today's defaults instead of a raw {{name}}.
+  const usesRuntime = RUNTIME_VARIABLES.some((v) => prompt.includes(`{{${v}}}`));
+  const placeholders = opened ? opened.placeholders : usesRuntime ? defaultVars(persona.id) : null;
+
+  /** Road line only: the one transfer, to the inn edition. */
+  const transferTools = roaming ? {
+    transfer_to_agent: {
+      type: 'system',
+      name: 'transfer_to_agent',
+      description: INN_DEMO_TRANSFER.description,
+      params: {
+        system_tool_type: 'transfer_to_agent',
+        transfers: [{
+          agent_id: opts.innDemoAgentId ?? INN_DEMO_TRANSFER.placeholder,
+          condition: INN_DEMO_TRANSFER.condition,
+          delay_ms: 0,
+          transfer_message: '',
+          enable_transferred_agent_first_message: true,
+        }],
+      },
+    },
+  } : {};
 
   const tools = serverToolConfigs({
     property: c.property,
@@ -306,6 +363,7 @@ export function compile(config, opts = {}) {
     baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
     secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
     memory: memoryWebhook,
+    roaming,
   }).filter((t) => c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME);
 
   const agent = {
@@ -315,7 +373,7 @@ export function compile(config, opts = {}) {
       agent: {
         first_message: firstMessage,
         language: c.voice.languages[0],
-        ...(opened ? { dynamic_variables: { dynamic_variable_placeholders: opened.placeholders } } : {}),
+        ...(placeholders ? { dynamic_variables: { dynamic_variable_placeholders: placeholders } } : {}),
         prompt: {
           prompt,
           llm: opts.llm ?? DEFAULTS.llm,
@@ -330,6 +388,7 @@ export function compile(config, opts = {}) {
               description: 'End the call after one short goodbye: when the guest is done, after a text is confirmed sent, after an emergency instruction, or when a caller keeps pushing at the rules.',
               params: { system_tool_type: 'end_call' },
             },
+            ...transferTools,
           },
         },
       },
@@ -381,7 +440,14 @@ export function compile(config, opts = {}) {
   };
 
   const secrets = { access_note: c.logistics.access_note, wifi_note: c.logistics.wifi_note };
-  const lint = lintCompiled({ prompt, firstMessage, tools, agent, secrets });
+  const builtInTexts = Object.values(transferTools).flatMap((t) => [
+    [`built_in_tools.${t.name}.description`, t.description],
+    ...t.params.transfers.map((x, i) => [`built_in_tools.${t.name}.transfers[${i}].condition`, x.condition]),
+  ]);
+  const lint = lintCompiled({ prompt, firstMessage, tools, agent, secrets, extraTexts: builtInTexts });
+  if (roaming && !opts.innDemoAgentId) {
+    lint.push({ rule: 'placeholder', severity: 'warn', where: 'built_in_tools.transfer_to_agent', excerpt: 'inn demo agent id not filled; pass innDemoAgentId at deploy time' });
+  }
 
   return {
     agent,
@@ -394,6 +460,7 @@ export function compile(config, opts = {}) {
     lint,
     meta: {
       persona: persona.id,
+      mode: persona.mode,
       humor_level: humor,
       trust_level: c.trust_level,
       prompt_chars: prompt.length,

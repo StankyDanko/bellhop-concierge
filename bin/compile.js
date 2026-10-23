@@ -3,7 +3,7 @@
 //
 //   node bin/compile.js config/examples/demo-inn.json [--persona maybelle] [--out agent.json]
 //        [--tool-base-url https://tools.example.org] [--tool-secret-id <id>]
-//        [--llm <id>] [--voice-id <id>]
+//        [--llm <id>] [--voice-id <id>] [--memory-webhook] [--inn-demo-agent-id <id>]
 //   node bin/compile.js --print-schema        the JSON Schema for innkeeper configs
 //
 // Exit codes: 0 compiled with no lint errors, 1 lint errors (output still written),
@@ -27,6 +27,8 @@ try {
       'tool-secret-id': { type: 'string' },
       llm: { type: 'string' },
       'voice-id': { type: 'string' },
+      'memory-webhook': { type: 'boolean' },
+      'inn-demo-agent-id': { type: 'string' },
       'print-schema': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -54,6 +56,7 @@ try {
   result = compile(config, {
     persona: o.persona, llm: o.llm, voiceId: o['voice-id'],
     toolBaseUrl: o['tool-base-url'], toolSecretId: o['tool-secret-id'],
+    memoryWebhook: o['memory-webhook'] === true, innDemoAgentId: o['inn-demo-agent-id'],
   });
 } catch (err) {
   console.error(err instanceof ConfigError ? err.message : `compile failed: ${err.message}`);

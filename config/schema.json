@@ -27,14 +27,11 @@
       ]
     },
     "property": {
-      "description": "Q0 and Q1. Where the inn is. The address and website are never spoken.",
+      "description": "Q0 and Q1. Where the inn is. The address and website are never spoken. address, lat and lng are required for an inn and absent for a road line, whose callers say where they are.",
       "type": "object",
       "additionalProperties": false,
       "required": [
         "name",
-        "address",
-        "lat",
-        "lng",
         "timezone"
       ],
       "properties": {
@@ -93,7 +90,8 @@
           "type": "string",
           "enum": [
             "harper",
-            "maybelle"
+            "maybelle",
+            "road"
           ]
         },
         "humor_level": {

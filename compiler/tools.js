@@ -10,6 +10,9 @@
 //   description       the language model fills it
 //   dynamic_variable  the platform fills it at call time (system__caller_id, system__conversation_id)
 //   constant_value    fixed at compile time (the inn's coordinates and timezone, property id, persona)
+// A road line (a persona with mode road) has no inn: every place tool takes a locality instead,
+// the city and state the guest said, filled by the model, and the server finds the coordinates
+// and the timezone from it. No coordinate or timezone constant is compiled for a road line.
 // Tools bind only system__* variables. Custom variables (greeting, opener_hook and the rest in
 // RUNTIME_VARIABLES, compile.js) come from the conversation initiation webhook on a phone call and
 // from their compiled placeholders otherwise; no tool reads them. A tool that needs a missing
@@ -64,15 +67,23 @@ const TASTE = {
 
 const WHEN = s('tonight or weekend. Use tonight unless the guest said the weekend.', { enum: ['tonight', 'weekend'] });
 
+/** The road line's place input: what the guest said, never a street or a hotel. */
+export const LOCALITY = Object.freeze(s('The city and state the guest is in, in the words you said back, for example Asheville, North Carolina. Only a city and a state, never a street, a hotel, or an address. At most eighty characters.'));
+
 /**
- * @param {{ lat: number, lng: number, timezone: string }} property
- * @param {{ propertyId: string, persona: string }} ids
+ * @param {{ lat?: number, lng?: number, timezone: string }} property
+ * @param {{ propertyId: string, persona: string, memory?: boolean, roaming?: boolean }} ids
  * @returns {Record<string, { description: string, timeout: number, body: object }>}
  */
-function serverToolSpecs(property, { propertyId, persona, memory = false }) {
+function serverToolSpecs(property, { propertyId, persona, memory = false, roaming = false }) {
   const LAT = { type: 'number', constant_value: property.lat };
   const LNG = { type: 'number', constant_value: property.lng };
-  return {
+  /** Where a place tool looks: the inn's fixed coordinates, or the locality the guest said. */
+  const where = roaming ? { locality: { ...LOCALITY } } : { lat: LAT, lng: LNG };
+  const whereKeys = Object.keys(where);
+  const near = roaming ? 'near the city the guest named' : 'near the inn';
+  const around = roaming ? 'around that city' : 'around the inn';
+  const specs = {
     resolve_taste: {
       description: "Turns what the guest named into taste ids. Call it first, with the guest's own words. A mention it returns in unresolved was not found: never say it back as a taste you are using and never count it as a named thing. Say you could not find it and ask once what it is most like.",
       timeout: 15,
@@ -94,16 +105,15 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       },
     },
     recommend_nearby: {
-      description: 'Places near the inn ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met.',
+      description: `Places ${near} ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met.`,
       timeout: 15,
       body: {
         type: 'object',
-        required: ['taste', 'lat', 'lng'],
+        required: ['taste', ...whereKeys],
         properties: {
           taste: TASTE,
           companion_taste: { ...TASTE, description: 'Optional. The companion_resolved items exactly as resolve_taste returned them, one to eight. Only when the guest has a plus-one.' },
-          lat: LAT,
-          lng: LNG,
+          ...where,
           radius_miles: n('How far to look, in miles. Default three. Use one for walking.'),
           take: n('How many places to return, one to five. Use three.'),
           constraints: {
@@ -125,25 +135,23 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       timeout: 15,
       body: {
         type: 'object',
-        required: ['taste', 'target'],
+        required: ['taste', 'target', ...(roaming ? whereKeys : [])],
         properties: {
           taste: TASTE,
           target: s(`The category to pick from, one of ${TARGETS.join(', ')}`, { enum: [...TARGETS] }),
           take: n('How many to return, one to three. Use one.'),
-          lat: LAT,
-          lng: LNG,
+          ...where,
         },
       },
     },
     events_nearby: {
-      description: 'Ticketed events near the inn tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.',
+      description: `Ticketed events ${near} tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.`,
       timeout: 12,
       body: {
         type: 'object',
-        required: ['lat', 'lng', 'when'],
+        required: [...whereKeys, 'when'],
         properties: {
-          lat: LAT,
-          lng: LNG,
+          ...where,
           when: WHEN,
           classification: s(`The kind of event the guest asked for, one of ${CLASSIFICATIONS.join(', ')}. Set it whenever the guest named a kind, film for a movie, music for a band. Leave it out only when they want anything at all.`, { enum: [...CLASSIFICATIONS] }),
           take: n('How many events to return, one to five. Use three.'),
@@ -156,7 +164,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
               name: s('The name from resolve_taste for that artist'),
             },
           },
-          timezone: { type: 'string', constant_value: property.timezone },
+          ...(roaming ? {} : { timezone: { type: 'string', constant_value: property.timezone } }),
         },
       },
     },
@@ -194,15 +202,14 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       },
     },
     area_insights: {
-      description: 'What the neighborhood around the inn leans toward, in aggregate. Only when a guest asks what the area is into.',
+      description: `What the neighborhood ${around} leans toward, in aggregate. Only when a guest asks what the area is into.`,
       timeout: 15,
       body: {
         type: 'object',
-        required: ['lat', 'lng'],
+        required: [...whereKeys],
         properties: {
-          lat: LAT,
-          lng: LNG,
-          radius_miles: n('How far around the inn, in miles. Use two.'),
+          ...where,
+          radius_miles: n(`How far ${around}, in miles. Use two.`),
           interests: { ...TASTE, description: 'Optional. Resolved items from resolve_taste to compare against the area.' },
         },
       },
@@ -220,7 +227,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       },
     },
     log_session: {
-      description: 'Records a short anonymous summary of this call for the inn. Call it once, just before you end the call. It never changes what you say.',
+      description: `Records a short anonymous summary of this call for ${roaming ? 'the line' : 'the inn'}. Call it once, just before you end the call. It never changes what you say.`,
       timeout: 8,
       body: {
         type: 'object',
@@ -255,6 +262,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
       },
     },
   };
+  return specs;
 }
 
 /**
@@ -265,10 +273,11 @@ function serverToolSpecs(property, { propertyId, persona, memory = false }) {
  * @param {string} p.baseUrl      where the tool server is reachable, https in production
  * @param {string} p.secretId     ElevenLabs workspace secret id holding CONCIERGE_TOOL_SECRET
  * @param {boolean} [p.memory]    include the returning-guest memory tools (forget_guest)
+ * @param {boolean} [p.roaming]   a road line: place tools take a locality, no coordinates are compiled
  * @returns {Array<{ tool_config: object }>}
  */
-export function serverToolConfigs({ property, propertyId = 'property', persona = 'unknown', baseUrl, secretId, memory = false }) {
-  const specs = serverToolSpecs(property, { propertyId, persona, memory });
+export function serverToolConfigs({ property, propertyId = 'property', persona = 'unknown', baseUrl, secretId, memory = false, roaming = false }) {
+  const specs = serverToolSpecs(property, { propertyId, persona, memory, roaming });
   const missing = SERVER_TOOL_NAMES.filter((name) => !specs[name]);
   const extra = Object.keys(specs).filter((name) => !SERVER_TOOL_NAMES.includes(name));
   if (missing.length || extra.length) {

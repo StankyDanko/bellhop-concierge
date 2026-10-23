@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { PERSONA_IDS, validateConfig } from '../../config/schema.js';
+import { INN_PERSONA_IDS, validateConfig } from '../../config/schema.js';
 import { secretMatches } from '../lib/auth.js';
 import { InputError, PiiViolation, UpstreamError } from '../lib/errors.js';
 import { areaInsights } from '../tools/area-insights.js';
@@ -280,7 +280,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     if (!row && !body.config) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
     const config = body.config ? unmaskSecrets(body.config, base) : base;
     const persona = body.persona ?? config?.voice?.persona_id;
-    if (!PERSONA_IDS.includes(persona)) return c.json({ ok: false, error: { code: 'invalid_persona', message: `persona must be one of ${PERSONA_IDS.join(', ')}` } }, 400);
+    if (!INN_PERSONA_IDS.includes(persona)) return c.json({ ok: false, error: { code: 'invalid_persona', message: `persona must be one of ${INN_PERSONA_IDS.join(', ')}` } }, 400);
     const v = validateConfig(config);
     if (!v.ok) return c.json({ ok: false, error: { code: 'invalid_config' }, errors: v.errors }, 400);
     const { compile } = await compiler();
@@ -486,7 +486,7 @@ async function readJson(c) {
 
 async function personaCards() {
   const { listPersonas, loadPersona, PERSONAS_DIR } = await compiler();
-  return listPersonas().filter((id) => PERSONA_IDS.includes(id)).map((id) => {
+  return listPersonas().filter((id) => INN_PERSONA_IDS.includes(id)).map((id) => {
     const p = loadPersona(id);
     const text = readFileSync(`${PERSONAS_DIR}/${id}.md`, 'utf8');
     const title = /^# (.+)$/m.exec(text)?.[1] ?? p.display_name;

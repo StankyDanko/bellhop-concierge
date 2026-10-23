@@ -81,7 +81,8 @@ breaks the stop rule teaches the agent to break it. `compiler/test/examples.test
 every persona's `## Example calls (compiled)` section and fails the build if an example:
 
 - puts more than three concierge questions before the lookup line (the opener's band question
-  counts as the first),
+  counts as the first; for a road persona the opener asks for the city and state, and place
+  questions such as "Which state?" never count),
 - asks any question after the caller has given three named things (the plus-one's count),
 - ends on a question instead of the lookup line, or
 - asks the bet in a call where the caller names a companion (we, us, my wife, and so on),
