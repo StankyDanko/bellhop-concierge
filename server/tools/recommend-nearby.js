@@ -9,6 +9,7 @@ import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
 import { MAX_SIGNALS, MAX_TEXTED } from '../lib/memory.js';
+import { isOutdoorLeaning, RAIN_CLAUSE, RAIN_THRESHOLD_PCT, rainReorder } from '../lib/weather.js';
 
 /** Average in-town driving speed used to turn "max 15 minutes" into a radius. */
 export const MILES_PER_MINUTE = 0.4;
@@ -149,9 +150,10 @@ function addPriorSignals(params, own, remembered) {
 
 /**
  * @param {any} body
- * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, memory?: import('../lib/memory.js').GuestMemory|null }} ctx
+ * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, memory?: import('../lib/memory.js').GuestMemory|null,
+ *           weather?: import('../lib/weather.js').WeatherClient|null, timezone?: string, now?: () => Date }} ctx
  */
-export async function recommendNearby(body, { qloo, toolSecret, memory }) {
+export async function recommendNearby(body, { qloo, toolSecret, memory, weather = null, timezone, now = () => new Date() }) {
   const taste = tasteSignals(body?.taste);
   const companion = companionSignals(body?.companion_taste);
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
@@ -166,6 +168,11 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
   const when = c.when === undefined ? 'tonight' : oneOf(c.when, 'constraints.when', ['tonight', 'weekend']);
   const partySize = optNum(c.party_size, 'constraints.party_size', { min: 1, max: 30 });
   const kids = c.kids === true;
+  // Weather (lib/weather.js): one forecast per call, asked for while Qloo is being asked, and only
+  // for a tonight plan. skip_weather is not in the agent's schema; the battery uses it to prove
+  // the pick set is the same with and without weather.
+  const wantWeather = Boolean(weather && timezone) && when === 'tonight' && body?.skip_weather !== true;
+  const forecastP = wantWeather ? weather.forecast({ lat: origin.lat, lng: origin.lng, timezone, now: now() }) : null;
 
   // A stated cuisine is a hard filter; every other taste is a signal (see places.js).
   const shaped = placeTasteParams(signalsIn);
@@ -263,6 +270,25 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
     { ranked: candidates, signalEffects: readSignalEffects(tasteBody, signalsIn.signals) });
   // ---- end counterfactual ----
 
+  // ---- weather: order and one clause only; the set is Qloo's (see lib/weather.js) ----
+  const forecast = forecastP ? await forecastP : null;
+  let weatherSummary;
+  let weatherSay;
+  if (forecast) {
+    const rainy = forecast.precip_pct >= RAIN_THRESHOLD_PCT;
+    const outdoorById = new Map(candidates.map((e) => [e.entity_id, isOutdoorLeaning(e)]));
+    // A relaxed cuisine filter already promises "the ones that fit come first", so it is not reordered.
+    const eligible = rainy && first.cuisine_filter !== 'relaxed';
+    const { items, moved } = eligible ? rainReorder(places, (p) => outdoorById.get(p.entity_id) === true) : { items: places, moved: 0 };
+    if (moved) { places.splice(0, places.length, ...items); weatherSay = RAIN_CLAUSE; }
+    // Counts and the forecast's own numbers only; no place appears here.
+    weatherSummary = { checked: true, hour: forecast.hour, precip_pct: forecast.precip_pct, temp_c: forecast.temp_c,
+      threshold_pct: RAIN_THRESHOLD_PCT, hourly_points: forecast.hours, reordered: moved > 0, moved };
+  } else if (forecastP) {
+    weatherSummary = { checked: false };
+  }
+  // ---- end weather ----
+
   // A relaxed cuisine filter is said plainly, so the agent never claims the cuisine for picks
   // that are not of it.
   let say;
@@ -275,9 +301,10 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
       : `Only ${n === 1 ? 'one' : n === 2 ? 'two' : n} ${words} ${n === 1 ? 'place is' : 'places are'} close enough, so the rest are the best matches overall.`;
   }
 
+  const sayAll = [say, weatherSay].filter(Boolean).join(' ');
   return {
     status: places.length ? 'ok' : 'empty',
-    ...(say ? { say } : {}),
+    ...(sayAll ? { say: sayAll } : {}),
     // pick_token signs each place's name and favors, so compose_itinerary can tell a favors
     // value this tool returned from one the model wrote (lib/pick-token.js).
     places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
@@ -292,9 +319,10 @@ export async function recommendNearby(body, { qloo, toolSecret, memory }) {
       // signals and texted places left out.
       ...(memoryApplied ? { memory: memoryApplied } : {}) },
     companion: companionSummary,
+    ...(weatherSummary ? { weather: weatherSummary } : {}),
     hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
     counterfactual: cf.counterfactual,
     ...(memoryRedact ? { memory_redact: memoryRedact } : {}),
-    calls: [...first.calls, ...coverCalls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : [])],
+    calls: [...first.calls, ...coverCalls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : []), ...(forecast ? [forecast.call] : [])],
   };
 }

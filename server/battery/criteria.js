@@ -1,4 +1,4 @@
-// The sixteen battery criteria. Each takes one scenario record (what the driver saw while it
+// The seventeen battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -8,6 +8,7 @@
 //   resolve             { status, json, ms } from resolve_taste
 //   recommend           { status, json, ms } or null (no taste resolved)
 //   reduced             { json } recommend_nearby rerun without the second named taste, or null
+//   unweathered         { json } recommend_nearby rerun with the forecast skipped, or null (C17)
 //   events, cross       { status, json, ms } or null
 //   compose             { status, json, ms, submitted: string[] } or null
 //   tools               [{ tool, ms, status }] for the chain (rerun and log_session excluded)
@@ -27,6 +28,7 @@
 import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
 import { vibeOf } from '../tools/resolve-taste.js';
+import { RAIN_CLAUSE } from '../lib/weather.js';
 
 /** A restaurant genre tag (mirrors isCuisineTag in tools/places.js). */
 const CUISINE_TAG = /^urn:tag:genre:place:restaurant:[^:]+/;
@@ -289,6 +291,24 @@ export const CRITERIA = [
       const hits = rec.apiSweep.filter((r) => (!r.valuesOnly && MEMORY_KEYS.test(r.text)) || needles.some((n) => r.text.includes(n))).length;
       if (hits) return v('fail', `${hits} of ${rec.apiSweep.length} route(s) expose memory`);
       return v('pass', `${rec.apiSweep.length} route(s) clean`);
+    } },
+
+  { id: 'C17', label: 'Weather changes only the order: the pick set is identical with and without it',
+    run(rec) {
+      const w = rec.recommend?.json?.weather;
+      if (!w) return na('no forecast was asked for');
+      if (!w.checked) return na('forecast unavailable, skipped silently');
+      const without = rec.unweathered?.json;
+      if (failedAnswer(rec.unweathered) || !Array.isArray(without?.places)) return v('warn', 'the rerun without weather did not answer');
+      const ids = (list) => list.map(key).sort();
+      const a = ids(places(rec));
+      const b = ids(without.places);
+      if (!sameList(a, b)) return v('fail', `pick set differs: ${a.length} with weather, ${b.length} without`);
+      const say = String(rec.recommend.json.say ?? '');
+      const clauses = say.split(RAIN_CLAUSE).length - 1;
+      if (clauses > 1) return v('fail', `rain clause said ${clauses} times`);
+      if ((clauses === 1) !== (w.reordered === true)) return v('fail', 'the clause and the reorder disagree');
+      return v('pass', `${a.length} pick(s), same set; reordered ${w.moved} (rain chance ${w.precip_pct}%, threshold ${w.threshold_pct}%)`);
     } },
 ];
 

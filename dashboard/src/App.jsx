@@ -83,6 +83,7 @@ export default function App() {
             <a href={DEVPOST_URL} rel="noopener">Devpost</a>
           </nav>
           <p>{FOOTER.sources}</p>
+          <p>Weather data by Open-Meteo.com (CC BY 4.0)</p>
           <p className="footer-bridge">{FOOTER.bridge}</p>
         </div>
       </footer>

@@ -23,6 +23,7 @@ export const TTL_SECONDS = {
   'qloo:/v2/insights': 1 * DAY,     // place recs: refresh daily (hours, closures)
   'qloo:/v2/analysis/compare': 7 * DAY,
   'ticketmaster:/events.json': 1 * HOUR,
+  'weather:/v1/forecast': 1 * HOUR, // one forecast per inn per hour
 };
 const DEFAULT_TTL = 1 * DAY;
 

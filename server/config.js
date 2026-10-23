@@ -28,6 +28,10 @@ export const DEFAULT_RATE_LIMIT_BACKOFF_MS = 2100;
  * @property {string} ticketmaster.apiKey
  * @property {boolean} ticketmaster.mock
  * @property {number} ticketmaster.timeoutMs
+ * @property {object} weather
+ * @property {string} weather.baseUrl
+ * @property {boolean} weather.enabled   WEATHER=0 switches the Open-Meteo forecast off
+ * @property {number} weather.timeoutMs
  * @property {object} cache
  * @property {string} cache.path
  * @property {boolean} cache.only       serve cached responses only, never call upstream
@@ -62,6 +66,12 @@ export function loadConfig(env = process.env) {
       apiKey: env.TICKETMASTER_API_KEY ?? '',
       mock: flag(env.TICKETMASTER_MOCK),
       timeoutMs: int(env.TICKETMASTER_TIMEOUT_MS, 4000),
+    },
+    weather: {
+      baseUrl: env.WEATHER_BASE_URL ?? 'https://api.open-meteo.com',
+      enabled: env.WEATHER !== '0',
+      // Short: a caller is on the line, and a missed forecast costs nothing (the picks stand alone).
+      timeoutMs: int(env.WEATHER_TIMEOUT_MS, 1500),
     },
     cache: {
       path: env.CACHE_PATH ?? new URL('./data/cache.sqlite', import.meta.url).pathname,

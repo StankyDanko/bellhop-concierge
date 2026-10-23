@@ -46,11 +46,35 @@ const PHONE = /(\+?\d[\s().-]?){7,}/; // seven or more digits in a phone-like ru
 const ROOM = /\b(room|rm|suite|unit|apt)\s*#?\s*\d+/i;
 
 /**
+ * The Open-Meteo forecast (lib/weather.js) has its own allowlist, scoped to its endpoint so
+ * none of these keys becomes legal on a Qloo request. Coordinates, two named hourly series, a
+ * time zone name, and a day count: nothing a guest said can ride on any of them.
+ */
+export const WEATHER_ENDPOINT = '/v1/forecast';
+const NUMBER = /^-?\d{1,3}(\.\d{1,6})?$/;
+const WEATHER_PARAMS = Object.freeze({
+  latitude: (v) => NUMBER.test(v) && Math.abs(Number(v)) <= 90,
+  longitude: (v) => NUMBER.test(v) && Math.abs(Number(v)) <= 180,
+  hourly: (v) => v.split(',').every((x) => x === 'precipitation_probability' || x === 'temperature_2m'),
+  timezone: (v) => v === 'auto' || v === 'UTC' || /^[A-Za-z]+(\/[A-Za-z0-9_+-]+){1,2}$/.test(v),
+  forecast_days: (v) => /^([1-9]|1[0-6])$/.test(v),
+});
+
+/** @param {Record<string, string>} params */
+function assertWeatherParams(params) {
+  for (const [key, raw] of Object.entries(params)) {
+    const ok = Object.hasOwn(WEATHER_PARAMS, key) && WEATHER_PARAMS[key](String(raw));
+    if (!ok) throw new PiiViolation(`refused ${WEATHER_ENDPOINT} param "${key}": not on the weather allowlist`);
+  }
+}
+
+/**
  * Throws PiiViolation if any param could carry personal data.
  * @param {string} endpoint
  * @param {Record<string, string>} params
  */
 export function assertNoPii(endpoint, params) {
+  if (endpoint === WEATHER_ENDPOINT) return assertWeatherParams(params);
   for (const [key, raw] of Object.entries(params)) {
     const value = String(raw);
     const fail = (why) => {

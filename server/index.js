@@ -11,6 +11,7 @@ import { ResponseCache } from './lib/cache.js';
 import { jsonLogger } from './lib/log.js';
 import { createQlooClient } from './lib/qloo.js';
 import { createTicketmasterClient } from './lib/ticketmaster.js';
+import { createWeatherClient } from './lib/weather.js';
 import { SessionStore } from './lib/sessions.js';
 import { createSmsSender } from './lib/twilio.js';
 import { openDashboardDb } from './api/db.js';
@@ -61,6 +62,8 @@ try {
     secret: config.toolSecret,
     qloo: createQlooClient({ config: config.qloo, cache, logger }),
     ticketmaster: createTicketmasterClient({ config: config.ticketmaster, cache, logger }),
+    // No forecast in mock mode (offline) or with WEATHER=0; frozen mode serves the cached one.
+    weather: config.weather.enabled && !config.qloo.mock && cache ? createWeatherClient({ config: config.weather, cache, logger }) : null,
     timezone: config.defaultTimezone,
     logger,
     sms,

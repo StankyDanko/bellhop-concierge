@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on sixteen criteria
+// order the voice agent calls the tools, and scores each call on seventeen criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
@@ -94,7 +94,7 @@ const DAY_MS = 86_400_000;
 export async function playScenario(call, scenario, property, opts = {}) {
   const { callerId = null, prior = null, drivers = {} } = opts;
   /** @type {any} */
-  const rec = { scenario, tools: [], trace: [], statuses: [], resolve: null, recommend: null, reduced: null,
+  const rec = { scenario, tools: [], trace: [], statuses: [], resolve: null, recommend: null, reduced: null, unweathered: null,
     events: null, cross: null, compose: null, crossInputs: null };
   const sessionId = opts.sessionId ?? `battery-${scenario.id}`;
   const inSequence = Boolean(callerId && drivers.init);
@@ -136,6 +136,10 @@ export async function playScenario(call, scenario, property, opts = {}) {
     const body = { taste, ...(companion.length ? { companion_taste: companion } : {}), ...where, constraints,
       ...(scenario.radius_miles ? { radius_miles: scenario.radius_miles } : {}), take: 3 };
     rec.recommend = await run('recommend_nearby', withSession(body));
+    if (rec.recommend.json?.weather?.checked) {
+      // Same call with the forecast skipped (a field the agent's schema does not carry): C17 compares the sets.
+      rec.unweathered = await run('recommend_nearby', withSession({ ...body, skip_weather: true }), { chain: false });
+    }
     if (taste.length >= 2) {
       // Same call without the second named taste: does it matter to the answer?
       rec.reduced = await run('recommend_nearby', withSession({ ...body, taste: taste.filter((_, i) => i !== 1) }), { chain: false });
@@ -401,7 +405,10 @@ async function hashesFor(toolSecret, memorySecret) {
 
 async function mockCall() {
   const { makeApp, callTool, callInit, SECRET, MEMORY_SECRET } = await import('../test/helpers.js');
-  const { app, memory, clock } = makeApp({ memory: true, dashboard: true });
+  // A rainy fake forecast for the fixed clock's day (2026-10-16, New York), so C17 has a forecast to judge.
+  const time = Array.from({ length: 24 }, (_, h) => `2026-10-16T${String(h).padStart(2, '0')}:00`);
+  const weatherTransport = async () => ({ status: 200, body: { hourly: { time, precipitation_probability: time.map(() => 80), temperature_2m: time.map(() => 18) } } });
+  const { app, memory, clock } = makeApp({ memory: true, dashboard: true, weatherTransport });
   const call = async (tool, body) => {
     const t0 = performance.now();
     const res = await callTool(app, tool, body);

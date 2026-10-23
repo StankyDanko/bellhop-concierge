@@ -54,6 +54,7 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {string} deps.secret
  * @param {import('./lib/qloo.js').QlooClient} deps.qloo
  * @param {import('./lib/ticketmaster.js').TicketmasterClient} deps.ticketmaster
+ * @param {import('./lib/weather.js').WeatherClient|null} [deps.weather]  Open-Meteo forecast; null means no weather reorder
  * @param {string} deps.timezone
  * @param {import('./lib/log.js').Logger} deps.logger
  * @param {import('./lib/twilio.js').SmsSender} deps.sms
@@ -65,10 +66,10 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
  * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
  */
-export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
+export function createApp({ secret, qloo, ticketmaster, weather = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
+  const ctx = { qloo, ticketmaster, weather, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
   const toolList = [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)];

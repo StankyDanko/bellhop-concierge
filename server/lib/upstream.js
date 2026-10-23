@@ -9,7 +9,7 @@ import { redactParams } from './log.js';
 
 /**
  * @typedef {object} UpstreamOptions
- * @property {string} service                 'qloo' | 'ticketmaster'
+ * @property {string} service                 'qloo' | 'ticketmaster' | 'weather'
  * @property {import('./transport.js').Transport} transport
  * @property {import('./cache.js').ResponseCache | null} cache
  * @property {import('./log.js').Logger} logger
@@ -31,7 +31,7 @@ import { redactParams } from './log.js';
  * @typedef {object} TraceEntry  One upstream request, as shown on the dashboard's call trace.
  * @property {number} n                         order within the tool call (1-based)
  * @property {string} tool                      the agent tool that made it
- * @property {string} source                    'qloo' | 'ticketmaster'
+ * @property {string} source                    'qloo' | 'ticketmaster' | 'weather'
  * @property {string} endpoint
  * @property {Record<string,string>} params     exactly what was sent, minus any credential-shaped key
  * @property {'mock'|'live'} mode
@@ -52,7 +52,7 @@ import { redactParams } from './log.js';
 
 const traceStore = new AsyncLocalStorage();
 /** Only taste and event lookups are traced; anything else (an SMS provider) never is. */
-export const TRACE_SOURCES = Object.freeze(['qloo', 'ticketmaster']);
+export const TRACE_SOURCES = Object.freeze(['qloo', 'ticketmaster', 'weather']);
 const CREDENTIAL_PARAM = /^(api[_-]?key|apikey|x-api-key|key|token|secret|auth|authorization)$/i;
 
 /**
@@ -93,7 +93,7 @@ export function traceParams(params) {
 /** How many items an upstream body carried, across the Qloo and Ticketmaster envelopes. */
 export function countResults(body) {
   const r = body?.results;
-  const candidates = [r, r?.entities, r?.tags, r?.heatmap, r?.demographics, r?.comparison, r?.items, body?._embedded?.events];
+  const candidates = [r, r?.entities, r?.tags, r?.heatmap, r?.demographics, r?.comparison, r?.items, body?._embedded?.events, body?.hourly?.time];
   for (const c of candidates) if (Array.isArray(c)) return c.length;
   if (r && typeof r === 'object') return Object.keys(r).length ? 1 : 0;
   return 0;
