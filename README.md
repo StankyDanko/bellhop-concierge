@@ -57,8 +57,8 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
 5. The same place call runs again with no taste at all. The two lists, side by side, show what
    the guest's taste changed.
 6. Ticketmaster adds what's on tonight or this weekend. When the guest named a band, Qloo
-   names the artists it ranks close to that one, and Ticketmaster says which of them play near
-   the inn tonight or this weekend: "Fans of Sturgill Simpson also love Tyler Childers, playing
+   names the artists it ranks close to that one, and Ticketmaster says which of them play within
+   a drive in the next two weeks: "Fans of Sturgill Simpson also love Tyler Childers, playing
    Friday at eight." Qloo supplies the reason, Ticketmaster only the date and the venue. Two
    shows at most.
 7. One text, at most 320 characters, goes to the number that called, and only that number.

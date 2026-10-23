@@ -574,23 +574,27 @@ Every field below is built from Ticketmaster's own fields and the property's tim
 
 #### Shows by similar artists (`by_taste`)
 
-With `artist` set, the answer also carries `by_taste`: at most two shows, tonight or this
-weekend, by artists Qloo ranks close to the one the guest named. The code is
+With `artist` set, the answer also carries `by_taste`: at most two shows, in the next two
+weeks and a drive away, by artists Qloo ranks close to the one the guest named. The code is
 `server/tools/events-by-taste.js`.
 
 1. Qloo: `GET /v2/insights` with `filter.type=urn:entity:artist`, the named artist as
    `signal.interests.entities`, the same id in `filter.exclude.entities` (so it never comes back
    as its own neighbor), and `take=5`. Cached 30 days (`SIMILAR_ARTISTS_TTL` in `lib/cache.js`).
-2. Ticketmaster, one similar artist at a time in Qloo's order: `GET /attractions.json` with that
-   artist's name as `keyword` (cached 30 days), kept only on an exact name match, then
-   `GET /events.json` with that `attractionId` near the inn.
-3. It stops at two shows, one per artist.
+2. Ticketmaster, every similar artist at once (five at most, `TASTE_CONCURRENCY`, since
+   Ticketmaster allows five requests a second): `GET /attractions.json` with that artist's name
+   as `keyword` (cached 30 days), kept only on an exact name match, then `GET /events.json` with
+   that `attractionId` within `TASTE_RADIUS_MILES` (60) of the inn.
+3. The answers are read in Qloo's order: the first two artists with a show, one show each.
 
-The window is "tonight or this weekend": tonight ends at 4 am after the call's calendar day (the
-rule above), the weekend runs Friday 5 pm to Sunday 11 pm. One Ticketmaster request covers both,
-from the top of the hour (so calls in the same hour share a cache key, as the plain listing's
-request does too) to whichever ends later, and each show is kept only when it starts inside one
-of the two.
+The window looks `TASTE_DAYS` (14) ahead, wider than the plain listing's tonight and radius,
+because a touring artist rarely plays the inn's own street this weekend. One Ticketmaster
+request per artist covers it, from the top of the hour (so calls in the same hour share a cache
+key, as the plain listing's request does too), and a show that already began is dropped. A show
+tonight or this weekend inside the inn's own radius reads like any listing ("playing Friday at
+eight at The Tidewater Hall"). Any other names its date and its city: `when_label` reads
+`Mon Oct 26, Riverton` and `say` "playing Monday, October 26 in Riverton". The pick token covers
+`when_label`, so the date and the city reach the text only as the tool wrote them.
 
 Never the named artist's own show: a similar artist with the same name, or a show whose name
 carries the named artist's name (a co-bill), is dropped.
@@ -602,7 +606,8 @@ carries the named artist's name (a co-bill), is dropped.
 | `similar_checked` | how many similar artists were looked up before it stopped |
 | `events[].artist` | the similar artist, as Qloo named it |
 | `events[].why` | `Fans of <named> also love <artist>, per Qloo`: the reason for the text, always Qloo's |
-| `events[].say` | `Fans of <named> also love <artist>, playing Saturday at eight at The Tidewater Hall.` |
+| `events[].say` | `Fans of <named> also love <artist>, playing Saturday at eight at The Tidewater Hall.`, or for a later or farther show `..., playing Monday, October 26 in Riverton.` |
+| `events[].city`, `miles` | the venue's city and its distance from the inn, when Ticketmaster gives the venue's coordinates |
 | `events[].when_label`, `pick_token` | as for any event: the token covers the name and `when_label`, so `compose_itinerary` keeps the day only when it verifies |
 | `events[].reason_source`, `source` | `Qloo` for the reason, `Ticketmaster` for the date and venue |
 
@@ -617,6 +622,8 @@ guard as the plain listing applies: no Qloo call is made and no show is read
 A cold similar-artists request took about three seconds live (2026-10-22, the
 QLOO-NOTES "Artist to artist" row has the command); the 30-day cache is what keeps the call
 inside its budget, so `npm run prewarm` warms it for the sample guest and every battery name.
+With the Qloo answer cached, the parallel Ticketmaster lookups brought the whole call to 1.7 and
+2.6 s live; cold and one at a time it was 9.1 s (docs/MEASUREMENTS.md).
 
 ### `compose_itinerary`
 

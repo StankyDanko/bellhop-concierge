@@ -8,7 +8,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 | Unit and contract suite | `npm test` | nothing | every tool, the text composer, the privacy guard, the cache, the battery's own scoring |
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
 | Battery, offline | `npm run battery -- --mock` | nothing | sixteen simulated callers and two two-call sequences pass eighteen criteria on fixtures |
-| Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API |
+| Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API; Ticketmaster is live too when `server/.env` holds its key with `TICKETMASTER_MOCK=0` (add `--tm-mock` to keep the fixture listing) |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
 
 ## The suite

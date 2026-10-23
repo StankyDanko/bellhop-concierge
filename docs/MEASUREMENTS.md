@@ -31,6 +31,7 @@ These change only with a commit, and the command shows the current value.
 | Sixteen battery callers, two two-call sequences, eighteen criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
 | Rain reorder at 50 percent or more, judged at 7 pm inn time | README, server README | `grep -n "RAIN_THRESHOLD_PCT =\|TARGET_HOUR =" server/lib/weather.js` |
 | Forecast cached one hour per inn; 1.5 s timeout | server README | `grep -n "weather" server/lib/cache.js`; `grep -n "WEATHER_TIMEOUT_MS" server/config.js` |
+| Similar-artist shows: two weeks ahead, 60 miles out, five lookups at once | README, server README | `grep -n "TASTE_DAYS =\|TASTE_RADIUS_MILES =\|TASTE_CONCURRENCY =" server/tools/events-by-taste.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
 
 ## On the landing page
@@ -52,6 +53,7 @@ These change only with a commit, and the command shows the current value.
 
 | Number | Where it's said | Command and date |
 |---|---|---|
+| events_nearby with an artist, live Qloo and live Ticketmaster: 9.1 s cold with the five lookups one at a time; 5.8 s cold with them in parallel (about 3.1 s of it the uncached Qloo similar-artists call); 1.7 and 2.6 s in parallel with that Qloo answer cached, as prewarm leaves it | server README | before: the artist-shows caller of `npm run battery -- --live --only artist-shows,tonight-events,weekend-events --cap 40 --pace-ms 2000` on 2750945 with Ticketmaster live, 2026-10-22; after: the same command on this commit, then a script that warms the similar-artists call and times one events_nearby for two artists, 2026-10-22 |
 | The guest's list moved away from the no-taste list for 12 of 12 callers run, 3 held back by the call cap | README, QLOO | `npm run battery -- --live --port <port> --cap 60`, 2026-10-22, the `verdict` of each contrast in `raw.jsonl` (criterion C6). An earlier full run the same day, before the cap, gave 15 of 15 |
 | Ten of thirteen guessed shapes matched, one differed and was fixed, two not probed | LEARNED | `npm run probe:qloo`, 2026-10-22, read against the table in [`QLOO-NOTES.md`](../QLOO-NOTES.md) |
 | Latency medians: search 129 ms (17 calls), tags 143 ms (7), insights 158 ms (47, worst 1612 ms) | QLOO | `npm run prewarm -- --apply --cap 120 --out <file outside the repo>`, 2026-10-22, paced one call per 2 s |

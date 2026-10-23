@@ -119,3 +119,20 @@ test('the live request count is Qloo only: Ticketmaster rows never count against
   ] };
   assert.equal(liveSpend(rec), 1);
 });
+
+test('live runs take Ticketmaster from server/.env unless --tm-mock; the frozen check keeps the fixtures', () => {
+  const base = { port: 18899, runDir: '/tmp/fx-run', secret: 'fx-secret-0123456789' };
+  const saved = process.env.TICKETMASTER_MOCK;
+  try {
+    delete process.env.TICKETMASTER_MOCK;
+    assert.equal(liveEnv(base).TICKETMASTER_MOCK, undefined, 'left to server/.env');
+    process.env.TICKETMASTER_MOCK = '0';
+    assert.equal(liveEnv(base).TICKETMASTER_MOCK, '0', 'a shell value is passed through');
+    assert.equal(liveEnv({ ...base, tmMock: true }).TICKETMASTER_MOCK, '1');
+    assert.equal(liveEnv({ ...base, frozenCache: '/tmp/fx.sqlite' }).TICKETMASTER_MOCK, '1');
+  } finally {
+    if (saved === undefined) delete process.env.TICKETMASTER_MOCK; else process.env.TICKETMASTER_MOCK = saved;
+  }
+  assert.equal(parseArgs(['--live', '--tm-mock']).tmMock, true);
+  assert.equal(parseArgs(['--live']).tmMock, false);
+});

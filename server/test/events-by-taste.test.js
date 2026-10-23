@@ -72,7 +72,8 @@ test('the join, offline: Qloo similar artists, an exact attraction match, then t
   assert.equal(q[0].params['signal.interests.entities'], NAMED.id);
   assert.equal(q[0].params['filter.exclude.entities'], NAMED.id);
   const keywords = res.json.trace.filter((t) => t.endpoint === ATTRACTIONS_ENDPOINT).map((t) => t.params.keyword);
-  assert.deepEqual(keywords, ['Marigold Ferry', 'Dune Lantern', 'The Saltgrass Sisters'], 'stops once two shows are found');
+  assert.deepEqual(keywords.slice(0, 3), ['Marigold Ferry', 'Dune Lantern', 'The Saltgrass Sisters'], 'the trace reads in Qloo order');
+  assert.equal(new Set(keywords).size, keywords.length, 'each similar artist looked up once, all of them at once');
   assert.ok(res.json.trace.some((t) => t.params.attractionId === 'fx-att-marigold-ferry'), 'the exact name, not the tribute night');
   assert.ok(!res.json.trace.some((t) => t.params.attractionId === 'fx-att-marigold-ferry-tribute'));
   // The plain listing is still there, unchanged.
@@ -109,7 +110,7 @@ test('the window: tonight or this weekend, a show already started or midweek is 
   assert.equal(win.fetch.start.getTime() % 3_600_000, 0, 'the fetch starts on the hour, so the hour shares a cache key');
 });
 
-test('the cap: at most two shows, one per artist, and no lookups after the second', async () => {
+test('the cap: at most two shows, one per artist, read in Qloo order', async () => {
   const names = ['Alder Choir', 'Bramble Union', 'Cinder Lake', 'Driftwood Mile'];
   const similar = names.map((n, i) => artistEntity(nameKey(n).replace(/ /g, '-'), n, 0.9 - i / 100));
   const attractions = Object.fromEntries(names.map((n, i) => [n, [{ id: `fx-att-${i}`, name: n }]]));
@@ -121,7 +122,8 @@ test('the cap: at most two shows, one per artist, and no lookups after the secon
   const res = await callTool(app, 'events_nearby', BODY);
   assert.equal(res.json.by_taste.events.length, MAX_HITS);
   assert.deepEqual(res.json.by_taste.events.map((e) => e.artist), ['Alder Choir', 'Bramble Union']);
-  assert.equal(seen.tm.filter((c) => c.endpoint === ATTRACTIONS_ENDPOINT).length, 2);
+  // All four are looked up at once (no wait between artists); only the first two in Qloo's order are kept.
+  assert.equal(seen.tm.filter((c) => c.endpoint === ATTRACTIONS_ENDPOINT).length, 4);
   assert.equal(res.json.by_taste.similar_checked, 2);
 });
 
@@ -262,4 +264,60 @@ test('the guard, the other way: mock Qloo with live Ticketmaster makes no attrac
   assert.equal(res.json.by_taste.status, 'degraded');
   assert.equal(res.json.by_taste.reason, 'similar_artists_mock');
   assert.ok(seen.every((s) => s.endpoint !== ATTRACTIONS_ENDPOINT && !s.params.attractionId), 'no search for a fixture artist on the live listing');
+});
+
+const placedEvent = (id, name, iso, venue, city, lat, lng) => ({ id, name, url: `https://example.com/events/${id}`,
+  dates: { start: { dateTime: iso } }, classifications: [{ segment: { name: 'Music' } }],
+  _embedded: { venues: [{ name: venue, city: { name: city }, location: { latitude: String(lat), longitude: String(lng) } }] } });
+
+test('two weeks out and a drive away: the line names the date and the city, and the token covers both', async () => {
+  const similar = [artistEntity('alder-choir', 'Alder Choir', 0.9), artistEntity('bramble-union', 'Bramble Union', 0.8), artistEntity('cinder-lake', 'Cinder Lake', 0.7)];
+  const attractions = { 'Alder Choir': [{ id: 'fx-att-0', name: 'Alder Choir' }], 'Bramble Union': [{ id: 'fx-att-1', name: 'Bramble Union' }], 'Cinder Lake': [{ id: 'fx-att-2', name: 'Cinder Lake' }] };
+  const events = {
+    // Ten days out, in a town about 50 miles away.
+    'fx-att-0': [placedEvent('fx-evt-far', 'Alder Choir Live', '2026-10-27T00:00:00Z', 'Fx Opera House', 'Fx Riverton', 32.45, -81.78)],
+    // This weekend, but 30 miles out: past the inn's own radius of 10.
+    'fx-att-1': [placedEvent('fx-evt-drive', 'Bramble Union', '2026-10-18T00:00:00Z', 'Fx Barn', 'Fx Millbrook', 32.5, -81.1)],
+    // Sixteen days out: past the two-week horizon, never shown.
+    'fx-att-2': [placedEvent('fx-evt-late', 'Cinder Lake', '2026-11-02T00:00:00Z', 'Fx Hall', 'Fx Riverton', 32.08, -81.09)],
+  };
+  const { app, seen } = liveApp({ similar, attractions, events });
+  const res = await callTool(app, 'events_nearby', { ...BODY, radius_miles: 10 });
+  const bt = res.json.by_taste;
+  assert.deepEqual(bt.events.map((e) => e.artist), ['Alder Choir', 'Bramble Union']);
+  const [far, drive] = bt.events;
+  assert.equal(far.when_label, 'Mon Oct 26, Fx Riverton');
+  assert.equal(far.say, 'Fans of Juniper Rail also love Alder Choir, playing Monday, October 26 in Fx Riverton.');
+  assert.equal(drive.when_label, 'Sat Oct 17, Fx Millbrook');
+  assert.ok(drive.miles > 10 && drive.miles < 60, `${drive.miles} miles`);
+  assert.ok(verifyPick(SECRET, far), 'the token covers the date and city label');
+  assert.equal(verifyPick(SECRET, { ...far, when_label: 'Tonight 8pm' }), false, 'a forged day fails');
+  const evReq = seen.tm.find((c) => c.params.attractionId === 'fx-att-0').params;
+  assert.equal(evReq.radius, '60');
+  const days = (Date.parse(evReq.endDateTime) - FIXED_NOW.getTime()) / 86_400_000;
+  assert.ok(days >= 13.9 && days <= 14.1, `${days} days ahead`);
+});
+
+test('the similar-artist lookups run at once, five at most', async () => {
+  const names = ['Alder Choir', 'Bramble Union', 'Cinder Lake', 'Driftwood Mile', 'Ember Coast'];
+  let inFlight = 0;
+  let peak = 0;
+  const cache = new ResponseCache({ path: ':memory:' });
+  const qloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: 'fx-key', mock: false, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger,
+    transport: async () => ({ status: 200, body: { success: true, results: { entities: names.map((n, i) => artistEntity(nameKey(n).replace(/ /g, '-'), n, 0.9 - i / 100)) } } }) });
+  const ticketmaster = createTicketmasterClient({ config: { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: 'fx-key', mock: false, timeoutMs: 1000 }, cache, logger: silentLogger,
+    transport: async (endpoint, params) => {
+      inFlight += 1; peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 40));
+      inFlight -= 1;
+      if (endpoint === ATTRACTIONS_ENDPOINT) return { status: 200, body: { _embedded: { attractions: [{ id: `fx-att-${nameKey(params.keyword).replace(/ /g, '-')}`, name: params.keyword }] } } };
+      return { status: 200, body: { _embedded: { events: [] } } };
+    } });
+  const { eventsByTaste } = await import('../tools/events-by-taste.js');
+  const t0 = Date.now();
+  const out = await eventsByTaste({ artist: NAMED, lat: PROPERTY.lat, lng: PROPERTY.lng, radiusMiles: 10, timezone: TZ }, { qloo, ticketmaster, now: () => FIXED_NOW });
+  const ms = Date.now() - t0;
+  assert.equal(out.status, 'empty');
+  assert.equal(peak, 5, 'five lookups in flight together');
+  assert.ok(ms < 5 * 2 * 40, `${ms} ms: the five artists overlapped instead of queueing`);
 });

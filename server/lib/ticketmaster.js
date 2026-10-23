@@ -45,10 +45,15 @@ export function normalizeEvents(body) {
   return events.map((e) => {
     const start = e?.dates?.start ?? {};
     const url = typeof e?.url === 'string' && e.url.startsWith('https://') ? e.url : null;
+    const v = e?._embedded?.venues?.[0];
+    const vLat = Number(v?.location?.latitude);
+    const vLng = Number(v?.location?.longitude);
     return {
       id: String(e?.id ?? ''),
       name: String(e?.name ?? ''),
-      venue: e?._embedded?.venues?.[0]?.name ?? null,
+      venue: v?.name ?? null,
+      city: typeof v?.city?.name === 'string' && v.city.name.trim() ? v.city.name.trim() : null,
+      venue_location: Number.isFinite(vLat) && Number.isFinite(vLng) ? { lat: vLat, lng: vLng } : null,
       start: start.dateTime ?? start.localDate ?? null,
       local_date: typeof start.localDate === 'string' ? start.localDate : null,
       local_time: typeof start.localTime === 'string' ? start.localTime : null,

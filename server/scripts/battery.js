@@ -12,8 +12,8 @@
 //                                                   at PATH; it must report qloo cache-only, frozen
 //
 // Live mode starts server/index.js itself on --port with a throwaway cache and session log
-// under the run directory, Ticketmaster and texting mocked, and stops it again. It never calls
-// send_sms. The run directory gets scorecard.md (verdicts and counts only) and raw.jsonl (the
+// under the run directory, texting mocked, Ticketmaster as server/.env says, and stops it again. Texts go
+// only to the mock sender. The run directory gets scorecard.md (verdicts and counts only) and raw.jsonl (the
 // raw tool responses, which hold upstream data: keep that file out of version control).
 //
 // Flags: --cap N   stop before exceeding N live upstream requests (default 150)
@@ -21,6 +21,7 @@
 //        --strict   exit 1 when any criterion fails in any scenario (warns never fail the run)
 //        --pace-ms N   wait N ms between live tool calls (default 2000; 0 in mock). The upstream
 //                      rate limit is shared with every other process using the same key.
+//        --tm-mock   live runs: keep Ticketmaster on its fixtures even when server/.env has a key
 
 import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -440,10 +441,14 @@ async function mockCall() {
  * The live server's environment. QLOO_RETRIES is 0: the quota rail is to stop on the first
  * 429, and the server's own retries would send two more requests into it.
  */
-export function liveEnv({ port, runDir, secret, memorySecret = '', frozenCache = null }) {
+export function liveEnv({ port, runDir, secret, memorySecret = '', frozenCache = null, tmMock = false }) {
+  const { TICKETMASTER_MOCK: _shellTm, ...shell } = process.env;
   return {
-    ...process.env,
-    PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', QLOO_RETRIES: '0', TICKETMASTER_MOCK: '1', SMS_MOCK: '1',
+    ...shell,
+    PORT: String(port), CONCIERGE_TOOL_SECRET: secret, QLOO_MOCK: '0', QLOO_RETRIES: '0', SMS_MOCK: '1',
+    // Ticketmaster follows server/.env (live when it holds a key and TICKETMASTER_MOCK=0), so C18
+    // can be proven from the repo. --tm-mock, and the frozen check, keep the fixture listing.
+    ...(tmMock || frozenCache ? { TICKETMASTER_MOCK: '1' } : _shellTm !== undefined ? { TICKETMASTER_MOCK: _shellTm } : {}),
     // Frozen: the prewarmed cache, read only, and no key at all, exactly as after the key goes dark.
     ...(frozenCache ? { CACHE_FREEZE: '1', QLOO_API_KEY: '' } : {}),
     CACHE_PATH: frozenCache ?? join(runDir, 'cache.sqlite'), SESSIONS_PATH: join(runDir, 'sessions.sqlite'), DASHBOARD_DB_PATH: join(runDir, 'sessions.sqlite'),
@@ -465,10 +470,10 @@ export function healthProblem(health, { frozen = false } = {}) {
   return null;
 }
 
-async function startLiveServer({ port, runDir, frozenCache = null }) {
+async function startLiveServer({ port, runDir, frozenCache = null, tmMock = false }) {
   const secret = randomBytes(18).toString('hex');
   const memorySecret = randomBytes(18).toString('hex');
-  const env = liveEnv({ port, runDir, secret, memorySecret, frozenCache });
+  const env = liveEnv({ port, runDir, secret, memorySecret, frozenCache, tmMock });
   const logPath = join(runDir, 'server.log');
   // Frozen never reads server/.env, so no key can reach the server.
   const nodeArgs = frozenCache ? [join(SERVER_DIR, 'index.js')] : [`--env-file=${join(SERVER_DIR, '.env')}`, join(SERVER_DIR, 'index.js')];
@@ -484,6 +489,7 @@ async function startLiveServer({ port, runDir, frozenCache = null }) {
   if (!up) { child.kill('SIGTERM'); throw new Error(`server did not come up on ${port}; see ${logPath}`); }
   const health = await (await fetch(`${base}/health`)).json();
   const problem = healthProblem(health, { frozen: Boolean(frozenCache) });
+  console.log(`server: qloo ${health.qloo}, ticketmaster ${health.ticketmaster}, sms ${health.sms}`);
   if (problem) { child.kill('SIGTERM'); throw new Error(problem); }
   const call = async (tool, body) => {
     const t0 = performance.now();
@@ -515,12 +521,13 @@ async function startLiveServer({ port, runDir, frozenCache = null }) {
 }
 
 export function parseArgs(argv) {
-  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null, cache: null };
+  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null, cache: null, tmMock: false };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--mock') a.mode = 'mock';
     else if (k === '--live') a.mode = 'live';
     else if (k === '--frozen') a.mode = 'frozen';
+    else if (k === '--tm-mock') a.tmMock = true;
     else if (k === '--cache') a.cache = argv[++i];
     else if (k === '--port') a.port = Number(argv[++i]);
     else if (k === '--out') a.out = argv[++i];
@@ -563,7 +570,7 @@ async function main() {
   else {
     const problem = args.mode === 'frozen' ? frozenCacheProblem(args.cache) : null;
     if (problem) throw new Error(`${problem}; run npm run prewarm -- --apply --cache ${args.cache} first`);
-    driver = await startLiveServer({ port: args.port, runDir, frozenCache: args.mode === 'frozen' ? resolve(args.cache) : null });
+    driver = await startLiveServer({ port: args.port, runDir, frozenCache: args.mode === 'frozen' ? resolve(args.cache) : null, tmMock: args.tmMock });
     call = driver.call; drivers = driver.drivers;
   }
   call = pacedCall(call, args.paceMs);
