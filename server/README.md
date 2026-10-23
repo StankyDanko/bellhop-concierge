@@ -574,7 +574,7 @@ Every field below is built from Ticketmaster's own fields and the property's tim
 
 #### Shows by similar artists (`by_taste`)
 
-With `artist` set, the answer also carries `by_taste`: at most two shows, in the next two
+With `artist` set, the answer also carries `by_taste`: at most two shows, in the next three
 weeks and a drive away, by artists Qloo ranks close to the one the guest named. The code is
 `server/tools/events-by-taste.js`.
 
@@ -584,10 +584,10 @@ weeks and a drive away, by artists Qloo ranks close to the one the guest named. 
 2. Ticketmaster, every similar artist at once (five at most, `TASTE_CONCURRENCY`, since
    Ticketmaster allows five requests a second): `GET /attractions.json` with that artist's name
    as `keyword` (cached 30 days), kept only on an exact name match, then `GET /events.json` with
-   that `attractionId` within `TASTE_RADIUS_MILES` (60) of the inn.
+   that `attractionId` within `TASTE_RADIUS_MILES` (100) of the inn.
 3. The answers are read in Qloo's order: the first two artists with a show, one show each.
 
-The window looks `TASTE_DAYS` (14) ahead, wider than the plain listing's tonight and radius,
+The window looks `TASTE_DAYS` (21) ahead, wider than the plain listing's tonight and radius,
 because a touring artist rarely plays the inn's own street this weekend. One Ticketmaster
 request per artist covers it, from the top of the hour (so calls in the same hour share a cache
 key, as the plain listing's request does too), and a show that already began is dropped. A show

@@ -270,7 +270,7 @@ const placedEvent = (id, name, iso, venue, city, lat, lng) => ({ id, name, url: 
   dates: { start: { dateTime: iso } }, classifications: [{ segment: { name: 'Music' } }],
   _embedded: { venues: [{ name: venue, city: { name: city }, location: { latitude: String(lat), longitude: String(lng) } }] } });
 
-test('two weeks out and a drive away: the line names the date and the city, and the token covers both', async () => {
+test('three weeks out and a drive away: the line names the date and the city, and the token covers both', async () => {
   const similar = [artistEntity('alder-choir', 'Alder Choir', 0.9), artistEntity('bramble-union', 'Bramble Union', 0.8), artistEntity('cinder-lake', 'Cinder Lake', 0.7)];
   const attractions = { 'Alder Choir': [{ id: 'fx-att-0', name: 'Alder Choir' }], 'Bramble Union': [{ id: 'fx-att-1', name: 'Bramble Union' }], 'Cinder Lake': [{ id: 'fx-att-2', name: 'Cinder Lake' }] };
   const events = {
@@ -278,8 +278,8 @@ test('two weeks out and a drive away: the line names the date and the city, and 
     'fx-att-0': [placedEvent('fx-evt-far', 'Alder Choir Live', '2026-10-27T00:00:00Z', 'Fx Opera House', 'Fx Riverton', 32.45, -81.78)],
     // This weekend, but 30 miles out: past the inn's own radius of 10.
     'fx-att-1': [placedEvent('fx-evt-drive', 'Bramble Union', '2026-10-18T00:00:00Z', 'Fx Barn', 'Fx Millbrook', 32.5, -81.1)],
-    // Sixteen days out: past the two-week horizon, never shown.
-    'fx-att-2': [placedEvent('fx-evt-late', 'Cinder Lake', '2026-11-02T00:00:00Z', 'Fx Hall', 'Fx Riverton', 32.08, -81.09)],
+    // Twenty-three days out: past the three-week horizon, never shown.
+    'fx-att-2': [placedEvent('fx-evt-late', 'Cinder Lake', '2026-11-09T00:00:00Z', 'Fx Hall', 'Fx Riverton', 32.08, -81.09)],
   };
   const { app, seen } = liveApp({ similar, attractions, events });
   const res = await callTool(app, 'events_nearby', { ...BODY, radius_miles: 10 });
@@ -293,9 +293,9 @@ test('two weeks out and a drive away: the line names the date and the city, and 
   assert.ok(verifyPick(SECRET, far), 'the token covers the date and city label');
   assert.equal(verifyPick(SECRET, { ...far, when_label: 'Tonight 8pm' }), false, 'a forged day fails');
   const evReq = seen.tm.find((c) => c.params.attractionId === 'fx-att-0').params;
-  assert.equal(evReq.radius, '60');
+  assert.equal(evReq.radius, '100');
   const days = (Date.parse(evReq.endDateTime) - FIXED_NOW.getTime()) / 86_400_000;
-  assert.ok(days >= 13.9 && days <= 14.1, `${days} days ahead`);
+  assert.ok(days >= 20.9 && days <= 21.1, `${days} days ahead`);
 });
 
 test('the similar-artist lookups run at once, five at most', async () => {

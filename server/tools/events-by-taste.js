@@ -31,10 +31,10 @@ import { eventWhen, tonightEnds } from './events-nearby.js';
 
 /** Similar artists asked of Qloo. */
 export const SIMILAR_TAKE = 5;
-/** How far ahead a similar artist's show may be: two weeks. */
-export const TASTE_DAYS = 14;
-/** How far from the inn: a drive, wider than the plain listing's radius. */
-export const TASTE_RADIUS_MILES = 60;
+/** How far ahead a similar artist's show may be: three weeks. */
+export const TASTE_DAYS = 21;
+/** How far from the inn: a drive (from Savannah, Charleston and Jacksonville are in range), wider than the plain listing's radius. */
+export const TASTE_RADIUS_MILES = 100;
 /** Lookups at once: Ticketmaster allows five requests a second. */
 export const TASTE_CONCURRENCY = 5;
 /** Shows returned, at most. */
