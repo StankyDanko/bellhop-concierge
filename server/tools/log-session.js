@@ -6,10 +6,22 @@
 //
 // Taste entities are the guest's own words, so each is length-capped and dropped if it looks
 // like an email address, a phone number, or a room number.
+//
+// Any-city calls (lib/locality.js): the city a call asked about is noted under its session id
+// when a place tool placed it, as the geocoder names it ("Austin, Texas"), and written onto the
+// row here; the agent never repeats it. An optional `locality` in the body (the battery, a
+// direct call) is looked up again (a cache hit) and stored the same way, so nothing finer than a
+// city name, and nothing the caller said around it, is ever written. A call with a city and no
+// inn is filed under ROAMING_PROPERTY_ID, the road line's own id, so the five-call floor and the
+// test-call rules apply to it unchanged.
 
 import { randomUUID } from 'node:crypto';
 import { InputError } from '../lib/errors.js';
 import { arr, optNum } from '../lib/validate.js';
+import { localityFrom } from '../lib/locality.js';
+
+/** Where a call with a city and no inn is filed: the road line's property id (api/db.js seeds it). */
+export const ROAMING_PROPERTY_ID = 'road';
 
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 const PHONE = /(\+?\d[\s().-]?){7,}/;
@@ -22,16 +34,21 @@ const flag = (v) => v === true || v === 'true' || v === 1 || v === '1';
 
 /**
  * @param {any} body
- * @param {{ sessions: import('../lib/sessions.js').SessionStore, now?: () => Date, memory?: import('../lib/memory.js').GuestMemory|null }} ctx
+ * @param {{ sessions: import('../lib/sessions.js').SessionStore, now?: () => Date, memory?: import('../lib/memory.js').GuestMemory|null,
+ *           geocoder?: import('../lib/geocode.js').Geocoder|null }} ctx
  */
-export async function logSession(body, { sessions, now = () => new Date(), memory = null }) {
+export async function logSession(body, { sessions, now = () => new Date(), memory = null, geocoder = null }) {
   const unset = (v) => (typeof v === 'string' && !/^\{\{.*\}\}$/.test(v.trim()) ? v.trim() : '');
   const sid = unset(body?.session_id);
   if (sid && !ID.test(sid)) throw new InputError('session_id has unexpected characters');
   // An unfilled platform variable arrives empty or as its own {{name}}; treat both as absent.
   const id = sid || `local-${randomUUID()}`;
 
-  const property_id = typeof body?.property_id === 'string' && SLUG.test(body.property_id) ? body.property_id : null;
+  const said = localityFrom(body);
+  const locality = said === null ? null : await cityName(said, geocoder);
+  const inn = typeof body?.property_id === 'string' && SLUG.test(body.property_id) ? body.property_id : null;
+  const noted = sid && typeof sessions.placeOf === 'function' ? sessions.placeOf(sid) : null;
+  const property_id = inn ?? (said !== null || noted ? ROAMING_PROPERTY_ID : null);
   const persona = typeof body?.persona === 'string' && SLUG.test(body.persona) ? body.persona : null;
 
   const rawCaller = unset(body?.caller_id);
@@ -57,6 +74,7 @@ export async function logSession(body, { sessions, now = () => new Date(), memor
   const row = sessions.write({
     id, property_id, persona, started_at, caller_id, entities,
     picks_count: Math.round(picks_count), events_count: Math.round(events_count), sms_sent: flag(body?.sms_sent),
+    ...(locality ? { locality } : {}),
   });
   // Returning-guest memory: fold this call into the caller's memory. Only a call the initiation
   // webhook linked has anything to fold; best effort, it never fails the log.
@@ -68,5 +86,21 @@ export async function logSession(body, { sessions, now = () => new Date(), memor
   // trace_calls: how many Qloo and Ticketmaster requests this call made, linked by session_id.
   // taste_ids: how many resolved Qloo ids the row added to the inn's guest taste fingerprint.
   const tasteIds = JSON.parse(row.entity_ids_json ?? '[]').length;
-  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, trace_calls: row.trace_count ?? 0, taste_ids: tasteIds, calls: [] };
+  return { status: 'ok', logged: true, session_id: id, entities_kept: entities.length, trace_calls: row.trace_count ?? 0, taste_ids: tasteIds,
+    ...(said !== null || noted ? { locality: row.locality ?? null } : {}), calls: [] };
+}
+
+/**
+ * The geocoder's name for the city the call asked about, or null when it cannot be placed
+ * (or there is no geocoder). Never throws: the log always goes through.
+ * @param {unknown} said @param {import('../lib/geocode.js').Geocoder|null} geocoder
+ */
+async function cityName(said, geocoder) {
+  if (!geocoder) return null;
+  try {
+    const place = await geocoder.locate(said);
+    return place.status === 'ok' ? place.label : null;
+  } catch {
+    return null;
+  }
 }

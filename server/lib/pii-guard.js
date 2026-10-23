@@ -69,12 +69,36 @@ function assertWeatherParams(params) {
 }
 
 /**
+ * The Open-Meteo geocoding search (lib/geocode.js) has its own allowlist too, scoped to its
+ * endpoint. A city name is not personal data, but it is free text a caller said, so it keeps the
+ * free-text rule: length-capped, letters and town punctuation only, and refused when it looks
+ * like an email address, a phone number, or a room number. The other three are fixed values.
+ */
+export const GEOCODE_ENDPOINT = '/v1/search';
+const PLACE_NAME = /^\p{L}[\p{L} .'-]{0,79}$/u;
+const GEOCODE_PARAMS = Object.freeze({
+  name: (v) => v.length <= MAX_FREE_TEXT && PLACE_NAME.test(v) && !EMAIL.test(v) && !PHONE.test(v) && !ROOM.test(v),
+  count: (v) => /^([1-9]|1\d|20)$/.test(v),
+  language: (v) => v === 'en',
+  format: (v) => v === 'json',
+});
+
+/** @param {Record<string, string>} params */
+function assertGeocodeParams(params) {
+  for (const [key, raw] of Object.entries(params)) {
+    const ok = Object.hasOwn(GEOCODE_PARAMS, key) && GEOCODE_PARAMS[key](String(raw));
+    if (!ok) throw new PiiViolation(`refused ${GEOCODE_ENDPOINT} param "${key}": not on the geocoding allowlist`);
+  }
+}
+
+/**
  * Throws PiiViolation if any param could carry personal data.
  * @param {string} endpoint
  * @param {Record<string, string>} params
  */
 export function assertNoPii(endpoint, params) {
   if (endpoint === WEATHER_ENDPOINT) return assertWeatherParams(params);
+  if (endpoint === GEOCODE_ENDPOINT) return assertGeocodeParams(params);
   for (const [key, raw] of Object.entries(params)) {
     const value = String(raw);
     const fail = (why) => {

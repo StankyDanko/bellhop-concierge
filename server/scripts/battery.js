@@ -22,6 +22,13 @@
 //        --pace-ms N   wait N ms between live tool calls (default 2000; 0 in mock). The upstream
 //                      rate limit is shared with every other process using the same key.
 //        --tm-mock   live runs: keep Ticketmaster on its fixtures even when server/.env has a key
+//        --locality "Austin, Texas"   point every place tool at that city instead of the scenario
+//                      inn, in the road line's shape (the city, no coordinates; the tools geocode it,
+//                      server/lib/locality.js), and log the call with it
+//        --coverage   any-city coverage: the coverage scenarios (COVERAGE_SCENARIOS, or --only)
+//                      against each city in COVERAGE_CITIES (or --cities "A, ST;B, ST"), one scenario
+//                      at a time across every city so names resolve once. Lean: no reruns. Writes
+//                      coverage.md (counts per city) beside the scorecard. --cap is the total.
 
 import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -39,6 +46,15 @@ const SERVER_DIR = join(HERE, '..');
 const REPO_ROOT = join(SERVER_DIR, '..');
 export const DEFAULT_CAP = 150;
 export const DEFAULT_PACE_MS = 2000;
+/** The five cities the any-city coverage run measures by default. */
+export const COVERAGE_CITIES = Object.freeze(['New York, NY', 'Austin, TX', 'Denver, CO', 'Nashville, TN', 'Boise, ID']);
+/**
+ * The scenarios a coverage run plays in each city: cuisine picks, a family, a cheap night, three
+ * named things, events tonight, shows by similar artists, and a film. One of each kind, so five
+ * cities fit one run's cap.
+ */
+export const COVERAGE_SCENARIOS = Object.freeze(['solo-artist-cuisine', 'director-cuisine', 'family-kids', 'budget-easy',
+  'three-things', 'tonight-events', 'artist-shows', 'film-request']);
 
 /**
  * Wrap a tool caller so consecutive calls are at least paceMs apart. The first call goes at once.
@@ -91,10 +107,13 @@ const DAY_MS = 86_400_000;
  * first, carries session_id on every tool call, and, per opts, reports a text as sent, asks to
  * be forgotten, and sweeps the dashboard afterwards (see runBattery and criteria C13 to C16).
  * @param {(tool: string, body: object) => Promise<{ status: number, json: any, ms: number }>} call
- * @param {{ sessionId?: string, callerId?: string, prior?: any, texted?: boolean, forget?: boolean, drivers?: any }} [opts]
+ * @param {{ sessionId?: string, callerId?: string, prior?: any, texted?: boolean, forget?: boolean, drivers?: any,
+ *           locality?: string, lean?: boolean }} [opts]
+ * locality: the city every place tool is pointed at, sent as the road line sends it (the city, no
+ * coordinates). lean: skip the two comparison reruns (reduced taste, no forecast).
  */
 export async function playScenario(call, scenario, property, opts = {}) {
-  const { callerId = null, prior = null, drivers = {} } = opts;
+  const { callerId = null, prior = null, drivers = {}, locality = null, lean = false } = opts;
   /** @type {any} */
   const rec = { scenario, tools: [], trace: [], statuses: [], resolve: null, recommend: null, reduced: null, unweathered: null,
     events: null, cross: null, compose: null, crossInputs: null };
@@ -120,7 +139,9 @@ export async function playScenario(call, scenario, property, opts = {}) {
     if (chain) rec.tools.push({ tool, ms: res.ms, status: res.status });
     return res;
   };
-  const where = { lat: property.lat, lng: property.lng };
+  // With a locality the bodies take the road line's shape: the city, and no inn coordinates.
+  const where = locality ? { locality } : { lat: property.lat, lng: property.lng };
+  if (locality) rec.locality = locality;
 
   rec.resolve = await run('resolve_taste', withSession({
     mentions: scenario.mentions,
@@ -138,11 +159,11 @@ export async function playScenario(call, scenario, property, opts = {}) {
     const body = { taste, ...(companion.length ? { companion_taste: companion } : {}), ...where, constraints,
       ...(scenario.radius_miles ? { radius_miles: scenario.radius_miles } : {}), take: 3 };
     rec.recommend = await run('recommend_nearby', withSession(body));
-    if (rec.recommend.json?.weather?.checked) {
+    if (rec.recommend.json?.weather?.checked && !lean) {
       // Same call with the forecast skipped (a field the agent's schema does not carry): C17 compares the sets.
       rec.unweathered = await run('recommend_nearby', withSession({ ...body, skip_weather: true }), { chain: false });
     }
-    if (taste.length >= 2) {
+    if (taste.length >= 2 && !lean) {
       // Same call without the second named taste: does it matter to the answer?
       rec.reduced = await run('recommend_nearby', withSession({ ...body, taste: taste.filter((_, i) => i !== 1) }), { chain: false });
     }
@@ -157,7 +178,7 @@ export async function playScenario(call, scenario, property, opts = {}) {
       ...(named ? { classification: 'music', artist: rec.namedArtist } : {}) }));
   }
   if (scenario.cross && taste.length) {
-    rec.cross = await run('cross_domain', withSession({ taste, target: scenario.cross.target, take: 3 }));
+    rec.cross = await run('cross_domain', withSession({ taste, target: scenario.cross.target, take: 3, ...(locality ? { locality } : {}) }));
     rec.crossInputs = { ids: taste.map((t) => t.id), names: taste.map((t) => t.name.toLowerCase()) };
   }
 
@@ -202,6 +223,7 @@ export async function playScenario(call, scenario, property, opts = {}) {
     session_id: sessionId, entities: scenario.mentions, picks_count: picks.length,
     events_count: ev ? 1 : 0, sms_sent: textedNow,
     ...(inSequence ? { caller_id: callerId } : {}),
+    ...(locality ? { locality } : {}),
   }, { chain: false });
 
   if (inSequence) {
@@ -270,7 +292,7 @@ export const qlooLimited = (res) => (res?.json?.error?.code === 'rate_limited' &
 // two per-person scoring calls, two per-cuisine cover calls, the reduced rerun, cross_domain, the
 // tag lookups, and the init and memory probes of a sequence call. Was 14 before the cover calls.
 export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP, perScenarioReserve = 18, onRecord = () => {},
-  sequences = [], library = scenarios, drivers = null }) {
+  sequences = [], library = scenarios, drivers = null, locality = null }) {
   const records = [];
   const skipped = [];
   let liveUsed = 0;
@@ -288,7 +310,8 @@ export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP,
     if (liveUsed + perScenarioReserve > cap && liveUsed > 0) { stoppedBy = `cap ${cap} would be exceeded`; skipped.push(sc.id); continue; }
     if (p.opts.first) prior = null;
     if (p.days && drivers?.advance) drivers.advance(p.days * DAY_MS);
-    const rec = await playScenario(call, sc, property, p.opts.callerId ? { ...p.opts, prior } : {});
+    const where = locality ? { locality } : {};
+    const rec = await playScenario(call, sc, property, p.opts.callerId ? { ...p.opts, prior, ...where } : where);
     if (p.opts.callerId) prior = rec;
     liveUsed += liveSpend(rec);
     records.push(rec);
@@ -296,6 +319,74 @@ export async function runBattery({ call, scenarios, property, cap = DEFAULT_CAP,
     if (rateLimited(rec)) stoppedBy = 'HTTP 429 from upstream';
   }
   return { records, skipped, liveUsed, stoppedBy };
+}
+
+/**
+ * Any-city coverage: each scenario across every city before the next scenario, so a name is
+ * resolved once (the 30-day cache answers the other cities) and every city sees the same
+ * scenarios when the cap stops the run. Lean plays (no reruns). Stops at the first 429, or before
+ * a round of cities could pass the cap.
+ * @param {{ call: any, scenarios: any[], property: any, cities: string[], cap?: number, perPlayReserve?: number, onRecord?: (rec: any) => void }} o
+ * @returns {Promise<{ records: any[], skipped: string[], liveUsed: number, stoppedBy: string|null }>}
+ */
+export async function runCoverage({ call, scenarios, property, cities, cap = DEFAULT_CAP, perPlayReserve = 8, onRecord = () => {} }) {
+  const records = [];
+  const skipped = [];
+  let liveUsed = 0;
+  let stoppedBy = null;
+  for (const sc of scenarios) {
+    if (!stoppedBy && liveUsed > 0 && liveUsed + perPlayReserve * cities.length > cap) stoppedBy = `cap ${cap} would be exceeded`;
+    for (const city of cities) {
+      const id = `${sc.id}@${city}`;
+      if (stoppedBy) { skipped.push(id); continue; }
+      const rec = await playScenario(call, { ...sc, id }, property, { locality: city, lean: true, sessionId: `battery-coverage-${records.length + 1}` });
+      rec.city = city;
+      rec.baseId = sc.id;
+      liveUsed += liveSpend(rec);
+      records.push(rec);
+      onRecord(rec);
+      if (rateLimited(rec)) stoppedBy = 'HTTP 429 from upstream';
+    }
+  }
+  return { records, skipped, liveUsed, stoppedBy };
+}
+
+/**
+ * The coverage table: counts per city, never a place, show, or coordinate.
+ *   picks        places recommend_nearby returned, per scenario
+ *   cuisine hits picks whose reason names the guest's cuisine (tagMeasures), of picks in cuisine scenarios
+ *   shows        by_taste shows by similar artists (artist-shows), and plain events (tonight-events)
+ *   empty        place answers with no picks after a taste resolved, plus clarify answers
+ */
+export function renderCoverage({ records, skipped = [], liveUsed, stoppedBy, startedAt, cities }) {
+  const ids = [...new Set(records.map((r) => r.baseId))];
+  const out = ['# Any-city coverage', '', `- started: ${startedAt}`, `- cities: ${cities.length}, scenarios: ${ids.length}, plays: ${records.length}${skipped.length ? `, skipped: ${skipped.length}` : ''}`,
+    `- live Qloo requests spent (cache misses): ${liveUsed}`, `- stopped early: ${stoppedBy ?? 'no'}`, ''];
+  out.push('## Picks returned per scenario', '', `| City | ${ids.join(' | ')} |`, `|---|${ids.map(() => '---').join('|')}|`);
+  const cell = (r) => {
+    if (!r) return '-';
+    if (r.recommend?.json?.status === 'clarify') return 'clarify';
+    if (!r.recommend) return 'no taste';
+    return r.recommend.status === 200 ? String(Array.isArray(r.recommend.json?.places) ? r.recommend.json.places.length : 0) : `http ${r.recommend.status}`;
+  };
+  for (const city of cities) out.push(`| ${city} | ${ids.map((id) => cell(records.find((r) => r.city === city && r.baseId === id))).join(' | ')} |`);
+  out.push('', '## Per city', '', '| City | placed | picks | cuisine hits | similar-artist shows | events found | cross picks | empty answers | clarify |', '|---|---|---|---|---|---|---|---|---|');
+  for (const city of cities) {
+    const rs = records.filter((r) => r.city === city);
+    const m = tagMeasures(rs);
+    const placed = rs.filter((r) => typeof r.recommend?.json?.locality === 'string').length;
+    const asked = rs.filter((r) => r.recommend).length;
+    const picks = rs.reduce((n, r) => n + (Array.isArray(r.recommend?.json?.places) ? r.recommend.json.places.length : 0), 0);
+    const shows = rs.reduce((n, r) => n + (Array.isArray(r.events?.json?.by_taste?.events) ? r.events.json.by_taste.events.length : 0), 0);
+    const events = rs.reduce((n, r) => n + (Array.isArray(r.events?.json?.events) ? r.events.json.events.length : 0), 0);
+    const cross = rs.reduce((n, r) => n + (Array.isArray(r.cross?.json?.results) ? r.cross.json.results.length : 0), 0);
+    const empty = rs.filter((r) => r.recommend && r.recommend.status === 200 && r.recommend.json?.status !== 'clarify'
+      && !(Array.isArray(r.recommend.json?.places) && r.recommend.json.places.length)).length;
+    const clarify = rs.filter((r) => [r.recommend, r.events, r.cross].some((x) => x?.json?.status === 'clarify')).length;
+    out.push(`| ${city} | ${placed} of ${asked} | ${picks} | ${m.cuisine.named} of ${m.cuisine.picks} | ${shows} | ${events} | ${cross} | ${empty} | ${clarify} |`);
+  }
+  out.push('', 'Counts only. "placed": place answers that came back for the named city. Cuisine hits: picks whose reason names the guest cuisine, of the picks in scenarios with a stated cuisine.', '');
+  return out.join('\n');
 }
 
 /**
@@ -416,7 +507,10 @@ async function mockCall() {
   // A rainy fake forecast for the fixed clock's day (2026-10-16, New York), so C17 has a forecast to judge.
   const time = Array.from({ length: 24 }, (_, h) => `2026-10-16T${String(h).padStart(2, '0')}:00`);
   const weatherTransport = async () => ({ status: 200, body: { hourly: { time, precipitation_probability: time.map(() => 80), temperature_2m: time.map(() => 18) } } });
-  const { app, memory, clock } = makeApp({ memory: true, dashboard: true, weatherTransport });
+  // The fictional fixture towns (server/fixtures/geocode.search.json), so --locality works offline.
+  const { fixtureTransport } = await import('../lib/transport.js');
+  const geocodeTransport = fixtureTransport({ service: 'geocode', dir: new URL('../fixtures/', import.meta.url), files: { '/v1/search': 'geocode.search' } });
+  const { app, memory, clock } = makeApp({ memory: true, dashboard: true, weatherTransport, geocodeTransport });
   const call = async (tool, body) => {
     const t0 = performance.now();
     const res = await callTool(app, tool, body);
@@ -523,7 +617,8 @@ async function startLiveServer({ port, runDir, frozenCache = null, tmMock = fals
 }
 
 export function parseArgs(argv) {
-  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null, cache: null, tmMock: false };
+  const a = { mode: null, port: 18803, out: null, cap: DEFAULT_CAP, only: null, strict: false, paceMs: null, cache: null, tmMock: false,
+    locality: null, coverage: false, cities: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--mock') a.mode = 'mock';
@@ -537,11 +632,18 @@ export function parseArgs(argv) {
     else if (k === '--only') a.only = argv[++i].split(',');
     else if (k === '--strict') a.strict = true;
     else if (k === '--pace-ms') a.paceMs = Number(argv[++i]);
+    else if (k === '--locality') a.locality = argv[++i];
+    else if (k === '--coverage') a.coverage = true;
+    else if (k === '--cities') a.cities = String(argv[++i] ?? '').split(';').map((c) => c.trim()).filter(Boolean);
     else throw new Error(`unknown flag ${k}`);
   }
   if (!a.mode) throw new Error('pick a mode: --mock, --live, or --frozen');
   if (a.mode === 'frozen' && !a.cache) throw new Error('--frozen needs --cache PATH, the prewarmed cache to serve');
   if (a.cache && a.mode !== 'frozen') throw new Error('--cache is only for --frozen');
+  if (a.locality !== null && (typeof a.locality !== 'string' || !a.locality.trim() || a.locality.length > 80)) throw new Error('--locality needs a city, for example "Austin, TX"');
+  if (a.locality && a.coverage) throw new Error('--locality and --coverage do not mix; use --cities with --coverage');
+  if (a.cities && !a.coverage) throw new Error('--cities is only for --coverage');
+  if (a.coverage && a.cities && !a.cities.length) throw new Error('--cities needs at least one city');
   // Frozen makes no upstream calls, so nothing to pace.
   if (a.paceMs === null) a.paceMs = a.mode === 'live' ? DEFAULT_PACE_MS : 0;
   if (!Number.isInteger(a.paceMs) || a.paceMs < 0) throw new Error('--pace-ms must be a whole number of milliseconds, 0 or more');
@@ -558,8 +660,12 @@ export function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const { property, scenarios: all, sequences: allSeq = [] } = loadScenarios();
-  const scenarios = args.only ? all.filter((s) => args.only.includes(s.id)) : all;
-  const sequences = args.only ? allSeq.filter((s) => args.only.includes(s.id)) : allSeq;
+  const pick = args.only ?? (args.coverage ? [...COVERAGE_SCENARIOS] : null);
+  const scenarios = pick ? all.filter((s) => pick.includes(s.id)) : all;
+  // A single-city run plays one fictional caller per scenario; the two-call sequences are memory
+  // checks about the inn and stay out of locality and coverage runs.
+  const sequences = args.locality || args.coverage ? [] : args.only ? allSeq.filter((s) => args.only.includes(s.id)) : allSeq;
+  const cities = args.coverage ? (args.cities ?? [...COVERAGE_CITIES]) : null;
   const startedAt = new Date().toISOString();
   const runDir = join(args.out ?? join(tmpdir(), 'bellhop-battery'), startedAt.replace(/[:.]/g, '-'));
   mkdirSync(runDir, { recursive: true });
@@ -578,13 +684,17 @@ async function main() {
   call = pacedCall(call, args.paceMs);
 
   let result;
+  const onRecord = (rec) => appendFileSync(rawPath, `${JSON.stringify({ scenario: rec.scenario.id, resolve: rec.resolve, recommend: rec.recommend, reduced: rec.reduced, events: rec.events, cross: rec.cross, compose: rec.compose })}\n`);
   try {
-    result = await runBattery({
-      call, scenarios, property, cap: args.cap, sequences, library: all, drivers,
-      onRecord: (rec) => appendFileSync(rawPath, `${JSON.stringify({ scenario: rec.scenario.id, resolve: rec.resolve, recommend: rec.recommend, reduced: rec.reduced, events: rec.events, cross: rec.cross, compose: rec.compose })}\n`),
-    });
+    result = cities
+      ? await runCoverage({ call, scenarios, property, cities, cap: args.cap, onRecord })
+      : await runBattery({ call, scenarios, property, cap: args.cap, sequences, library: all, drivers, locality: args.locality, onRecord });
   } finally {
     if (driver) await driver.stop();
+  }
+  if (cities) {
+    writeFileSync(join(runDir, 'coverage.md'), renderCoverage({ ...result, startedAt, cities }));
+    console.log(`coverage: ${join(runDir, 'coverage.md')}`);
   }
   const card = renderScorecard({ ...result, mode: args.mode, startedAt });
   writeFileSync(join(runDir, 'scorecard.md'), card);

@@ -12,6 +12,7 @@ import { jsonLogger } from './lib/log.js';
 import { createQlooClient } from './lib/qloo.js';
 import { createTicketmasterClient } from './lib/ticketmaster.js';
 import { createWeatherClient } from './lib/weather.js';
+import { createGeocoder } from './lib/geocode.js';
 import { SessionStore } from './lib/sessions.js';
 import { createSmsSender } from './lib/twilio.js';
 import { openDashboardDb } from './api/db.js';
@@ -64,6 +65,11 @@ try {
     ticketmaster: createTicketmasterClient({ config: config.ticketmaster, cache, logger }),
     // No forecast in mock mode (offline) or with WEATHER=0; frozen mode serves the cached one.
     weather: config.weather.enabled && !config.qloo.mock && cache ? createWeatherClient({ config: config.weather, cache, logger }) : null,
+    // Any-city lookups (lib/geocode.js): the fictional fixture towns in mock mode, live (cached
+    // 30 days) otherwise, frozen with the rest of the cache.
+    geocoder: !config.geocode.enabled ? null
+      : config.qloo.mock ? createGeocoder({ config: config.geocode, cache: null, logger, mock: true })
+        : cache ? createGeocoder({ config: config.geocode, cache, logger }) : null,
     timezone: config.defaultTimezone,
     logger,
     sms,

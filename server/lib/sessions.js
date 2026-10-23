@@ -43,6 +43,17 @@ export const TRACES_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS session_traces_session ON session_traces (session_id, seq);
 `;
+// The city a call asked about (lib/locality.js notes it when a place tool placed a locality), so
+// log_session can file it without the agent repeating it. One row per call, the last city wins.
+// The geocoder's name for the city only ("Austin, Texas"): never what the caller said around it.
+export const PLACES_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS session_places (
+    session_id TEXT PRIMARY KEY,
+    locality   TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+`;
+
 /** Rows kept per session; a runaway agent loop cannot grow the table without bound. */
 export const MAX_TRACE_ROWS_PER_SESSION = 40;
 
@@ -98,6 +109,8 @@ export function excludeTestSql(db) {
  *   trace_count      how many upstream requests were traced under the session id
  *   entity_ids_json  the Qloo entity and tag ids the call sent as its taste signal (ids only)
  *   is_test          1 for a test harness or probe call (see TEST_SESSION_PREFIXES)
+ *   locality         the city a call asked about, as the geocoder names it ("Austin, Texas"), or
+ *                    NULL for a call about the inn's own town. A city name only: never anything finer.
  * Rows logged before is_test existed are flagged by their id prefix.
  * @param {import('better-sqlite3').Database} db
  */
@@ -105,6 +118,7 @@ export function migrateSessions(db) {
   addColumnIfMissing(db, 'sessions', 'trace_count', 'INTEGER');
   addColumnIfMissing(db, 'sessions', 'entity_ids_json', 'TEXT');
   addColumnIfMissing(db, 'sessions', 'is_test', 'INTEGER DEFAULT 0');
+  addColumnIfMissing(db, 'sessions', 'locality', 'TEXT');
   db.exec(`UPDATE sessions SET is_test = 1 WHERE COALESCE(is_test, 0) = 0 AND (${TEST_ID_SQL})`);
 }
 
@@ -170,17 +184,18 @@ export class SessionStore {
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(SESSIONS_SCHEMA);
     this.db.exec(TRACES_SCHEMA);
+    this.db.exec(PLACES_SCHEMA);
     migrateSessions(this.db);
     // Upsert: an agent that calls log_session twice for one call updates its row.
     // created_at keeps the first write's time.
     this.upsert = this.db.prepare(`
-      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, trace_count, entity_ids_json, is_test)
-      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at, @trace_count, @entity_ids_json, @is_test)
+      INSERT INTO sessions (id, property_id, persona, started_at, caller_hash, entities_json, picks_count, events_count, sms_sent, created_at, trace_count, entity_ids_json, is_test, locality)
+      VALUES (@id, @property_id, @persona, @started_at, @caller_hash, @entities_json, @picks_count, @events_count, @sms_sent, @created_at, @trace_count, @entity_ids_json, @is_test, @locality)
       ON CONFLICT(id) DO UPDATE SET
         property_id = excluded.property_id, persona = excluded.persona, started_at = excluded.started_at,
         caller_hash = excluded.caller_hash, entities_json = excluded.entities_json, picks_count = excluded.picks_count,
         events_count = excluded.events_count, sms_sent = excluded.sms_sent, trace_count = excluded.trace_count,
-        entity_ids_json = excluded.entity_ids_json, is_test = excluded.is_test
+        entity_ids_json = excluded.entity_ids_json, is_test = excluded.is_test, locality = excluded.locality
     `);
     this.insertTrace = this.db.prepare(`
       INSERT INTO session_traces (session_id, tool, trace_json, counterfactual_json, created_at)
@@ -191,7 +206,7 @@ export class SessionStore {
 
   /**
    * @param {{ id: string, property_id?: string|null, persona?: string|null, started_at: string, caller_id?: string|null,
-   *           entities: string[], picks_count: number, events_count: number, sms_sent: boolean }} s
+   *           entities: string[], picks_count: number, events_count: number, sms_sent: boolean, locality?: string|null }} s
    */
   write(s) {
     const { trace } = readTrace(this.db, s.id);
@@ -215,9 +230,27 @@ export class SessionStore {
       entity_ids_json: JSON.stringify(resolvedATaste(trace) ? entityIdsFromTrace(trace) : []),
       // A test harness or probe call: stored for inspection, invisible to every dashboard read.
       is_test: isTestSessionId(s.id) ? 1 : 0,
+      // The city the call asked about, by name only: what log_session passed, else what a place
+      // tool noted under this session id (notePlace), else null for a call about the inn's town.
+      locality: s.locality ?? this.placeOf(s.id),
     };
     this.upsert.run(row);
     return row;
+  }
+
+  /**
+   * Note the city a call asked about, as the geocoder names it. Best effort, last city wins.
+   * @param {string} sessionId @param {string} locality
+   */
+  notePlace(sessionId, locality) {
+    if (!sessionId || typeof locality !== 'string' || !locality) return;
+    this.db.prepare(`INSERT INTO session_places (session_id, locality, created_at) VALUES (?, ?, ?)
+                     ON CONFLICT(session_id) DO UPDATE SET locality = excluded.locality`).run(sessionId, locality.slice(0, 120), this.now().toISOString());
+  }
+
+  /** The city noted for a session, or null. @param {string} sessionId */
+  placeOf(sessionId) {
+    return this.db.prepare('SELECT locality FROM session_places WHERE session_id = ?').get(sessionId)?.locality ?? null;
   }
 
   /**

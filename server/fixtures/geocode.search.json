@@ -1,0 +1,21 @@
+{
+  "_note": "Hand-written fake geocoding answers in the Open-Meteo search shape. Fictional towns, made-up coordinates and populations. Never a real response.",
+  "cases": [
+    { "match": { "name": "hollow pines" }, "response": { "results": [
+      { "id": 9000001, "name": "Hollow Pines", "latitude": 33.1111, "longitude": -84.2222, "feature_code": "PPL", "country_code": "US", "admin1": "Georgia", "timezone": "America/New_York", "population": 4200 }
+    ] } },
+    { "match": { "name": "cedar hollow" }, "response": { "results": [
+      { "id": 9000002, "name": "Cedar Hollow", "latitude": 36.1111, "longitude": -86.3333, "feature_code": "PPL", "country_code": "US", "admin1": "Tennessee", "timezone": "America/Chicago", "population": 61000 },
+      { "id": 9000003, "name": "Cedar Hollow", "latitude": 37.4444, "longitude": -85.5555, "feature_code": "PPL", "country_code": "US", "admin1": "Kentucky", "timezone": "America/New_York", "population": 2100 },
+      { "id": 9000004, "name": "Cedar Hollow Junction", "latitude": 35.0001, "longitude": -90.0001, "feature_code": "PPL", "country_code": "US", "admin1": "Arkansas", "timezone": "America/Chicago", "population": 900 }
+    ] } },
+    { "match": { "name": "metro harbor" }, "response": { "results": [
+      { "id": 9000005, "name": "Metro Harbor", "latitude": 40.5555, "longitude": -74.1111, "feature_code": "PPLA2", "country_code": "US", "admin1": "New York", "timezone": "America/New_York", "population": 2400000 },
+      { "id": 9000006, "name": "Metro Harbor", "latitude": 41.2222, "longitude": -82.3333, "feature_code": "PPL", "country_code": "US", "admin1": "Ohio", "timezone": "America/New_York", "population": 3100 }
+    ] } },
+    { "match": { "name": "lantern bay" }, "response": { "results": [
+      { "id": 9000007, "name": "Lantern Bay", "latitude": 50.1111, "longitude": -3.2222, "feature_code": "PPL", "country_code": "GB", "admin1": "England", "timezone": "Europe/London", "population": 15000 }
+    ] } },
+    { "match": {}, "response": { "generationtime_ms": 0.1 } }
+  ]
+}

@@ -157,7 +157,7 @@ test('the sessions table has exactly the contracted columns', () => {
   const cols = s.db.prepare('PRAGMA table_info(sessions)').all().map((c) => `${c.name}:${c.type}`);
   assert.deepEqual(cols, ['id:TEXT', 'property_id:TEXT', 'persona:TEXT', 'started_at:TEXT', 'caller_hash:TEXT', 'entities_json:TEXT',
     'picks_count:INTEGER', 'events_count:INTEGER', 'sms_sent:INTEGER', 'created_at:TEXT', 'trace_count:INTEGER',
-    'entity_ids_json:TEXT', 'is_test:INTEGER']);
+    'entity_ids_json:TEXT', 'is_test:INTEGER', 'locality:TEXT']);
   const traceCols = s.db.prepare('PRAGMA table_info(session_traces)').all().map((c) => `${c.name}:${c.type}`);
   assert.deepEqual(traceCols, ['seq:INTEGER', 'session_id:TEXT', 'tool:TEXT', 'trace_json:TEXT', 'counterfactual_json:TEXT', 'created_at:TEXT']);
   s.close();

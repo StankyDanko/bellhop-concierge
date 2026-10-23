@@ -49,6 +49,34 @@ These change only with a commit, and the command shows the current value.
 | 1 mi scale on the area card | area card | the scale bar is drawn one mile long from the card's own miles-to-pixels `scale` (`grep -n "1 mi" dashboard/src/components/AreaCard.jsx`) |
 | "What is around here" is 9.0% of 10 million guest messages | run-your-own section | Conduit, "What 10 million guest messages are about", https://www.conduit.ai/blog/what-10-million-guest-messages-are-about, read 2026-10-22: the post's category is "property and area information at 9.0%" |
 
+## Any-city coverage (live, 2026-10-22)
+
+Measured with `/usr/bin/node server/scripts/battery.js --live --coverage --port <free port> --cap 150 --pace-ms 2000 --out <dir outside the repo>`, started 2026-10-23 02:05 UTC (about 10 pm Eastern on 2026-10-22), Qloo and Ticketmaster live, texts mocked: five cities, eight callers each, 40 plays, 0 skipped, 71 live Qloo requests, 0 Qloo 429. Counts only.
+
+### Picks returned per scenario
+
+| City | solo-artist-cuisine | director-cuisine | family-kids | budget-easy | tonight-events | film-request | three-things | artist-shows |
+|---|---|---|---|---|---|---|---|---|
+| New York, NY | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+| Austin, TX | 3 | 3 | 0 | 3 | 3 | 3 | 3 | 3 |
+| Denver, CO | 3 | 3 | 1 | 3 | 3 | 3 | 3 | 3 |
+| Nashville, TN | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+| Boise, ID | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+
+### Per city
+
+| City | placed | picks | cuisine hits | similar-artist shows | events found | cross picks | empty answers | clarify |
+|---|---|---|---|---|---|---|---|---|
+| New York, NY | 8 of 8 | 24 | 20 of 21 | 0 | 3 | 3 | 0 | 0 |
+| Austin, TX | 8 of 8 | 21 | 18 of 18 | 0 | 3 | 3 | 1 | 0 |
+| Denver, CO | 8 of 8 | 22 | 18 of 19 | 0 | 5 | 3 | 0 | 0 |
+| Nashville, TN | 8 of 8 | 24 | 19 of 21 | 0 | 3 | 3 | 0 | 0 |
+| Boise, ID | 8 of 8 | 24 | 16 of 21 | 0 | 3 | 3 | 0 | 0 |
+
+Counts only. "placed": place answers that came back for the named city. Cuisine hits: picks whose reason names the guest cuisine, of the picks in scenarios with a stated cuisine.
+
+Notes: geocoding made 95 lookups, 5 live (one per city) and 90 from the cache. Ticketmaster answered one HTTP 429 on `/events.json` (its own limit; the battery stops only on a Qloo 429). The one empty answer is family-kids in Austin (no place left after the kids filter). tonight-events was empty in four of five cities because the run started near 10 pm Eastern. No city had a similar-artist show in range. The run sent the city beside the demo inn's coordinates; the harness now sends the road line's shape (the city alone), and the server replaces the coordinates either way.
+
 ## Repo commands, live
 
 | Number | Where it's said | Command and date |

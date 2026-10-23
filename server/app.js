@@ -7,6 +7,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { requireSecret } from './lib/auth.js';
 import { sessionIdFrom } from './lib/sessions.js';
 import { withTrace } from './lib/upstream.js';
+import { runWithLocality } from './lib/locality.js';
 import { InputError, PiiViolation, RateLimited, UpstreamError } from './lib/errors.js';
 import { areaInsights } from './tools/area-insights.js';
 import { composeItinerary } from './tools/compose-itinerary.js';
@@ -55,6 +56,7 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/qloo.js').QlooClient} deps.qloo
  * @param {import('./lib/ticketmaster.js').TicketmasterClient} deps.ticketmaster
  * @param {import('./lib/weather.js').WeatherClient|null} [deps.weather]  Open-Meteo forecast; null means no weather reorder
+ * @param {import('./lib/geocode.js').Geocoder|null} [deps.geocoder]  any-city lookup (lib/locality.js); null answers a locality with a line to say
  * @param {string} deps.timezone
  * @param {import('./lib/log.js').Logger} deps.logger
  * @param {import('./lib/twilio.js').SmsSender} deps.sms
@@ -66,10 +68,10 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
  * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
  */
-export function createApp({ secret, qloo, ticketmaster, weather = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
+export function createApp({ secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, weather, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
+  const ctx = { qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
   const toolList = [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)];
@@ -79,6 +81,7 @@ export function createApp({ secret, qloo, ticketmaster, weather = null, timezone
     qloo: qloo.mode,
     ticketmaster: ticketmaster.mode ?? (ticketmaster.enabled ? 'live' : 'disabled'),
     sms: sms.mode,
+    geocode: geocoder?.mode ?? 'disabled',
     cache: cacheMode ?? 'on',
     tools: toolList,
   }));
@@ -101,7 +104,7 @@ export function createApp({ secret, qloo, ticketmaster, weather = null, timezone
         return c.json({ ok: false, status: 'error', error: { code: 'invalid_json' } }, 400);
       }
       try {
-        const { result: { calls, memory_redact: memoryRedact, ...result }, trace } = await withTrace(name, () => handler(body, ctx));
+        const { result: { calls, memory_redact: memoryRedact, ...result }, trace } = await withTrace(name, () => runWithLocality(name, handler, body, ctx));
         // Remembered ids never reach the recorded trace (dashboard, fingerprint) or the response.
         redactTrace(trace, memoryRedact);
         rememberCall(memory, name, body, result, logger);

@@ -32,6 +32,10 @@ export const DEFAULT_RATE_LIMIT_BACKOFF_MS = 2100;
  * @property {string} weather.baseUrl
  * @property {boolean} weather.enabled   WEATHER=0 switches the Open-Meteo forecast off
  * @property {number} weather.timeoutMs
+ * @property {object} geocode
+ * @property {string} geocode.baseUrl
+ * @property {boolean} geocode.enabled   GEOCODE=0 switches the any-city lookup off
+ * @property {number} geocode.timeoutMs
  * @property {object} cache
  * @property {string} cache.path
  * @property {boolean} cache.only       serve cached responses only, never call upstream
@@ -72,6 +76,13 @@ export function loadConfig(env = process.env) {
       enabled: env.WEATHER !== '0',
       // Short: a caller is on the line, and a missed forecast costs nothing (the picks stand alone).
       timeoutMs: int(env.WEATHER_TIMEOUT_MS, 1500),
+    },
+    geocode: {
+      baseUrl: env.GEOCODE_BASE_URL ?? 'https://geocoding-api.open-meteo.com',
+      // GEOCODE=0 switches the any-city lookup off: a tool call that names a city then answers
+      // with a line saying the concierge can only look around the inn.
+      enabled: env.GEOCODE !== '0',
+      timeoutMs: int(env.GEOCODE_TIMEOUT_MS, 2000),
     },
     cache: {
       path: env.CACHE_PATH ?? new URL('./data/cache.sqlite', import.meta.url).pathname,

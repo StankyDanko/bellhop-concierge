@@ -25,6 +25,7 @@ export const TTL_SECONDS = {
   'ticketmaster:/events.json': 1 * HOUR,
   'weather:/v1/forecast': 1 * HOUR, // one forecast per inn per hour
   'ticketmaster:/attractions.json': 30 * DAY, // a performer's attraction id does not move
+  'geocode:/v1/search': 30 * DAY,   // a town does not move
 };
 const DEFAULT_TTL = 1 * DAY;
 /** Similar artists (artist to artist insights) move slowly; that request asks for this TTL itself. */

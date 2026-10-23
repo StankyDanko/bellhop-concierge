@@ -9,7 +9,7 @@ import { redactParams } from './log.js';
 
 /**
  * @typedef {object} UpstreamOptions
- * @property {string} service                 'qloo' | 'ticketmaster' | 'weather'
+ * @property {string} service                 'qloo' | 'ticketmaster' | 'weather' | 'geocode'
  * @property {import('./transport.js').Transport} transport
  * @property {import('./cache.js').ResponseCache | null} cache
  * @property {import('./log.js').Logger} logger
@@ -52,7 +52,7 @@ import { redactParams } from './log.js';
 
 const traceStore = new AsyncLocalStorage();
 /** Only taste and event lookups are traced; anything else (an SMS provider) never is. */
-export const TRACE_SOURCES = Object.freeze(['qloo', 'ticketmaster', 'weather']);
+export const TRACE_SOURCES = Object.freeze(['qloo', 'ticketmaster', 'weather', 'geocode']);
 const CREDENTIAL_PARAM = /^(api[_-]?key|apikey|x-api-key|key|token|secret|auth|authorization)$/i;
 
 /**

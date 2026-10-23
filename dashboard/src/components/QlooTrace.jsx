@@ -11,7 +11,7 @@ import { Icon } from '../icons.jsx';
 import { SampleBadge, SourceChip } from './ui.jsx';
 import '../trace.css';
 
-const SOURCE_LABEL = { qloo: 'Qloo', ticketmaster: 'Ticketmaster', weather: 'Open-Meteo' };
+const SOURCE_LABEL = { qloo: 'Qloo', ticketmaster: 'Ticketmaster', weather: 'Open-Meteo', geocode: 'Open-Meteo' };
 
 export const MOCK_NOTE = 'Mock mode: names outside the sample set resolve to nothing until the Qloo key is live.';
 

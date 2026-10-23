@@ -26,7 +26,7 @@ import { withTrace } from '../lib/upstream.js';
 import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, liveSignals, parseIds, resolvedATaste } from '../lib/fingerprint.js';
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { locationParams } from '../tools/places.js';
-import { DEMO_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
+import { DEMO_PROPERTY_ID, ROAMING_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
 import { LOCKED_RULES, OWNER_TOGGLES } from './guardrails.js';
 
 export const ADMIN_HEADER = 'X-Admin-Token';
@@ -67,6 +67,13 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     cache.set(key, { value, until: Date.now() + CACHE_MS });
     return value;
   };
+
+  /** The road line, or any property whose config has no coordinates: its calls name their own city. */
+  const noFixedPlace = (id, row) => {
+    if (id === ROAMING_PROPERTY_ID) return true;
+    try { return typeof JSON.parse(row.config_json).property?.lat !== 'number'; } catch { return false; }
+  };
+  const noPlace = (c) => c.json({ ok: false, error: { code: 'no_fixed_place', message: 'This line has no fixed place: each call names its own city.' } }, 404);
 
   const getProperty = (id) => db.prepare('SELECT id, config_json, status, updated_at, published_at FROM properties WHERE id = ?').get(id);
 
@@ -160,6 +167,21 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const ids = sdb.prepare(`SELECT id FROM sessions WHERE property_id = ?${notTest()}`).all(propertyId).map((r) => r.id);
     const resolved = ids.filter((sid) => resolvedATaste(traceOf(sid).trace)).length;
     return { calls, signal, resolved };
+  };
+
+  /**
+   * The roaming desk's calls by city name only: how many calls asked about each city. A city
+   * with fewer than SESSION_GATE calls is folded into other_cities, so no single caller's city
+   * shows on its own. Nothing finer than the city name is stored to begin with (log_session).
+   */
+  const callsByCity = (propertyId) => {
+    const hasCol = sessionsAvailable() && sdb.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'locality');
+    if (!hasCol) return { min: SESSION_GATE, cities: [], other_cities: 0 };
+    const rows = sdb.prepare(`SELECT locality AS city, COUNT(*) AS calls FROM sessions WHERE property_id = ?${notTest()} AND locality IS NOT NULL
+                              GROUP BY locality ORDER BY calls DESC, locality`).all(propertyId);
+    const shown = rows.filter((r) => r.calls >= SESSION_GATE).map((r) => ({ city: r.city, calls: r.calls }));
+    const other = rows.filter((r) => r.calls < SESSION_GATE).reduce((n, r) => n + r.calls, 0);
+    return { min: SESSION_GATE, cities: shown, other_cities: other };
   };
 
   const lastSessionAt = () => {
@@ -300,6 +322,20 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
     const total = sessionCount(id);
     const tz = JSON.parse(row.config_json).property?.timezone ?? ctx.timezone;
+    // A line with no fixed place (the road line) shows aggregates by city name only: no per-call
+    // rows, no sample call.
+    if (noFixedPlace(id, row)) {
+      return c.json({
+        ok: true,
+        available: sessionsAvailable(),
+        total,
+        gate: { min: SESSION_GATE, count: total, open: total >= SESSION_GATE },
+        tastes: tasteCounts(id, total),
+        sessions: [],
+        by_city: callsByCity(id),
+        sample_session: null,
+      });
+    }
     return c.json({
       ok: true,
       available: sessionsAvailable(),
@@ -340,6 +376,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const id = validId(c);
     const row = id && getProperty(id);
     if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
+    if (noFixedPlace(id, row)) return noPlace(c);
     const { lat, lng } = JSON.parse(row.config_json).property;
     const radius = [1, 2, 5].includes(Number(c.req.query('radius'))) ? Number(c.req.query('radius')) : 2;
     const fp = fingerprintFor(id, c.req.query('sample') === '1');
@@ -389,6 +426,7 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const id = validId(c);
     const row = id && getProperty(id);
     if (!row) return c.json({ ok: false, error: { code: 'not_found' } }, 404);
+    if (noFixedPlace(id, row)) return noPlace(c);
     const config = JSON.parse(row.config_json);
     const { lat, lng } = config.property;
     try {

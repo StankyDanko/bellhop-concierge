@@ -4,15 +4,27 @@
 // because a fresh install has no sessions table until the first call is logged.
 
 import Database from 'better-sqlite3';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { entityIdsFromTrace, labelIds } from '../lib/fingerprint.js';
 import { tonightEnds } from '../tools/events-nearby.js';
+import { ROAMING_PROPERTY_ID } from '../tools/log-session.js';
 
 export const DEFAULT_DB_PATH = fileURLToPath(new URL('../data/concierge.sqlite', import.meta.url));
 export const DEMO_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/demo-inn.json', import.meta.url));
 export const DEMO_PROPERTY_ID = 'demo';
+/**
+ * The built-in property any-city calls with no inn are filed under (tools/log-session.js): the
+ * road line. Seeded from its example config when the repo has one, else from ROAMING_FALLBACK.
+ */
+export const ROAMING_CONFIG_PATH = fileURLToPath(new URL('../../config/examples/road-line.json', import.meta.url));
+/** A road line with no fixed place: no address, no coordinates, only a clock to fall back on. */
+export const ROAMING_FALLBACK = Object.freeze({
+  schema_version: 1,
+  property: { id: 'road', name: 'Bellhop', timezone: 'America/New_York' },
+});
+export { ROAMING_PROPERTY_ID };
 export const SAMPLE_SESSION_PATH = fileURLToPath(new URL('../fixtures/sample-session.json', import.meta.url));
 
 const PROPERTIES_SCHEMA = `
@@ -36,6 +48,7 @@ export function openDashboardDb({ path = DEFAULT_DB_PATH, now = () => new Date()
   db.pragma('busy_timeout = 2000');
   db.exec(PROPERTIES_SCHEMA);
   seedDemo(db, now);
+  seedRoaming(db, now);
   return db;
 }
 
@@ -45,6 +58,17 @@ export function seedDemo(db, now = () => new Date()) {
   JSON.parse(config); // fail loudly on a broken example rather than seeding junk
   db.prepare(`INSERT OR IGNORE INTO properties (id, config_json, status, updated_at) VALUES (?, ?, 'draft', ?)`)
     .run(DEMO_PROPERTY_ID, config, now().toISOString());
+}
+
+/**
+ * Insert the road line as property `road` if it is not there yet. Never overwrites. It has no
+ * coordinates: every call it files named a city.
+ */
+export function seedRoaming(db, now = () => new Date()) {
+  const config = existsSync(ROAMING_CONFIG_PATH) ? readFileSync(ROAMING_CONFIG_PATH, 'utf8') : JSON.stringify(ROAMING_FALLBACK);
+  if (JSON.parse(config).property?.id !== ROAMING_PROPERTY_ID) throw new Error(`${ROAMING_CONFIG_PATH} must have property.id ${ROAMING_PROPERTY_ID}`);
+  db.prepare(`INSERT OR IGNORE INTO properties (id, config_json, status, updated_at) VALUES (?, ?, 'draft', ?)`)
+    .run(ROAMING_PROPERTY_ID, config, now().toISOString());
 }
 
 /** @param {import('better-sqlite3').Database} db */

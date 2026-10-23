@@ -6,6 +6,7 @@ import { silentLogger } from '../lib/log.js';
 import { createQlooClient } from '../lib/qloo.js';
 import { createTicketmasterClient } from '../lib/ticketmaster.js';
 import { createWeatherClient } from '../lib/weather.js';
+import { createGeocoder } from '../lib/geocode.js';
 import { SessionStore } from '../lib/sessions.js';
 import { createSmsSender } from '../lib/twilio.js';
 import { GuestMemory } from '../lib/memory.js';
@@ -26,25 +27,27 @@ export const MEMORY_SECRET = 'test-memory-secret-9876543210';
 export const TEST_AGENTS = Object.freeze({ battery: { property_id: 'demo', persona: 'harper', timezone: 'America/New_York' } });
 
 /**
- * @param {{ qlooTransport?: any, weatherTransport?: any, logger?: any, sms?: any, memory?: boolean, dashboard?: boolean, initRng?: () => number }} [opts]
+ * @param {{ qlooTransport?: any, weatherTransport?: any, geocodeTransport?: any, logger?: any, sms?: any, memory?: boolean, dashboard?: boolean, initRng?: () => number, cache?: any }} [opts]
+ * geocodeTransport: a fake Open-Meteo geocoding transport; given, tools accept a locality (cached in the same in-memory cache).
  * weatherTransport: a fake Open-Meteo transport; given, the app asks for a forecast (cached in the same in-memory cache).
  * memory: open an in-memory guest memory with its own clock (clock.advance(ms) moves it).
  * dashboard: mount the innkeeper dashboard on its own in-memory database.
  */
-export function makeApp({ qlooTransport, weatherTransport, logger = silentLogger, sms, memory = false, dashboard = false, initRng } = {}) {
-  const cache = new ResponseCache({ path: ':memory:' });
+export function makeApp({ qlooTransport, weatherTransport, geocodeTransport, logger = silentLogger, sms, memory = false, dashboard = false, initRng, cache: givenCache } = {}) {
+  const cache = givenCache ?? new ResponseCache({ path: ':memory:' });
   const qloo = createQlooClient({ config: qlooConfig, cache, logger, transport: qlooTransport });
   const ticketmaster = createTicketmasterClient({ config: tmConfig, cache, logger });
   const weather = weatherTransport ? createWeatherClient({ config: { baseUrl: 'https://api.open-meteo.com', timeoutMs: 1000 }, cache, logger, transport: weatherTransport }) : null;
+  const geocoder = geocodeTransport ? createGeocoder({ config: { baseUrl: 'https://geocoding-api.open-meteo.com', timeoutMs: 1000 }, cache, logger, transport: geocodeTransport }) : null;
   const sessions = new SessionStore({ path: ':memory:', hashKey: SECRET, now: () => FIXED_NOW });
   const smsSender = sms ?? createSmsSender({ config: { mock: true }, logger });
   let offset = 0;
   const clock = { now: () => new Date(FIXED_NOW.getTime() + offset), advance: (ms) => { offset += ms; } };
   const guestMemory = memory ? new GuestMemory({ path: ':memory:', secret: MEMORY_SECRET, now: clock.now }) : null;
   const dash = dashboard ? { db: openDashboardDb({ path: ':memory:', now: () => FIXED_NOW }), env: {}, distDir: join(tmpdir(), 'no-such-dist') } : undefined;
-  const app = createApp({ secret: SECRET, qloo, ticketmaster, weather, timezone: 'America/New_York', logger, sms: smsSender, sessions,
+  const app = createApp({ secret: SECRET, qloo, ticketmaster, weather, geocoder, timezone: 'America/New_York', logger, sms: smsSender, sessions,
     now: memory ? clock.now : () => FIXED_NOW, dashboard: dash, memory: guestMemory, agents: memory ? { ...TEST_AGENTS } : {}, initRng });
-  return { app, cache, sessions, memory: guestMemory, clock, weather };
+  return { app, cache, sessions, memory: guestMemory, clock, weather, geocoder };
 }
 
 /** POST the initiation webhook as the voice platform would. */
