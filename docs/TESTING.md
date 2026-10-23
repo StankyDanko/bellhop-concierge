@@ -9,6 +9,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
 | Battery, offline | `npm run battery -- --mock` | nothing | sixteen simulated callers and two two-call sequences pass eighteen criteria on fixtures |
 | Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API; Ticketmaster is live too when `server/.env` holds its key with `TICKETMASTER_MOCK=0` (add `--tm-mock` to keep the fixture listing) |
+| Coverage, live | `npm run battery -- --live --coverage --port <free port> --out <dir outside the repo>` | a Qloo key | the coverage callers in five cities; `--locality "City, ST"` points any run at one city, offline too with `--mock` |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
 
 ## The suite

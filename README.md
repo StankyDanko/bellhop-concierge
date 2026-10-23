@@ -74,6 +74,19 @@ picks go out exactly as Qloo ranked them. Battery criterion C17 checks the sets 
 
 The picture, the nine tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Works anywhere in the US
+
+The road line asks a caller where they are, and the place tools take that city, in the
+caller's words, as `locality`. One lookup on Open-Meteo's free geocoding API turns it into
+coordinates and a time zone, and from then on Qloo, Ticketmaster, and the forecast are all
+asked about that same point, so the three never disagree about where "there" is. A name shared
+by two states gets a question instead of a guess ("Which Austin, the one in Texas?"), and a town
+it can't place gets "what state is it in?". Nothing goes to Qloo or Ticketmaster until the city
+is placed. A city name is the only location stored, and only for calls that named one.
+
+Coverage was measured in five cities (New York, Austin, Denver, Nashville, Boise) with the
+standard callers: see [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
+
 ## Why Qloo is load-bearing
 
 - **Taste in, places out.** The voice line knows no restaurants. Every place, event, and reason
@@ -146,6 +159,10 @@ The whole data flow, one table: [docs/PRIVACY.md](docs/PRIVACY.md).
    `WEATHER_BASE_URL` and nothing else changes. The frozen demo serves the cached forecast of the
    day it was warmed, so the reorder shows only for a demo run on that same local day; on any
    other day the forecast is skipped and the picks stand alone.
+8. **Any city, US only, by name.** The geocoder is Open-Meteo's free tier (non-commercial, like
+   the forecast). A bare name is taken without a question only for a city of a million people or
+   more; anything smaller that shares its name with a town in another state gets asked about.
+   Places outside the US are not looked up.
 
 ## Tested
 

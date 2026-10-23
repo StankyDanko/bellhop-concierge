@@ -32,6 +32,9 @@ These change only with a commit, and the command shows the current value.
 | Rain reorder at 50 percent or more, judged at 7 pm inn time | README, server README | `grep -n "RAIN_THRESHOLD_PCT =\|TARGET_HOUR =" server/lib/weather.js` |
 | Forecast cached one hour per inn; 1.5 s timeout | server README | `grep -n "weather" server/lib/cache.js`; `grep -n "WEATHER_TIMEOUT_MS" server/config.js` |
 | Similar-artist shows: three weeks ahead, 100 miles out (from Savannah, Charleston and Jacksonville are in range), five lookups at once | README, server README | `grep -n "TASTE_DAYS =\|TASTE_RADIUS_MILES =\|TASTE_CONCURRENCY =" server/tools/events-by-taste.js` |
+| Geocoding answers cached 30 days; 2 s timeout | server README | `grep -n "geocode" server/lib/cache.js`; `grep -n "GEOCODE_TIMEOUT_MS" server/config.js` |
+| A bare city name is taken without a question at a million people or more | README, server README | `grep -n "WELL_KNOWN_POPULATION =" server/lib/geocode.js` |
+| Road line cities shown only at five calls or more | server README | `grep -n "calls >= SESSION_GATE" server/api/routes.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
 
 ## On the landing page

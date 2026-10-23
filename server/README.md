@@ -99,6 +99,9 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `WEATHER` | on | `0` switches the Open-Meteo forecast off. Never on in mock mode (`QLOO_MOCK=1`), which never leaves the machine |
 | `WEATHER_BASE_URL` | `https://api.open-meteo.com` | point it at the commercial endpoint in a paid deployment |
 | `WEATHER_TIMEOUT_MS` | `1500` | short on purpose: a caller is on the line and a missed forecast costs nothing |
+| `GEOCODE` | on | `0` switches the any-city lookup off; a tool call that names a city then answers `status: "clarify"` with a line saying the concierge can only look around the inn. Mock mode (`QLOO_MOCK=1`) answers from the fictional towns in `server/fixtures/geocode.search.json` |
+| `GEOCODE_BASE_URL` | `https://geocoding-api.open-meteo.com` | Open-Meteo's free geocoding search; no key |
+| `GEOCODE_TIMEOUT_MS` | `2000` | one lookup per city, cached 30 days |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
@@ -397,6 +400,34 @@ never adds, drops, or swaps a place.
 Terms: Open-Meteo's free tier is for non-commercial use and requires the attribution line
 "Weather data by Open-Meteo.com (CC BY 4.0)", which the site footer carries. A paid deployment
 needs their commercial plan.
+
+### Any city (`locality`)
+
+`recommend_nearby`, `cross_domain`, `events_nearby`, and `area_insights` take an optional
+`locality`: the city the guest asked about, in their words ("Austin, Texas", "Austin TX",
+"Boise"). `server/lib/locality.js` is the one place it is handled: it geocodes the city
+(`server/lib/geocode.js`, `GET /v1/search?name=<city>&count=10&language=en&format=json`, cached
+30 days, frozen with the rest of the cache, traced as source `geocode`), then runs the tool with
+that city's `lat`, `lng`, and time zone in place of the inn's. Qloo's `filter.location`,
+Ticketmaster's `latlong`, and the forecast all get the same point. The radius is the tool's
+usual default unless the guest gave one. Qloo's `filter.location.query` is not used, so the
+three services always agree.
+
+Only the city part is sent; a state the guest named is matched against the answers here and
+never leaves the server. The answer is one of:
+
+| Result | When | What the tool returns |
+|---|---|---|
+| placed | one US town matches (in the named state, or the only state, or a city of a million or more) | the tool's normal answer plus `locality: "Austin, Texas"` |
+| ambiguous | the name is in more than one state and none was said | `status: "clarify"`, `reason: "locality_ambiguous"`, `say: "Which Austin, the one in Texas?"` (the biggest match's state) |
+| unknown | nothing in the US matches, or the place named is outside the US | `status: "clarify"`, `reason: "locality_unknown"`, `say: "I couldn't place that town, what state is it in?"` |
+
+A clarify answer sends nothing to Qloo, Ticketmaster, or the forecast. A locality shaped like a
+phone number, an email address, or a room number is refused (422 `pii_refused`) before the
+lookup; the geocoding request has its own four-key allowlist in `server/lib/pii-guard.js`.
+Without a `locality` the tool gets the very body and context it always did
+(`server/test/locality.test.js`, "no locality"). `/health` reports the geocoder's mode as
+`geocode`.
 
 ### Companion scoring
 
@@ -754,11 +785,21 @@ The agent's last call on every guest call: one anonymous row for the innkeeper d
 | `picks_count`, `events_count`, `sms_sent` | model | |
 
 Table: `sessions(id, property_id, persona, started_at, caller_hash, entities_json, picks_count,
-events_count, sms_sent, created_at, trace_count)` in `SESSIONS_PATH`. No names, numbers, transcripts, or
+events_count, sms_sent, created_at, trace_count, entity_ids_json, is_test, locality)` in `SESSIONS_PATH`. No names, numbers, transcripts, or
 message bodies are stored. `trace_count` is added to older databases on open (guarded
 `ALTER TABLE`). Traces live in `session_traces(seq, session_id, tool, trace_json,
 counterfactual_json, created_at)`, at most 40 rows per session. The response adds
 `trace_calls`, the number of upstream requests linked to this call.
+
+`locality` is the city the call asked about, never filled by the agent: when a place tool
+places a city, the server notes the geocoder's name for it ("Austin, Texas") under the call's
+session id (`session_places`), and `log_session` writes it onto the row. Nothing the caller said
+around the city is stored, and a city that could not be placed stores nothing. A call with a city
+and no inn is filed under the road line's property, `road` (seeded from
+`config/examples/road-line.json`, which has no coordinates), so the five-call floor and the
+test-call rules apply unchanged. Its `/api/properties/road/sessions` answer lists no single call:
+`by_city` counts calls per city name, and a city with fewer than five calls is folded into
+`other_cities`. Its place panels (`/insights`, `/itinerary-sample`) answer `no_fixed_place`.
 
 ## Guest taste fingerprint
 
@@ -904,7 +945,16 @@ reaches the transport), the cache and its modes, the fingerprint floor, and the 
 scoring. It stays offline even with a live key in the shell. What each layer proves and how to
 read a scorecard: [`docs/TESTING.md`](../docs/TESTING.md).
 
+Two battery flags point the callers at another city:
+
+- `--locality "Austin, TX"` points every place tool at that city (and logs the call with it), so
+  one scenario set can be pointed at any city. Works offline with `--mock` on the fixture towns.
+- `--coverage` plays the coverage scenarios (`COVERAGE_SCENARIOS` in `server/scripts/battery.js`)
+  across five cities (`COVERAGE_CITIES`, or `--cities "A, ST;B, ST"`), one scenario at a time
+  across every city, without the comparison reruns, and writes `coverage.md` (counts only) beside
+  the scorecard. `--cap` is the total for the whole run.
+
 ## Deployed (2026-10-15)
 
-Deployed at **https://concierge.southernsky.cloud**: dashboard (`/`, `/build`, `/property/demo`), `/api/*` (writes need `X-Admin-Token`), `/health`, and `POST /tools/<name>` with `X-Concierge-Secret`. Caddy proxies the whole hostname to the container. No fake sessions are seeded in production (sessions come only from `log_session`). `/health` reports each service's mode (Qloo, Ticketmaster, texts) and whether the cache is frozen.
+Deployed at **https://concierge.southernsky.cloud**: dashboard (`/`, `/build`, `/property/demo`), `/api/*` (writes need `X-Admin-Token`), `/health`, and `POST /tools/<name>` with `X-Concierge-Secret`. Caddy proxies the whole hostname to the container. No fake sessions are seeded in production (sessions come only from `log_session`). `/health` reports each service's mode (Qloo, Ticketmaster, texts, the geocoder) and whether the cache is frozen.
 Container `bellhop-concierge` on the Reliable VPS, port 4040. See `deploy/README.md` for deploy, layout, and rollback.
