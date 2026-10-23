@@ -89,7 +89,8 @@ export async function sendSms(body, { sms, smsLimiter }) {
   if (problem) throw new InputError(problem);
   const sessionId = sessionIdFrom(body);
   if (sessionId && !smsLimiter.claimCall(sessionId)) {
-    throw new RateLimited('one text per call', { service: 'twilio', say: ONE_PER_CALL_SAY });
+    // In test mode the call's first text never left the server, so saying it "went out" is false.
+    throw new RateLimited('one text per call', { service: 'twilio', say: sms.mode === 'mock' ? TEST_MODE_SAY : ONE_PER_CALL_SAY });
   }
   if (!smsLimiter.take(to)) {
     if (sessionId) smsLimiter.releaseCall(sessionId);

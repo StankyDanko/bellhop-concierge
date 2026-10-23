@@ -255,10 +255,15 @@ for (const o of OCCASION_PHRASES) if (!Object.hasOwn(VIBE_PHRASES, o.vibe)) thro
  * @returns {{ occasion: string, vibe: string } | null}
  */
 export function occasionOf(mention) {
-  const said = tokens(mention).join(' ');
+  // Apostrophes go before the words are split, so "won't" reads as "wont", never as "won".
+  const said = tokens(String(mention).replace(/['’]/g, '')).join(' ');
   if (!said) return null;
   const hit = OCCASION_PHRASES.find((o) => o.re.test(said));
   if (!hit) return null;
+  // "The Birthday Massacre": a "the" name with more to it than the occasion phrase is a name.
+  const words = said.split(' ');
+  const phrase = said.match(hit.re)?.[0] ?? '';
+  if (words[0] === 'the' && words.length - 1 > phrase.split(' ').length) return null;
   if (placeShape(mention) === 'food') return null;
   return { occasion: /\banniversary\b/.test(said) ? 'anniversary' : hit.occasion, vibe: hit.vibe };
 }
