@@ -272,3 +272,16 @@ test('C18: a show by a similar artist passes; the named artist\'s own show, an u
   assert.equal(evaluate(withShows([hit, hit, hit])).C18.verdict, 'fail');
   assert.equal(evaluate(withShows([])).C18.verdict, 'na');
 });
+
+test('the artist-shows caller passes a person-typed singer as its named act', async () => {
+  const { playScenario } = await import('../scripts/battery.js');
+  const sent = [];
+  const call = async (tool, body) => {
+    sent.push({ tool, body });
+    if (tool === 'resolve_taste') return { status: 200, json: { resolved: [{ mention: 'Fx Singer', kind: 'entity', type: 'person', id: 'fx-person-singer', name: 'Fx Singer', confidence: 1 }], unresolved: [] }, ms: 1 };
+    return { status: 200, json: { places: [], events: [] }, ms: 1 };
+  };
+  const rec = await playScenario(call, { id: 'fx-shows', mentions: ['Fx Singer'], events: true, by_taste: true }, PROPERTY);
+  assert.deepEqual(rec.namedArtist, { id: 'fx-person-singer', name: 'Fx Singer' });
+  assert.deepEqual(sent.find((s) => s.tool === 'events_nearby').body.artist, { id: 'fx-person-singer', name: 'Fx Singer' });
+});

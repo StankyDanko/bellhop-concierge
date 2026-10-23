@@ -321,3 +321,19 @@ test('the similar-artist lookups run at once, five at most', async () => {
   assert.equal(peak, 5, 'five lookups in flight together');
   assert.ok(ms < 5 * 2 * 40, `${ms} ms: the five artists overlapped instead of queueing`);
 });
+
+test('a singer Qloo files as a person counts as the named act, like a band', async () => {
+  const { isNamedAct } = await import('../tools/events-by-taste.js');
+  assert.equal(isNamedAct({ kind: 'entity', type: 'artist', id: 'fx-artist-a' }), true);
+  assert.equal(isNamedAct({ kind: 'entity', type: 'person', id: 'fx-person-a' }), true);
+  assert.equal(isNamedAct({ kind: 'entity', type: 'movie', id: 'fx-movie-a' }), false);
+  assert.equal(isNamedAct({ kind: 'tag', type: 'tag', id: 'urn:tag:fx' }), false);
+  // The request itself is the same: the person's id is the only signal of an artist query.
+  const person = { id: 'fx-person-fiddle-queen', name: 'Fx Fiddle Queen' };
+  const { app, seen } = liveApp({ similar: [artistEntity('alder-choir', 'Alder Choir', 0.9)] });
+  const res = await callTool(app, 'events_nearby', { ...BODY, artist: person });
+  assert.equal(res.status, 200);
+  const q = seen.qloo.find((c) => c.params['filter.type'] === 'urn:entity:artist');
+  assert.equal(q.params['signal.interests.entities'], person.id);
+  assert.equal(q.params['filter.exclude.entities'], person.id);
+});

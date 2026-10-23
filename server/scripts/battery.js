@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { CRITERIA, CHAIN_BUDGET_MS, TOOL_BUDGET_MS, evaluate, tally } from '../battery/criteria.js';
 import { frozenCacheProblem } from '../lib/cache.js';
+import { isNamedAct } from '../tools/events-by-taste.js';
 import { toGsm } from '../lib/sms.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -149,7 +150,8 @@ export async function playScenario(call, scenario, property, opts = {}) {
 
   if (scenario.events) {
     // by_taste scenarios pass the first named artist, as the agent does when a guest names a band.
-    const named = scenario.by_taste ? (r.resolved ?? []).find((x) => x.type === 'artist') : null;
+    // Qloo files the biggest touring singers as people, not artists; both count as a named act.
+    const named = scenario.by_taste ? (r.resolved ?? []).find((x) => isNamedAct(x)) : null;
     rec.namedArtist = named ? { id: named.id, name: named.name } : null;
     rec.events = await run('events_nearby', withSession({ ...where, when: scenario.constraints?.when ?? 'tonight', take: 3,
       ...(named ? { classification: 'music', artist: rec.namedArtist } : {}) }));

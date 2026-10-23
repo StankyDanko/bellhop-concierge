@@ -29,6 +29,13 @@ import { signPick } from '../lib/pick-token.js';
 import { timeWindow, tmDate } from '../lib/timewin.js';
 import { eventWhen, tonightEnds } from './events-nearby.js';
 
+/**
+ * A resolved item that can be the named act: Qloo files bands as artists and the biggest
+ * touring singers as people. The artist-to-artist request takes either as its signal.
+ * @param {{ kind?: string, type?: string }} item
+ */
+export const isNamedAct = (item) => item?.kind === 'entity' && (item.type === 'artist' || item.type === 'person');
+
 /** Similar artists asked of Qloo. */
 export const SIMILAR_TAKE = 5;
 /** How far ahead a similar artist's show may be: three weeks. */

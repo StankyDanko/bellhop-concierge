@@ -39,7 +39,7 @@ import { openDashboardDb } from '../api/db.js';
 import { dashboardEnv } from '../api/index.js';
 import { BATTERY_AGENT, loadScenarios, playScenario, sequencePlays } from './battery.js';
 import { GuestMemory } from '../lib/memory.js';
-import { SIMILAR_TAKE } from '../tools/events-by-taste.js';
+import { isNamedAct, SIMILAR_TAKE } from '../tools/events-by-taste.js';
 import { placeShape, vibeOf } from '../tools/resolve-taste.js';
 
 export const DEFAULT_PACE_MS = 2000;
@@ -75,7 +75,7 @@ export function buildSteps(battery) {
       label: `similar artists: ${name}`,
       run: async ({ call, qloo }) => {
         const r = await call('resolve_taste', { mentions: [name] });
-        for (const a of (r.json?.resolved ?? []).filter((x) => x.type === 'artist' && x.entity_id)) {
+        for (const a of (r.json?.resolved ?? []).filter((x) => isNamedAct(x) && x.entity_id)) {
           await qloo.similarArtists({ entityId: a.entity_id, take: SIMILAR_TAKE });
         }
       },
