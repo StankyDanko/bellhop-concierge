@@ -276,7 +276,7 @@ test('a returning caller: texted places excluded, prior tastes carried, none of 
   const picks = rec1.json.places.slice(0, 2);
   const comp = await callTool(app, 'compose_itinerary', { session_id: 'conv-r-1', picks: picks.map((p) => ({ name: p.name, why: p.why, url: p.url, pick_token: p.pick_token })) });
   const sms = await callTool(app, 'send_sms', { to: CALLER, body: comp.json.body });
-  assert.equal(sms.json.sent, true);
+  assert.equal(sms.json.test_mode, true, 'texting is mocked: test mode, never sent');
   await callTool(app, 'log_session', { session_id: 'conv-r-1', caller_id: CALLER, picks_count: 2, events_count: 0, sms_sent: false, nights: 3 });
   const texted = picks.map((p) => p.entity_id);
 
@@ -285,7 +285,7 @@ test('a returning caller: texted places excluded, prior tastes carried, none of 
   const i2 = await callInit(app, { caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-r-2' });
   const v2 = i2.json.dynamic_variables;
   assert.equal(v2.caller_status, 'returning');
-  assert.equal(v2.texted_count, 2, 'send_sms sent true is what marked the places texted');
+  assert.equal(v2.texted_count, 2, 'the server\'s own send (here in test mode) is what marked the places texted');
   assert.equal(v2.stay_line, 'two of you, three nights');
   assert.match(v2.memory_line, /Sturgill Simpson/);
   assert.notEqual(v2.opener_hook, i1.json.dynamic_variables.opener_hook);
@@ -342,8 +342,8 @@ test('no memory field or value appears in any /api response (every route walked)
     const taste = r.json.resolved.map((x) => ({ id: x.id, name: x.name }));
     const rec = await callTool(app, 'recommend_nearby', { session_id: sid, taste, ...PROPERTY, take: 3, constraints: { party_size: 2 } });
     const text = await callTool(app, 'compose_itinerary', { session_id: sid, picks: rec.json.places.slice(0, 2).map((p) => ({ name: p.name, pick_token: p.pick_token })) });
-    // Texted places come only from the server's own send (the mock sender answers sent true).
-    assert.equal((await callTool(app, 'send_sms', { session_id: sid, to: CALLER, body: text.json.body })).json.sent, true);
+    // Texted places come only from the server's own send (the mock sender answers test_mode).
+    assert.equal((await callTool(app, 'send_sms', { session_id: sid, to: CALLER, body: text.json.body })).json.test_mode, true);
     await callTool(app, 'log_session', { session_id: sid, caller_id: CALLER, property_id: 'demo', persona: 'harper', entities: mentions, picks_count: 2, events_count: 0, sms_sent: true, nights: 3 });
   }
   const probe = await callInit(app, { caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-api-3' });

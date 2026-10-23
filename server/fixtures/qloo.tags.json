@@ -3,6 +3,40 @@
   "cases": [
     {
       "match": {
+        "filter.query": "spaghetti"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_spaghetti",
+              "name": "Spaghetti",
+              "type": "urn:tag:specialty_dish:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
+        "filter.query": "cheesecake"
+      },
+      "response": {
+        "success": true,
+        "results": {
+          "tags": [
+            {
+              "id": "urn:tag:specialty_dish:place:fx_cheesecake",
+              "name": "Cheesecake",
+              "type": "urn:tag:specialty_dish:place"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": {
         "filter.query": "thai food"
       },
       "response": {

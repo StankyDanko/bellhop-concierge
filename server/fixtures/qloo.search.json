@@ -2,6 +2,20 @@
   "_note": "Synthetic fixtures, hand-written to the documented /search envelope. Not Qloo response data. Ids are fake (fx-*).",
   "cases": [
     {
+      "match": { "query": "spaghetti" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Spaghetti", "entity_id": "fx-place-spaghetti", "type": "urn:entity", "subtype": "urn:entity:place",
+          "properties": {}, "popularity": 0.2, "tags": [] }
+      ] } }
+    },
+    {
+      "match": { "query": "cheesecake" },
+      "response": { "success": true, "results": { "entities": [
+        { "name": "Cheesecake Corner", "entity_id": "fx-place-cheesecake-corner", "type": "urn:entity", "subtype": "urn:entity:place",
+          "properties": {}, "popularity": 0.2, "tags": [] }
+      ] } }
+    },
+    {
       "match": { "query": "sturgill simpson" },
       "response": { "success": true, "results": { "entities": [
         { "name": "Sturgill Simpson", "entity_id": "fx-artist-sturgill-simpson", "type": "urn:entity", "subtype": "urn:entity:artist",

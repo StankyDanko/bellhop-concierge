@@ -18,11 +18,15 @@
 // text drops last. It is kept on a verified event and nowhere else, so the model cannot use it
 // to pin a place.
 //
+// A pick's why is the line the tool returned, said plainly: a dish named as if it were a band
+// ("Fans of Spaghetti love it") becomes "A spot for spaghetti" (lib/why.js plainWhy).
+//
 // The header follows the events, never the request: "Tonight" only when every event in the
 // plan is tonight. A plan with a Friday show says "Your plan" and lets each line carry its day.
 
 import { composeItinerary as compose } from '../lib/sms.js';
 import { verifyPick } from '../lib/pick-token.js';
+import { plainWhy } from '../lib/why.js';
 import { arr, oneOf, optNum } from '../lib/validate.js';
 
 /**
@@ -92,7 +96,8 @@ export async function composeItinerary(body, ctx = {}) {
   if (intro === undefined && guest.when !== 'weekend' && hasLaterEvent(picks)) {
     intro = `Your plan${Number.isInteger(guest.party_size) ? ` for ${guest.party_size}` : ''}:`;
   }
-  const plain = picks.map(({ when_label: _w, ...p }) => p);
+  // A reason that names a dish as a band ("Fans of Spaghetti love it") is said plainly instead.
+  const plain = picks.map(({ when_label: _w, ...p }) => (typeof p.why === 'string' ? { ...p, why: plainWhy(p.why) } : p));
   return { status: 'ok', ...compose({ picks: plain, guest, intro }), favors_dropped: favorsDropped, when_dropped: whenDropped,
     tokens_dropped: tokensDropped, calls: [] };
 }

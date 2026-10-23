@@ -54,7 +54,48 @@ export const FOOD_WORDS = Object.freeze(new Set([
   'sushi', 'ramen', 'pho', 'tacos', 'taco', 'pizza', 'burgers', 'burger', 'bbq', 'barbecue', 'barbeque',
   'steakhouse', 'steak', 'seafood', 'oysters', 'oyster', 'tapas', 'dumplings', 'noodles', 'curry',
   'brunch', 'breakfast', 'diner', 'deli', 'bakery', 'vegan', 'vegetarian', 'wings', 'shrimp', 'crab',
+  // Dishes, desserts, and drinks. A guest who names no band names food: "I really like spaghetti
+  // and my husband likes cheesecake". Asked of /search, those words come back as a business or a
+  // place that happens to carry the word in its name, and the reason line then says "fans of" it.
+  'spaghetti', 'pasta', 'lasagna', 'lasagne', 'ravioli', 'carbonara', 'risotto', 'gnocchi', 'calzone', 'calzones',
+  'cheesecake', 'cheesecakes', 'dessert', 'desserts', 'cupcakes', 'cupcake', 'pie', 'pies', 'pastries', 'pastry',
+  'gelato', 'donuts', 'doughnuts', 'cobbler', 'tiramisu', 'cannoli', 'crepes', 'pancakes', 'waffles', 'biscuits',
+  'grits', 'burritos', 'burrito', 'nachos', 'enchiladas', 'quesadillas', 'empanadas', 'sandwiches', 'sandwich',
+  'salad', 'salads', 'soup', 'chowder', 'gumbo', 'jambalaya', 'crawfish', 'lobster', 'clams', 'mussels', 'scallops',
+  'catfish', 'oysters', 'brisket', 'ribs', 'bagels', 'croissants', 'falafel', 'hummus', 'kebabs', 'gyros', 'shawarma',
+  'poke', 'bibimbap', 'paella', 'fondue', 'chocolate', 'coffee', 'espresso', 'tea', 'beer', 'wine', 'cocktails',
+  'whiskey', 'bourbon', 'margaritas', 'mimosas', 'milkshakes', 'smoothies', 'cider', 'sake',
 ]));
+
+/**
+ * Dishes said in more than one word. Each word on its own is too often a name ("Cream", "Hot
+ * Chocolate"), so a phrase counts only whole, and only when it is not said as a title.
+ */
+export const FOOD_PHRASES = Object.freeze(new Set([
+  'ice cream', 'fried chicken', 'hot dogs', 'mac and cheese', 'chicken wings', 'key lime pie', 'apple pie',
+  'hot chocolate', 'fish and chips', 'shrimp and grits', 'chicken and waffles', 'craft beer', 'red wine', 'white wine',
+  'soul food', 'comfort food', 'street tacos', 'dim sum', 'pad thai', 'crab cakes', 'fish tacos', 'chili dogs',
+]));
+
+/**
+ * A proper-noun shape: two or more words each capitalized ("Hot Chocolate", "Cheesecake Factory"),
+ * or a leading "the" ("the Black Crowes"). Such a mention is a name to search even when its words
+ * are food words. One capitalized word is only sentence case, so "Spaghetti" is still a dish.
+ * @param {string} mention
+ */
+export function properNounShape(mention) {
+  const words = String(mention).trim().split(/\s+/).filter(Boolean);
+  if (/^the\b/i.test(words[0] ?? '') && words.length > 1) return true;
+  const caps = words.filter((w) => /^[A-Z]/.test(w) && !/^(and|or|of|with)$/i.test(w));
+  return words.length >= 2 && caps.length === words.filter((w) => !/^(and|or|of|with)$/i.test(w)).length;
+}
+
+/** True when the mention is a dish or drink said as a phrase ("ice cream"), not as a title. */
+function isFoodPhrase(mention) {
+  if (properNounShape(mention)) return false;
+  const core = tokens(mention).filter((w) => !FOOD_KIND_SET.has(w)).join(' ');
+  return FOOD_PHRASES.has(core);
+}
 
 /**
  * How a mention should resolve, from its words alone.
@@ -68,6 +109,7 @@ export function placeShape(mention) {
   const words = tokens(mention);
   if (!words.length) return null;
   if (FOOD_MARK.test(mention)) return 'food';
+  if (isFoodPhrase(mention)) return 'food';
   const foodish = (w) => FOOD_WORDS.has(w) || FOOD_KIND_SET.has(w);
   if (words.every(foodish) && words.some((w) => FOOD_WORDS.has(w))) return 'food';
   return PLACE_WORDS.test(mention) ? 'place' : null;
@@ -190,6 +232,37 @@ export const VIBE_OPPOSITES = Object.freeze([
   ['fun', 'quiet'],
 ]);
 
+/**
+ * Occasions a guest gives instead of a taste ("came for the game, who just won"), each with the
+ * vibe word in VIBE_PHRASES it stands for. An occasion is a mood for the night, so it becomes one
+ * vibe signal and a preferences.occasion note. It is never a filter and never said back as a taste.
+ * Longer phrases first, so "first date" is read before "date".
+ */
+export const OCCASION_PHRASES = Object.freeze([
+  { re: /\b(first date)\b/, occasion: 'first date', vibe: 'candlelit' },
+  { re: /\b(date night|anniversary)\b/, occasion: 'date night', vibe: 'candlelit' },
+  { re: /\b(game day|just won|we won|they won|won the game|celebrat(e|es|ing|ion))\b/, occasion: 'celebration', vibe: 'lively' },
+  { re: /\b(birthday|bday)\b/, occasion: 'birthday', vibe: 'fun' },
+  { re: /\b(after the (show|game|concert))\b/, occasion: 'after the show', vibe: 'lively' },
+]);
+for (const o of OCCASION_PHRASES) if (!Object.hasOwn(VIBE_PHRASES, o.vibe)) throw new Error(`occasion vibe ${o.vibe} is not a vibe word`);
+
+/**
+ * "came for the game, who just won" -> { occasion: 'celebration', vibe: 'lively' }. Null when no
+ * occasion phrase is in the mention, and for a food mention ("birthday cake" is still cake).
+ * Anniversary reads as date night: the same candlelit mood.
+ * @param {string} mention
+ * @returns {{ occasion: string, vibe: string } | null}
+ */
+export function occasionOf(mention) {
+  const said = tokens(mention).join(' ');
+  if (!said) return null;
+  const hit = OCCASION_PHRASES.find((o) => o.re.test(said));
+  if (!hit) return null;
+  if (placeShape(mention) === 'food') return null;
+  return { occasion: /\banniversary\b/.test(said) ? 'anniversary' : hit.occasion, vibe: hit.vibe };
+}
+
 /** Budget words: what the guest wants to spend, never a taste and never sent upstream. */
 export const BUDGET_WORDS = Object.freeze({ splurge: 'splurge', easy: 'easy' });
 
@@ -249,7 +322,7 @@ export async function resolveTaste(body, { qloo }) {
   /** @type {import('../lib/upstream.js').CallRecord[]} */
   const calls = [];
 
-  /** @type {{ budget?: string, undecided?: string[] }} */
+  /** @type {{ budget?: string, undecided?: string[], occasion?: string }} */
   const preferences = {};
   /** One request per tag word per call, however many phrases use it. */
   const tagAsks = new Map();
@@ -281,7 +354,27 @@ export async function resolveTaste(body, { qloo }) {
     return vibe.tastes.length ? null : { items: [], say: null };
   };
 
+  /**
+   * An occasion: its one vibe word to place-scoped /v2/tags, as a signal only (filter_ok false).
+   * Nothing is said back for it (say null), and nothing about it goes upstream but the vibe word.
+   */
+  const resolveOccasion = async (mention, occ) => {
+    if (!preferences.occasion) preferences.occasion = occ.occasion;
+    for (const query of VIBE_PHRASES[occ.vibe]) {
+      const tags = await askTags(query, mention);
+      if (tags.length) {
+        const t = tags[0];
+        return { items: [{ mention, kind: 'tag', id: t.tag_id, entity_id: null, tag_id: t.tag_id, name: sentenceCase(occ.vibe),
+          type: 'tag', confidence: round2(Math.max(0.5, similarity(query, t.name))), occasion: occ.occasion, filter_ok: false }], say: null };
+      }
+    }
+    // No vibe tag came back: the occasion is still noted, and the mention counts as heard.
+    return { items: [], say: null };
+  };
+
   const resolveOne = async (mention, who) => {
+    const occ = occasionOf(mention);
+    if (occ) return resolveOccasion(mention, occ);
     const vibe = vibeOf(mention);
     if (vibe) return resolveVibe(mention, vibe, who);
     const shape = placeShape(mention);
@@ -403,11 +496,11 @@ export async function resolveTaste(body, { qloo }) {
   }
 
   return {
-    status: resolved.length || companion.companion_resolved?.length || preferences.budget ? 'ok' : 'empty',
+    status: resolved.length || companion.companion_resolved?.length || preferences.budget || preferences.occasion ? 'ok' : 'empty',
     resolved,
     unresolved,
     echo_line: echoOf(results),
-    ...(preferences.budget || preferences.undecided ? { preferences } : {}),
+    ...(preferences.budget || preferences.undecided || preferences.occasion ? { preferences } : {}),
     ...companion,
     calls,
   };

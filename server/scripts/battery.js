@@ -1,5 +1,5 @@
 // Simulated-caller battery: plays a set of callers against the tool server over HTTP, in the
-// order the voice agent calls the tools, and scores each call on nineteen criteria
+// order the voice agent calls the tools, and scores each call on twenty-one criteria
 // (server/battery/criteria.js). No phone, no voice platform, no text messages. Two-call
 // sequences (scenarios.json "sequences") replay one fictional caller twice through the
 // initiation webhook to score variety and returning-guest memory (C13 to C16).
@@ -214,13 +214,13 @@ export async function playScenario(call, scenario, property, opts = {}) {
     rec.compose = { ...res, submitted: picks.map((p) => p.name) };
   }
 
-  // A texted call goes through send_sms (the mock sender answers sent true), so memory learns
+  // A texted call goes through send_sms (the mock sender answers test_mode), so memory learns
   // what was texted from the server's own send, the only path it trusts. The places it texted
   // are the submitted picks recommend returned.
   let textedNow = false;
   if (inSequence && opts.texted === true && rec.compose?.status === 200) {
     rec.sms = await run('send_sms', { session_id: sessionId, to: callerId, body: rec.compose.json.body }, { chain: false });
-    textedNow = rec.sms.status === 200 && rec.sms.json?.sent === true;
+    textedNow = rec.sms.status === 200 && (rec.sms.json?.sent === true || rec.sms.json?.test_mode === true);
   }
   if (inSequence) {
     const placeIds = new Map((rec.recommend?.json?.places ?? []).map((p) => [p.name, p.entity_id]));

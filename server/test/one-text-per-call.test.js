@@ -11,7 +11,8 @@ const BODY = 'Tonight for 2: 1. Fx Place https://example.com/x Reply STOP to opt
 
 test('send_sms: a second text in the same call is refused, plainly, and nothing goes out', async () => {
   let sends = 0;
-  const sms = { mode: 'mock', send: async () => { sends += 1; return { sid: `SMfx${sends}`, status: 'queued', via: 'mock' }; } };
+  // A stand-in for the live sender: a mock sender answers test_mode, never sent (send-sms-test-mode.test.js).
+  const sms = { mode: 'live', send: async () => { sends += 1; return { sid: `SMfx${sends}`, status: 'queued', via: 'live' }; } };
   const { app } = makeApp({ sms });
   const first = await callTool(app, 'send_sms', { to: TO, body: BODY, session_id: 'conv_fx_one' });
   assert.equal(first.status, 200);
@@ -29,7 +30,7 @@ test('send_sms: a second text in the same call is refused, plainly, and nothing 
 
 test('send_sms: a failed send does not use up the call\'s one text', async () => {
   let fail = true;
-  const sms = { mode: 'mock', send: async () => { if (fail) { fail = false; throw Object.assign(new Error('x'), { code: 'timeout' }); } return { sid: 'SMfx', status: 'queued', via: 'mock' }; } };
+  const sms = { mode: 'live', send: async () => { if (fail) { fail = false; throw Object.assign(new Error('x'), { code: 'timeout' }); } return { sid: 'SMfx', status: 'queued', via: 'live' }; } };
   const { app } = makeApp({ sms });
   const first = await callTool(app, 'send_sms', { to: TO, body: BODY, session_id: 'conv_fx_retry' });
   assert.notEqual(first.status, 200);

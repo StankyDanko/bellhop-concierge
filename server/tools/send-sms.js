@@ -12,6 +12,11 @@
 //   - at most SENDS_PER_HOUR texts to one number per hour (a looping call cannot run up a bill);
 //     the next one answers 429 with reason rate_limited, sent false, and a line to say
 // It answers { sent: true, sid, status } only after Twilio accepted the message.
+//
+// While texting is in test mode (the mock sender, SMS_MOCK=1), nothing reaches a phone, so the
+// answer never says sent: it is { sent: false, status: 'test_mode', test_mode: true } with a say
+// line telling the guest texting is in test mode and the picks come again by voice. The text is
+// still checked and counted exactly as a real one, so a test call exercises every rule above.
 
 import { InputError, RateLimited } from '../lib/errors.js';
 import { MAX_CHARS } from '../lib/sms.js';
@@ -23,6 +28,8 @@ export const SENDS_PER_HOUR = 3;
 export const RATE_LIMITED_SAY = 'The text could not be sent right now, so here is the top pick by name.';
 /** Said when this call already sent its one text. */
 export const ONE_PER_CALL_SAY = 'Your text from this call already went out, so here is the rest by voice.';
+/** Said when texting is in test mode: no text left the server, so the picks go again by voice. */
+export const TEST_MODE_SAY = 'Texting is in test mode on this line, so no text went out. Here are your picks again.';
 /** How long a call's sent mark is kept (a call never runs this long). */
 const CALL_MARK_MS = 6 * 3600_000;
 const URL_LIKE = /\b([a-z][a-z0-9+.-]*):\/\/[^\s]+/gi;
@@ -94,6 +101,17 @@ export async function sendSms(body, { sms, smsLimiter }) {
   } catch (err) {
     if (sessionId) smsLimiter.releaseCall(sessionId);
     throw err;
+  }
+  if (sms.mode === 'mock' || r.via === 'mock') {
+    return {
+      status: 'test_mode',
+      sent: false,
+      test_mode: true,
+      say: TEST_MODE_SAY,
+      sid: r.sid,
+      chars: body.body.length,
+      calls: [{ service: 'twilio', endpoint: '/Messages.json', via: r.via }],
+    };
   }
   return {
     status: r.status,

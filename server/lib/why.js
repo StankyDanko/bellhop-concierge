@@ -6,6 +6,8 @@
 // every object that names an input entity or tag id alongside a numeric score.
 // If the live shape differs, adjust `collectDrivers` only.
 
+import { placeShape } from '../tools/resolve-taste.js';
+
 /**
  * @typedef {object} Driver
  * @property {string} id      entity id or tag URN from the guest's input
@@ -56,6 +58,16 @@ export function collectDrivers(node) {
 const joinNames = (names) => (names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
 
 const isTagId = (id) => typeof id === 'string' && id.startsWith('urn:tag:');
+/** A dish tag ("spaghetti", "cheesecake"): filed under specialty_dish or menu_highlight (tag kinds seen live, 2026-10-23). */
+const isDishTag = (id) => typeof id === 'string' && /^urn:tag:(specialty_dish|menu_highlight):/.test(id);
+
+/**
+ * True when a signal name is a dish or food word and nothing else ("Spaghetti"). Such a name is
+ * never a "fans of" name, even when an older resolve turned it into an entity: nobody is a fan of
+ * spaghetti the way they are a fan of a band. (Read at call time; the import is a cycle.)
+ * @param {string} name
+ */
+export const dishName = (name) => typeof name === 'string' && placeShape(name) === 'food';
 
 /**
  * The guest's own tag signals that this pick carries, in the guest's signal order. Named with
@@ -73,6 +85,26 @@ export function tagWordsFor(entity, signals) {
     if (typeof id === 'string' && id) own.set(id, typeof t === 'object' && t?.name ? String(t.name) : '');
   }
   return signals.filter((s) => isTagId(s.id) && own.has(s.id)).map((s) => ({ id: s.id, name: own.get(s.id) || s.name }));
+}
+
+/**
+ * A reason line as it should be said: "Fans of Spaghetti love it" names a dish as if it were a
+ * band, so dish names move to "a spot for spaghetti" and only the other names keep "fans of".
+ * Any other line comes back unchanged. compose_itinerary runs every pick's why through this, so
+ * a reason copied from an older answer cannot reach a text in the old form.
+ * @param {unknown} why @returns {string}
+ */
+export function plainWhy(why) {
+  if (typeof why !== 'string') return '';
+  const m = /^Fans of (.+?) love it(;.*)?$/.exec(why.trim());
+  if (!m) return why;
+  const names = m[1].split(/,\s*(?:and\s+)?|\s+and\s+/).map((n) => n.trim()).filter(Boolean);
+  const dishes = names.filter((n) => dishName(n));
+  if (!dishes.length) return why;
+  const fans = names.filter((n) => !dishName(n));
+  const spot = `a spot for ${joinNames(dishes.map((d) => d.toLowerCase()))}`;
+  const tail = m[2] ?? '';
+  return fans.length ? `Fans of ${joinNames(fans)} love it; ${spot}${tail}` : `${spot.charAt(0).toUpperCase()}${spot.slice(1)}${tail}`;
 }
 
 /**
@@ -94,16 +126,23 @@ export function buildWhy(entity, signals) {
     .map(([id, score]) => ({ id, name: /** @type {string} */ (nameOf.get(id)), score }))
     .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 
-  // The words of the reason: entity drivers as "fans of", tags as "tagged". A tag Qloo did
-  // attribute (the walker accepts one) is still a tag, so it joins the tagged words.
-  const fans = drivers.filter((d) => !isTagId(d.id)).slice(0, 2).map((d) => d.name);
+  // The words of the reason: entity drivers as "fans of", dish tags as "a spot for", other tags
+  // (cuisines, vibes) as "tagged". A tag Qloo did attribute (the walker accepts one) is still a
+  // tag, so it joins the tag words. A driver named only by a dish word is a dish, whatever its id.
+  const fans = drivers.filter((d) => !isTagId(d.id) && !dishName(d.name)).slice(0, 2).map((d) => d.name);
+  const dishDrivers = drivers.filter((d) => !isTagId(d.id) && dishName(d.name)).map((d) => d.name.toLowerCase());
   const tagWords = tagWordsFor(entity, signals);
-  const attributedTags = drivers.filter((d) => isTagId(d.id) && !tagWords.some((t) => t.id === d.id)).map((d) => d.name);
-  const tagged = [...tagWords.map((t) => t.name), ...attributedTags].slice(0, 2);
+  const attributed = drivers.filter((d) => isTagId(d.id) && !tagWords.some((t) => t.id === d.id));
+  const allTags = [...tagWords, ...attributed];
+  const dishes = [...new Set([...allTags.filter((t) => isDishTag(t.id)).map((t) => t.name.toLowerCase()), ...dishDrivers])].slice(0, 2);
+  const tagged = allTags.filter((t) => !isDishTag(t.id)).map((t) => t.name).slice(0, 2);
+  const spotLine = dishes.length ? `a spot for ${joinNames(dishes)}` : '';
   const taggedLine = tagged.length ? `tagged ${joinNames(tagged)}` : '';
+  const rest = [spotLine, taggedLine].filter(Boolean).join('; ');
 
   let why;
-  if (fans.length) why = `Fans of ${joinNames(fans)} love it${taggedLine ? `; ${taggedLine}` : ''}`;
+  if (fans.length) why = `Fans of ${joinNames(fans)} love it${rest ? `; ${rest}` : ''}`;
+  else if (spotLine) why = `A spot for ${joinNames(dishes)}${taggedLine ? `; ${taggedLine}` : ''}`;
   else if (signals.length) why = `Strong match for your overall taste${taggedLine ? `; ${taggedLine}` : ''}`;
   else why = 'Highly rated nearby';
   return { why, drivers, basis: drivers.length ? 'explainability' : 'affinity', tag_words: tagWords };

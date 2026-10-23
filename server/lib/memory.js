@@ -547,7 +547,9 @@ export function observeTool(memory, tool, body, result) {
       memory.noteComposed(sid, (Array.isArray(body?.picks) ? body.picks : []).map((p) => p?.name), result.body);
       break;
     case 'send_sms':
-      if (result.sent === true) memory.noteTexted(body?.to, body?.body, body?.session_id);
+      // A test-mode send (texting mocked) is the plan the guest was given by voice, so it is
+      // remembered as texted too; it is never reported to the agent as sent (tools/send-sms.js).
+      if (result.sent === true || result.test_mode === true) memory.noteTexted(body?.to, body?.body, body?.session_id);
       break;
     default:
   }

@@ -1,4 +1,4 @@
-// The nineteen battery criteria. Each takes one scenario record (what the driver saw while it
+// The twenty-one battery criteria. Each takes one scenario record (what the driver saw while it
 // played the caller) and returns { verdict, reason }. verdict is 'pass', 'warn', 'fail', or
 // 'na' (the scenario does not exercise the criterion). Reasons carry counts and codes only:
 // never a place name or any other upstream value, so a scorecard can be shared.
@@ -26,10 +26,12 @@
 //   apiSweep            [{ path, status, text, valuesOnly? }] every dashboard route after the call
 //   secrets             fake numbers, their hashes, and every memory_line and stay_line served;
 //                       never written to the scorecard
+// A record scored from a real call transcript (C20) also carries:
+//   spoken              { afterRecommend: string } the agent's spoken turn after recommend_nearby
 
 import { assertNoPii } from '../lib/pii-guard.js';
 import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
-import { vibeOf } from '../tools/resolve-taste.js';
+import { occasionOf, placeShape, vibeOf } from '../tools/resolve-taste.js';
 import { RAIN_CLAUSE } from '../lib/weather.js';
 import { REFUSED_TOPICS } from '../tools/stay-info.js';
 
@@ -75,7 +77,9 @@ export const CRITERIA = [
       const unresolved = [...(r.unresolved ?? []), ...(r.companion_unresolved ?? [])];
       const dropped = allMentions(rec.scenario).filter((m) => {
         const budgetOnly = vibeOf(m) && vibeOf(m).tastes.length === 0;
-        return !budgetOnly && !resolved.some((x) => x.mention === m) && !unresolved.includes(m);
+        // An occasion is noted in preferences even when no vibe tag came back for it.
+        const occasionNoted = Boolean(occasionOf(m)) && Boolean(r.preferences?.occasion);
+        return !budgetOnly && !occasionNoted && !resolved.some((x) => x.mention === m) && !unresolved.includes(m);
       });
       if (dropped.length) return v('fail', `${dropped.length} mention(s) silently dropped`);
       const weak = resolved.filter((x) => typeof x.confidence === 'number' && x.confidence < 0.6).length;
@@ -363,6 +367,41 @@ export const CRITERIA = [
       if (upstream) return v('fail', `${upstream} upstream request(s) from stay_info`);
       const answered = asked.filter((s) => s.json?.status === 'ok').length;
       return v('pass', `${asked.length} stay question(s): ${answered} answered from the sheet, ${secret.length} refused, none upstream`);
+    } },
+
+  { id: 'C20', label: 'The spoken turn after recommend_nearby names at least two picks when three exist',
+    run(rec) {
+      const said = rec.spoken?.afterRecommend;
+      if (typeof said !== 'string') return na('no spoken turn recorded (tool-only run)');
+      const ps = places(rec);
+      if (ps.length < 3) return na(`${ps.length} pick(s) returned`);
+      const low = said.toLowerCase().replace(/&/g, 'and');
+      const named = ps.filter((p) => low.includes(String(p.name ?? '').toLowerCase().replace(/&/g, 'and'))).length;
+      if (named < 2) return v('fail', `${named} of ${ps.length} picks named before the text offer`);
+      return v('pass', `${named} of ${ps.length} picks named`);
+    } },
+
+  { id: 'C21', label: 'No dish resolved as an entity, and no reason line names a business for a dish',
+    run(rec) {
+      const r = rec.resolve?.json;
+      if (!r || failedAnswer(rec.resolve)) return v('fail', `resolve_taste http ${failCode(rec.resolve)}`);
+      const dishes = allMentions(rec.scenario).filter((m) => placeShape(m) === 'food');
+      if (!dishes.length) return na('no dish or food word in this scenario');
+      const resolved = [...(r.resolved ?? []), ...(r.companion_resolved ?? [])];
+      const asEntity = resolved.filter((x) => dishes.includes(x.mention) && x.kind !== 'tag');
+      if (asEntity.length) return v('fail', `${asEntity.length} dish word(s) resolved as an entity`);
+      const searched = dishes.filter((m) => rec.trace.some((t) => t.tool === 'resolve_taste' && t.endpoint === '/search'
+        && String(t.params?.query ?? '').toLowerCase() === m.toLowerCase())).length;
+      if (searched) return v('fail', `${searched} dish word(s) sent to /search`);
+      // The reason lines, spoken and texted, may not say "fans of" a dish or a name that stood in for one.
+      const dishNames = resolved.filter((x) => dishes.includes(x.mention)).map((x) => String(x.name).toLowerCase());
+      const lines = [...places(rec).map((p) => String(p.why ?? '')), ...String(rec.compose?.json?.body ?? '').split('\n')];
+      const fanOfDish = lines.filter((l) => {
+        const m = /fans of (.+?) love it/i.exec(l);
+        return m && dishNames.some((n) => m[1].toLowerCase().includes(n));
+      }).length;
+      if (fanOfDish) return v('fail', `${fanOfDish} reason line(s) name a dish as a fan favorite`);
+      return v('pass', `${dishes.length} dish word(s) resolved as place tags; ${lines.filter(Boolean).length} reason line(s) clean`);
     } },
 ];
 

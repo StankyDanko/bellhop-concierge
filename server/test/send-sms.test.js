@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeApp, callTool, SECRET } from './helpers.js';
 import { createSmsSender } from '../lib/twilio.js';
-import { bodyProblem, createSendLimiter, RATE_LIMITED_SAY } from '../tools/send-sms.js';
+import { bodyProblem, createSendLimiter, RATE_LIMITED_SAY, TEST_MODE_SAY } from '../tools/send-sms.js';
 import { SessionStore, hashCaller } from '../lib/sessions.js';
 
 const TO = '+15555550100';
@@ -26,15 +26,36 @@ const live = (fetchImpl, logger = silent) => createSmsSender({
   logger, fetchImpl,
 });
 
-test('send_sms mock: returns sent true with a fake sid and the body unchanged in length', async () => {
+// A real call (Boone, 2026-10-23): texting was mock, send_sms said sent true, the agent said the
+// text went out, and the caller noticed nothing arrived. While texting is mock the answer is test
+// mode: never sent true, and a line telling the guest so and reading the picks again.
+test('send_sms mock: answers test_mode, never sent, with a line to say and the body unchanged in length', async () => {
   const { app } = makeApp();
   const { status, json } = await callTool(app, 'send_sms', { to: TO, body: BODY });
   assert.equal(status, 200);
   assert.equal(json.ok, true);
-  assert.equal(json.sent, true);
+  assert.equal(json.sent, false, 'a mock send is never reported as sent');
+  assert.equal(json.status, 'test_mode');
+  assert.equal(json.test_mode, true);
+  assert.equal(json.say, TEST_MODE_SAY);
+  assert.match(json.say, /test mode/);
+  assert.match(json.say, /picks again/);
+  assert.doesNotMatch(json.say, /\b(was|been|is|got) sent\b/i, 'the line never says the text was sent');
+  assert.doesNotMatch(json.say, /[\u2013\u2014]/);
   assert.match(json.sid, /^SMmock[0-9a-f]+$/);
-  assert.equal(json.status, 'queued');
   assert.equal(json.chars, BODY.length);
+});
+
+test('send_sms live: a send Twilio accepted answers sent true with its status and no test-mode line', async () => {
+  const fetchImpl = fakeFetch(201, { sid: 'SMfx0001', status: 'queued' });
+  const { app } = makeApp({ sms: live(fetchImpl) });
+  const { status, json } = await callTool(app, 'send_sms', { to: TO, body: BODY });
+  assert.equal(status, 200);
+  assert.equal(json.sent, true);
+  assert.equal(json.status, 'queued');
+  assert.equal(json.test_mode, undefined);
+  assert.equal(json.say, undefined);
+  assert.equal(fetchImpl.calls.length, 1);
 });
 
 test('send_sms refuses a non-E.164 to, an over-long body, and non-https links', async () => {

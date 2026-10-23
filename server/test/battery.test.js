@@ -19,16 +19,16 @@ const base = (over = {}) => ({
 });
 const verdict = (id, rec) => evaluate(rec)[id].verdict;
 
-test('scenarios.json: 12 to 17 callers, unique ids, guest words only', () => {
+test('scenarios.json: 12 to 18 callers, unique ids, guest words only', () => {
   const { scenarios } = loadScenarios();
-  assert.ok(scenarios.length >= 12 && scenarios.length <= 17);
+  assert.ok(scenarios.length >= 12 && scenarios.length <= 18);
   assert.equal(new Set(scenarios.map((s) => s.id)).size, scenarios.length);
   for (const s of scenarios) assert.ok(Array.isArray(s.mentions) && s.mentions.length >= 1, s.id);
   assert.doesNotMatch(JSON.stringify(scenarios), /@|\d{7}|room\s*\d/i);
 });
 
-test('criteria: exactly nineteen, C1 to C19', () => {
-  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 19 }, (_, i) => `C${i + 1}`));
+test('criteria: exactly twenty-one, C1 to C21', () => {
+  assert.deepEqual(CRITERIA.map((c) => c.id), Array.from({ length: 21 }, (_, i) => `C${i + 1}`));
 });
 
 test('scenarios.json sequences: fictional 555-01xx callers, known scenarios, two calls each', () => {
@@ -221,7 +221,7 @@ test('end to end through the mock app: every scenario plays, every criterion ans
   assert.match(card, /\| solo \|/);
   assert.ok(!card.includes(String.fromCharCode(0x2014)));
   const counts = tally(result.records.map((r) => r.eval));
-  assert.equal(Object.keys(counts).length, 19);
+  assert.equal(Object.keys(counts).length, 21);
 });
 
 test('playScenario never calls send_sms and logs a session row', async () => {

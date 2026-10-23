@@ -71,9 +71,9 @@ test('a favors with no token at all is stripped and counted', async () => {
 
 test('picks without favors are untouched and favors_dropped is zero', async () => {
   const { app } = makeApp();
-  const { json } = await callTool(app, 'compose_itinerary', { picks: [{ name: 'Place A', why: 'Fans of Thai food love it' }] });
+  const { json } = await callTool(app, 'compose_itinerary', { picks: [{ name: 'Place A', why: 'Fans of Sturgill Simpson love it' }] });
   assert.equal(json.favors_dropped, 0);
-  assert.match(json.body, /Place A - Fans of Thai food love it/);
+  assert.match(json.body, /Place A - Fans of Sturgill Simpson love it/);
 });
 
 // Round six: a solo guest's three real tokens, one pick carrying a forged favors "guest",
