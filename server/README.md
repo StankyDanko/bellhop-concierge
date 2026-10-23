@@ -90,7 +90,7 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `QLOO_TIMEOUT_MS` | `4500` | per attempt; the voice platform waits about 10 s for a tool |
 | `QLOO_RETRIES` | `2` | extra attempts on 5xx/timeouts only, backoff 250 ms then 500 ms |
 | `QLOO_429_BACKOFF_MS` | `2100` | a 429 sleeps this long and retries once; a second 429 serves the cached answer, even stale, or returns `rate_limited` |
-| `TICKETMASTER_API_KEY` | | Discovery API consumer key (free tier). Without it `events_nearby` answers `status: "degraded"` |
+| `TICKETMASTER_API_KEY` | | Discovery API consumer key (free tier). Without it `events_nearby` answers `status: "degraded"`. The same key serves `/attractions.json` for shows by similar artists |
 | `TICKETMASTER_MOCK` | | `1` = fixtures |
 | `TICKETMASTER_TIMEOUT_MS` | `4000` | |
 | `CACHE_PATH` | `server/data/cache.sqlite` | |
@@ -527,6 +527,7 @@ Live events from the Ticketmaster Discovery API.
 | `classification` | optional | `music`, `sports`, `arts & theatre`, `film`, `family`, `comedy`. Sent to Ticketmaster as `classificationName` (it matches a segment, genre, or subgenre; `segmentName` would miss comedy and family, which are genres), then applied again to what comes back, so a `film` request returns only film events. An event with no classification at all is kept |
 | `timezone` | optional IANA zone | defaults to `DEFAULT_TIMEZONE` |
 | `take` | number, default 5 | 1-10 |
+| `artist` | optional `{ id, name }` | the band or singer the guest named, exactly as `resolve_taste` returned it. Adds `by_taste` to the answer (below). The id must look like an entity id and the name must be present, or the call is a 400 |
 
 ```json
 // request
@@ -570,6 +571,52 @@ Every field below is built from Ticketmaster's own fields and the property's tim
 | `tonight` | boolean, the same test |
 | `say` | one spoken-ready line: day word, time in words, venue, name. `Friday at seven thirty, The Lyric Annex, Hollow Pines String Band.` It always opens with its own day word (`Tonight`, `Today`, or the weekday, the same word as `when_label`), so the agent never has to add one. It says nothing about taste or fit, because Ticketmaster does not |
 | `pick_token` | HMAC over the name and `when_label` (`lib/pick-token.js`); `compose_itinerary` prints an event's `when_label` only when it verifies |
+
+#### Shows by similar artists (`by_taste`)
+
+With `artist` set, the answer also carries `by_taste`: at most two shows, tonight or this
+weekend, by artists Qloo ranks close to the one the guest named. The code is
+`server/tools/events-by-taste.js`.
+
+1. Qloo: `GET /v2/insights` with `filter.type=urn:entity:artist`, the named artist as
+   `signal.interests.entities`, the same id in `filter.exclude.entities` (so it never comes back
+   as its own neighbor), and `take=5`. Cached 30 days (`SIMILAR_ARTISTS_TTL` in `lib/cache.js`).
+2. Ticketmaster, one similar artist at a time in Qloo's order: `GET /attractions.json` with that
+   artist's name as `keyword` (cached 30 days), kept only on an exact name match, then
+   `GET /events.json` with that `attractionId` near the inn.
+3. It stops at two shows, one per artist.
+
+The window is "tonight or this weekend": tonight ends at 4 am after the call's calendar day (the
+rule above), the weekend runs Friday 5 pm to Sunday 11 pm. One Ticketmaster request covers both,
+from the top of the hour (so calls in the same hour share a cache key, as the plain listing's
+request does too) to whichever ends later, and each show is kept only when it starts inside one
+of the two.
+
+Never the named artist's own show: a similar artist with the same name, or a show whose name
+carries the named artist's name (a co-bill), is dropped.
+
+| Field | Notes |
+|---|---|
+| `status` | `ok`, `empty` (no show in the window), or `degraded` with a `reason` (Qloo could not answer; the plain listing still does) |
+| `named` | the named artist's name, as passed in |
+| `similar_checked` | how many similar artists were looked up before it stopped |
+| `events[].artist` | the similar artist, as Qloo named it |
+| `events[].why` | `Fans of <named> also love <artist>, per Qloo`: the reason for the text, always Qloo's |
+| `events[].say` | `Fans of <named> also love <artist>, playing Saturday at eight at The Tidewater Hall.` |
+| `events[].when_label`, `pick_token` | as for any event: the token covers the name and `when_label`, so `compose_itinerary` keeps the day only when it verifies |
+| `events[].reason_source`, `source` | `Qloo` for the reason, `Ticketmaster` for the date and venue |
+
+The keyword is a name Qloo returned, never the guest's words, and it still passes the PII
+guard's free-text rule (`assertNoPii` with the `query` key: 80 characters at most, nothing shaped
+like an email, phone, or room number) before it leaves; a name the guard refuses is skipped.
+
+With live Qloo and mock Ticketmaster (no key yet) the fixture shows are fictional, so the same
+guard as the plain listing applies: no Qloo call is made and no show is read
+(`server/test/events-by-taste.test.js`, "the guard").
+
+A cold similar-artists request took about three seconds live (2026-10-22, the
+QLOO-NOTES "Artist to artist" row has the command); the 30-day cache is what keeps the call
+inside its budget, so `npm run prewarm` warms it for the sample guest and every battery name.
 
 ### `compose_itinerary`
 
@@ -818,13 +865,14 @@ in the server log, one JSON line per call (endpoint and parameters, never the ke
 | 7 | Demographics | `GET /v2/insights` `filter.type=urn:demographics` | `area_insights` | which age and gender groups lean toward the guests' tastes |
 | 8 | Callers vs. town | `GET /v2/insights` `filter.type=urn:tag` on the fingerprint and on the inn's location alone, plus `GET /v2/analysis/compare` `a.signal.*`, `b.signal.*` | the dashboard API | two lean lists, with compare as one quiet line where they share a tag |
 | 9 | Popularity baseline (counterfactual) | `GET /v2/insights` same place filters, no `signal.*` and no cuisine `filter.tags` | `recommend_nearby` | shows what the guest would have heard without their tastes, next to the pick Qloo made for them |
+| 10 | Artist to artist | `GET /v2/insights` `filter.type=urn:entity:artist`, `signal.interests.entities=<artist>`, `filter.exclude.entities=<artist>`, `take=5` | `events_nearby` (`artist`) | the reason in "fans of X also love Y, playing Friday at eight": Qloo picks Y, Ticketmaster only says when and where |
 
 What each capability did when measured live, and what we did not ship: [`docs/QLOO.md`](../docs/QLOO.md).
 
 Each call's requests are visible on the property dashboard (`/property/:id`, Calls, "Qloo
 calls (n)") and the landing page shows the exact request behind its sample pick.
 
-Ticketmaster adds what a taste graph does not hold: what is on tonight.
+Ticketmaster adds what a taste graph does not hold: what is on tonight. With a named artist, it answers for the artists Qloo chose.
 
 ## Checked against the live API
 
@@ -840,7 +888,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # fifteen simulated callers and two two-call sequences, seventeen criteria, offline
+npm run battery -- --mock    # sixteen simulated callers and two two-call sequences, eighteen criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

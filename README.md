@@ -56,7 +56,11 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
    it's for.
 5. The same place call runs again with no taste at all. The two lists, side by side, show what
    the guest's taste changed.
-6. Ticketmaster adds what's on tonight or this weekend.
+6. Ticketmaster adds what's on tonight or this weekend. When the guest named a band, Qloo
+   names the artists it ranks close to that one, and Ticketmaster says which of them play near
+   the inn tonight or this weekend: "Fans of Sturgill Simpson also love Tyler Childers, playing
+   Friday at eight." Qloo supplies the reason, Ticketmaster only the date and the venue. Two
+   shows at most.
 7. One text, at most 320 characters, goes to the number that called, and only that number.
 
 **Weather can reorder, never replace.** For a tonight plan the server asks Open-Meteo for the
@@ -148,7 +152,7 @@ The whole data flow, one table: [docs/PRIVACY.md](docs/PRIVACY.md).
 ```bash
 npm test                         # unit and contract suite, offline, mock transports
 npm run smoke:dashboard          # boots the server, loads the pages a judge opens
-npm run battery -- --mock        # fifteen simulated callers and two two-call sequences, seventeen criteria, offline
+npm run battery -- --mock        # sixteen simulated callers and two two-call sequences, eighteen criteria, offline
 ```
 
 The battery plays callers against the tool server in the order the voice agent calls the

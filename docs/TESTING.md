@@ -7,7 +7,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 |---|---|---|---|
 | Unit and contract suite | `npm test` | nothing | every tool, the text composer, the privacy guard, the cache, the battery's own scoring |
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
-| Battery, offline | `npm run battery -- --mock` | nothing | fifteen simulated callers and two two-call sequences pass seventeen criteria on fixtures |
+| Battery, offline | `npm run battery -- --mock` | nothing | sixteen simulated callers and two two-call sequences pass eighteen criteria on fixtures |
 | Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
 
@@ -40,7 +40,7 @@ with a cuisine, two couples (different tastes, two things each), a family with k
 budget, a name that won't resolve, a misspelled cuisine, tonight and this weekend with events, a
 twenty-mile radius, a film request, a book request, and a guest who names three things.
 
-The seventeen criteria, in plain words:
+The eighteen criteria, in plain words:
 
 | | Criterion | What trips it (a warn or a fail) |
 |---|---|---|
@@ -61,6 +61,7 @@ The seventeen criteria, in plain words:
 | C15 | After "forget me" nothing is left and the next call is new | a row left, or a probe call still remembered |
 | C16 | Nothing remembered appears in any dashboard response | a memory field, the number, a hash, or a remembered line in any /api answer |
 | C17 | Weather changes only the order: the pick set is identical with and without it | a place added or dropped by the weather step, the rain clause said twice, or a clause with no reorder |
+| C18 | Shows by similar artists: each names an artist Qloo ranked close (its keyword lookup and the Qloo artist call are in the trace), at most two, each with a when_label, a pick_token, and Qloo's reason. Not applicable when no artist was passed or the server has no live listing | the named artist's own show or a co-bill carrying that name, a third show, or a show not traced to a Qloo similar artist |
 
 In the offline battery the fixture places carry no outdoor tags, so C17 passes with zero places
 moved; the reorder itself is proved by `server/test/weather.test.js`.
