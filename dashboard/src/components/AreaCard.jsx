@@ -60,7 +60,7 @@ function AreaMap({ inn, radius, cells, gated }) {
  *   insights: GET /api/properties/:id/insights (area, heatmap, sample)
  *   fingerprint: GET /api/properties/:id/fingerprint (basis, sessions, entities, tags, gate)
  */
-export function AreaCard({ insights, fingerprint, compact = false }) {
+export function AreaCard({ insights, fingerprint, compact = false, place = 'the inn' }) {
   if (!insights?.area) return null;
   const inn = { lat: insights.area.lat, lng: insights.area.lng };
   const radius = Number(insights.area.radius_miles) || 2;
@@ -76,7 +76,7 @@ export function AreaCard({ insights, fingerprint, compact = false }) {
   return (
     <div className="area-card card" data-sample={sample ? 'yes' : 'no'}>
       <div className="area-card-head">
-        <p className="micro">Around the inn, {radius} mi</p>
+        <p className="micro">Around {place}, {radius} mi</p>
         {sample && <SampleBadge>Sample data</SampleBadge>}
       </div>
       <div className="area-grid">
@@ -113,7 +113,7 @@ export function AreaCard({ insights, fingerprint, compact = false }) {
                   <ol className="area-hot">
                     {hottest.map((c) => {
                       const o = offset(inn, c);
-                      return <li key={c.geohash ?? `${c.lat},${c.lng}`}><span className="num">{miles(o).toFixed(1)}</span> mi {direction(o)} of the inn</li>;
+                      return <li key={c.geohash ?? `${c.lat},${c.lng}`}><span className="num">{miles(o).toFixed(1)}</span> mi {direction(o)} of {place}</li>;
                     })}
                   </ol>
                 </>

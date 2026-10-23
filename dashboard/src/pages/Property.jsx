@@ -228,7 +228,7 @@ function Demographics({ data, onRetry, onSample, tastes }) {
 }
 
 /** Text templates over the panel data. Observations plus an action; never a forecast. */
-function deriveSuggestions(data, inn) {
+function deriveSuggestions(data, inn, place = 'the inn') {
   const out = [];
   const demo = data.demographics;
   if (demo.status === 'ok' && demo.age) {
@@ -236,7 +236,7 @@ function deriveSuggestions(data, inn) {
     if (band && v > 0) out.push({ title: 'Who shares these tastes nearby', text: `Guests who share these tastes lean ${AGE[band] ?? band} (${signed(v)} vs. area average).`, source: 'Qloo demographics' });
   }
   const hot = data.heatmap.status === 'ok' ? data.heatmap.cells?.[0] : null;
-  if (hot) out.push({ title: 'Walk the hottest block', text: `Taste affinity peaks ${milesBetween(inn, hot).toFixed(1)} mi ${direction(inn, hot)} of the inn (affinity ${(hot.affinity ?? 0).toFixed(2)}). A coffee shop or bar there is a natural partner for a guest discount card.`, source: 'Qloo heatmap' });
+  if (hot) out.push({ title: 'Walk the hottest block', text: `Taste affinity peaks ${milesBetween(inn, hot).toFixed(1)} mi ${direction(inn, hot)} of ${place} (affinity ${(hot.affinity ?? 0).toFixed(2)}). A coffee shop or bar there is a natural partner for a guest discount card.`, source: 'Qloo heatmap' });
   if (data.interests?.length) out.push({ title: 'Put their favorites on the room card', text: `Guests keep naming ${data.interests.slice(0, 3).join(', ')}. A line on the room card ("Ask the front desk what fans of ${data.interests[0]} love nearby") invites the call.`, source: data.sample ? 'Sample guest tastes' : 'Own call log' });
   return out;
 }
@@ -313,7 +313,11 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const isDemo = id === 'demo';
   const rental = cfg.property.kind === 'rental';
-  const badgeState = isDemo ? health.state : p.status === 'published' ? 'test' : 'paused';
+  // The Miami rental demo has no number of its own: the main line transfers to it.
+  const transferDemo = id === 'miami';
+  const badgeState = isDemo ? health.state : transferDemo ? 'transfer' : p.status === 'published' ? 'test' : 'paused';
+  /** How the panels name the place: the stay for a rental, the inn otherwise. */
+  const place = rental ? 'the stay' : 'the inn';
   const list = sessions.data?.sessions ?? [];
   const total = sessions.data?.total ?? 0;
   const tastes = sessions.data?.tastes;
@@ -340,7 +344,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
         <h1>{cfg.property.name}</h1>
         <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
         <div className="prop-chips">
-          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} />
+          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={transferDemo ? 'Reached by saying "the rental demo" on the main line' : undefined} />
           <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Not published'}</span>
           <span className="chip">{TRUST_WORDS[cfg.trust_level] ?? `Line limits: ${cfg.trust_level}`}</span>
           {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
@@ -379,12 +383,12 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
         )}
         {ins.state === 'ok' && fp.state !== 'loading' && (
           <div className="callers-grid">
-            <section className="callers-map" aria-label="Your callers' taste fingerprint, on the map around the inn">
-              <AreaCard insights={ins.data} fingerprint={fp.state === 'ok' ? fp.data : null} />
+            <section className="callers-map" aria-label={`Your callers' taste fingerprint, on the map around ${place}`}>
+              <AreaCard insights={ins.data} fingerprint={fp.state === 'ok' ? fp.data : null} place={place} />
               {areaDark && !sample && <button type="button" className="btn btn-text gate-preview" onClick={onSample}>Preview it with sample callers</button>}
             </section>
             <div className="callers-pair">
-              <LeanPanel data={ins.data} tastes={tastes} onRetry={reloadIns} />
+              <LeanPanel data={ins.data} tastes={tastes} onRetry={reloadIns} place={place} />
               <HotAreas data={ins.data} onRetry={reloadIns} />
             </div>
             <p className="micro mono callers-asof">As of {new Date(ins.data.as_of).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} <ViaChip upstream={ins.data.upstream} /></p>
@@ -458,7 +462,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
       </Part>
 
       {/* 4. More: who shares these tastes nearby (not a description of the guests). */}
-      <Part id="more" title="Who shares these tastes nearby." line="What Qloo knows about people with these tastes around the inn. Not a description of your guests.">
+      <Part id="more" title="Who shares these tastes nearby." line={`What Qloo knows about people with these tastes around ${place}. Not a description of your guests.`}>
         {ins.state === 'ok' && <div className="more-grid"><Demographics data={ins.data} tastes={tastes} onRetry={reloadIns} onSample={onSample} /></div>}
       </Part>
 
@@ -466,7 +470,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
       <Part id="suggest" title="What to stock or partner with." line="A suggestion from the panels above, not a forecast.">
         {ins.state === 'ok' && (() => {
           const guestOpen = ins.data.gate.open || ins.data.sample;
-          const items = guestOpen ? deriveSuggestions(ins.data, inn) : [];
+          const items = guestOpen ? deriveSuggestions(ins.data, inn, place) : [];
           if (!guestOpen) return <div className="card"><GateCard count={ins.data.gate.count} min={ins.data.gate.min} tastes={tastes} onSample={onSample} /></div>;
           if (!items.length) return <p className="dim">Nothing to suggest yet. Suggestions appear once the panels above have data.</p>;
           return (

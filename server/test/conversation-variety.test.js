@@ -96,7 +96,11 @@ test('empty memory and default variables give today\'s first message, byte for b
     const opener = persona.match(/^opener: (.+)$/m)[1];
     const display = persona.match(/^display_name: (.+)$/m)[1];
     const v = defaultVars(name);
-    const rebuilt = `${v.greeting} this is ${display}, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`;
+    // A rental persona's disclosure also says she can answer questions about the stay.
+    const tail = /^mode: rental$/m.test(persona)
+      ? ', this call is recorded, any text I send goes only to the number you are calling from, and I can answer questions about your stay.'
+      : ', this call is recorded, and any text I send goes only to the number you are calling from.';
+    const rebuilt = `${v.greeting} this is ${display}, the automated concierge at {{property_name}}${tail} ${v.opener_hook}`;
     assert.equal(rebuilt, opener, `${name} first message`);
     assert.equal(v.caller_status, 'new');
     assert.equal(v.plan_window, 'tonight');
@@ -108,6 +112,8 @@ test('empty memory and default variables give today\'s first message, byte for b
   assert.equal(defaultVars('harper').choice_pair, 'spicy and loud, or slow and candlelit');
   assert.equal(defaultVars('maybelle').choice_pair, 'spicy and lively, or slow and candlelit');
   assert.equal(defaultVars('road').choice_pair, 'spicy and loud, or slow and candlelit');
+  assert.equal(defaultVars('marisol').choice_pair, 'spicy and loud, or slow and candlelit');
+  assert.ok(POOLS.personas.marisol, 'Marisol has her own pools, not Harper\'s');
   // An unknown persona is Harper, never an exception.
   assert.deepEqual(defaultVars('nobody'), defaultVars('harper'));
 });

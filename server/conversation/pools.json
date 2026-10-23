@@ -3,7 +3,8 @@
   "windows": {
     "harper": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
     "maybelle": { "morning": "day", "afternoon": "afternoon", "evening": "evening", "late": "night" },
-    "road": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" }
+    "road": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
+    "marisol": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" }
   },
   "plan_windows": { "morning": "today", "afternoon": "this afternoon", "evening": "tonight", "late": "tonight" },
   "personas": {
@@ -84,10 +85,36 @@
         { "id": "r-s2", "text": "Where are you now, city and state, and did the earlier plan hold up?" },
         { "id": "r-s3", "text": "Round two, so tell me the city and state you're in, and I'll take it from there." }
       ]
+    },
+    "marisol": {
+      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
+      "openers": [
+        { "id": "mr-band", "anchor": "artist", "text": "Tell me one band you've had on repeat, and I'll plan your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
+        { "id": "mr-porch", "anchor": "artist", "text": "Name one song you'd play on the porch here, and I'll build the evening around it.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "mr-movie", "anchor": "movie", "text": "Give me one movie you'd watch on the couch tonight, and I'll plan around it.", "dayparts": ["evening", "late"], "days": ["any"] },
+        { "id": "mr-trip", "anchor": "artist", "text": "Tell me one artist you'd plan a trip around, and I'll take it from there.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-album", "anchor": "artist", "text": "Name one album that sounds like vacation to you, and I'll put your <window> together.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-cuisine", "anchor": "cuisine", "text": "Tell me one cuisine you came here hoping to find, and I'll plan your <window> around it.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-show", "anchor": "tv_show", "text": "Name one show you'd binge on a rainy day here, and I'll work from that.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-drive", "anchor": "artist", "text": "Tell me what played on the drive down, and I'll plan the rest.", "dayparts": ["any"], "days": ["any"] },
+        { "id": "mr-weekend", "anchor": "artist", "text": "It's the weekend, so tell me one band you'd stay out late for, and I'll plan your night.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
+        { "id": "mr-sunday", "anchor": "cuisine", "text": "Tell me one breakfast you'd want on a slow Sunday, and I'll plan around it.", "dayparts": ["any"], "days": ["sun"] }
+      ],
+      "returning": [
+        { "id": "mr-r1", "text": "More like last time, or something new for this stay?" },
+        { "id": "mr-r2", "text": "Want more in the spirit of last time, or a change of pace?" },
+        { "id": "mr-r3", "text": "Same direction as last time, or should I surprise you?" },
+        { "id": "mr-r4", "text": "Shall I build on last time, or start fresh for this trip?" }
+      ],
+      "same_day": [
+        { "id": "mr-s1", "text": "Want more like what I found earlier, or something different?" },
+        { "id": "mr-s2", "text": "Did the earlier plan hold up, or shall I find you a change?" },
+        { "id": "mr-s3", "text": "Round two, more of the same, or something new?" }
+      ]
     }
   },
   "pairs": [
-    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper", "road"] },
+    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper", "road", "marisol"] },
     { "id": "p-lively", "text": "spicy and lively, or slow and candlelit", "sides": [["spicy", "lively"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["maybelle"] },
     { "id": "p-adventure", "text": "adventurous and fun, or familiar and quiet", "sides": [["adventurous", "fun"], ["familiar", "quiet"]], "dayparts": ["any"], "enabled": true },
     { "id": "p-noise", "text": "loud and fun, or quiet and candlelit", "sides": [["loud", "fun"], ["quiet", "candlelit"]], "dayparts": ["any"], "enabled": true },

@@ -128,7 +128,7 @@ function LeanList({ title, sec, empty, onRetry, tastes }) {
  * The callers-versus-town panel as two lists. The difference between them is a secondary line,
  * drawn only when the compare call found tags both groups share.
  */
-export function LeanPanel({ data, onRetry, tastes }) {
+export function LeanPanel({ data, onRetry, tastes, place = 'the inn' }) {
   const callers = data.callers_lean;
   const town = data.town_lean;
   const cmp = data.compare;
@@ -136,7 +136,7 @@ export function LeanPanel({ data, onRetry, tastes }) {
     ? [...(cmp.items ?? [])].filter((i) => (i.scores.a ?? 0) > 0 && (i.scores.b ?? 0) > 0)
       .sort((p, q) => Math.abs(q.scores.difference ?? 0) - Math.abs(p.scores.difference ?? 0)).slice(0, 2)
     : [];
-  const townTitle = town?.widened ? `The town leans toward (within ${town.radius_miles} mi)` : 'The town around the inn leans toward';
+  const townTitle = town?.widened ? `The town leans toward (within ${town.radius_miles} mi)` : `The town around ${place} leans toward`;
   return (
     <section className="card fp-lean" aria-label="What your callers lean toward and what your town leans toward">
       <div className="panel-head">

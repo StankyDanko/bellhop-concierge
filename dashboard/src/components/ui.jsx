@@ -60,13 +60,15 @@ const BADGE_LABEL = {
   answering: 'Answering now',
   test: 'Test mode',
   paused: 'Paused',
+  // A demo reached by a transfer from the main line, not by a number of its own.
+  transfer: 'Transfer demo',
   busy: 'Line busy, try again in a minute',
 };
 
-export function LiveBadge({ state = 'checking', lastSessionAt }) {
+export function LiveBadge({ state = 'checking', lastSessionAt, title }) {
   const ago = state === 'answering' && lastSessionAt ? timeAgo(lastSessionAt) : null;
   return (
-    <span className="live-badge" data-live-badge data-state={state} role="status">
+    <span className="live-badge" data-live-badge data-state={state} role="status" title={title}>
       <span className="live-dot" aria-hidden="true" />
       {state === 'busy' && <Icon name="warn" width="14" height="14" />}
       {BADGE_LABEL[state] ?? BADGE_LABEL.checking}
