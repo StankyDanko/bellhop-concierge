@@ -201,3 +201,22 @@ test('the forecast allowlist takes its five parameters and refuses anything else
     for (const qloo of ['/v2/insights', '/search', '/v2/tags']) assert.throws(() => assertNoPii(qloo, { [k]: v }), PiiViolation, `${k} stays illegal on ${qloo}`);
   }
 });
+
+test('timezone aliases are sent as their IANA name, and every skip leaves a trace entry', async () => {
+  const { createWeatherClient, canonicalZone } = await import('../lib/weather.js');
+  const { withTrace } = await import('../lib/upstream.js');
+  const { ResponseCache } = await import('../lib/cache.js');
+  const { silentLogger } = await import('../lib/log.js');
+  assert.equal(canonicalZone('US/Eastern'), 'America/New_York');
+  assert.equal(canonicalZone('GMT'), 'UTC');
+  assert.equal(canonicalZone('Fx/Nowhere'), null);
+  const { transport, seen } = forecastAt(20);
+  const client = createWeatherClient({ config: { baseUrl: 'https://api.open-meteo.com', timeoutMs: 1000 }, cache: new ResponseCache({ path: ':memory:' }), logger: silentLogger, transport });
+  const ok = await withTrace('recommend_nearby', () => client.forecast({ lat: PROPERTY.lat, lng: PROPERTY.lng, timezone: 'US/Eastern', now: FIXED_NOW }));
+  assert.ok(ok.result, 'an alias still gets a forecast');
+  assert.equal(seen[0].params.timezone, 'America/New_York');
+  const bad = await withTrace('recommend_nearby', () => client.forecast({ lat: PROPERTY.lat, lng: PROPERTY.lng, timezone: 'Fx/Nowhere', now: FIXED_NOW }));
+  assert.equal(bad.result, null);
+  assert.deepEqual(bad.trace.map((t) => [t.source, t.error]), [['weather', 'weather_timezone_unknown']]);
+  assert.equal(seen.length, 1, 'no request for an unknown zone');
+});

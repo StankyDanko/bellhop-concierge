@@ -13,7 +13,7 @@
 // WEATHER_ATTRIBUTION. A paid deployment needs their commercial plan (see README).
 
 import { httpTransport } from './transport.js';
-import { callUpstream } from './upstream.js';
+import { callUpstream, traceUnavailable } from './upstream.js';
 import { assertNoPii } from './pii-guard.js';
 
 export const FORECAST_ENDPOINT = '/v1/forecast';
@@ -81,6 +81,20 @@ export function readForecast(body, key) {
  * @param {import('./log.js').Logger} opts.logger
  * @param {import('./transport.js').Transport} [opts.transport]  override (tests)
  */
+/**
+ * The canonical IANA name for a zone the runtime knows ("EST" is America/Panama, "GMT" is UTC,
+ * "US/Eastern" is America/New_York), or null when it knows none. Open-Meteo and the forecast
+ * allowlist both take the canonical name.
+ * @param {string} zone
+ */
+export function canonicalZone(zone) {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: zone }).resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+}
+
 export function createWeatherClient({ config, cache, logger, transport }) {
   const t = transport ?? httpTransport({ service: 'weather', baseUrl: config.baseUrl, timeoutMs: config.timeoutMs });
   const upstream = { service: 'weather', transport: t, cache, logger, mock: false, retries: 0 };
@@ -92,19 +106,26 @@ export function createWeatherClient({ config, cache, logger, transport }) {
      * @returns {Promise<{ precip_pct: number, temp_c: number | null, hours: number, hour: string, call: import('./upstream.js').CallRecord } | null>}
      */
     async forecast({ lat, lng, timezone, now }) {
+      // Every skip is silent for the guest and visible in the call trace: an upstream failure is
+      // already traced by callUpstream; anything that stops before or after it is traced here.
+      let asked = false;
+      const skip = (reason) => { traceUnavailable('weather', FORECAST_ENDPOINT, reason); return null; };
       try {
+        const zone = canonicalZone(timezone);
+        if (!zone) return skip('weather_timezone_unknown');
         const params = {
           latitude: round2(lat), longitude: round2(lng),
           hourly: 'precipitation_probability,temperature_2m',
-          timezone, forecast_days: '1',
+          timezone: zone, forecast_days: '1',
         };
         assertNoPii(FORECAST_ENDPOINT, params);
+        asked = true;
         const { body, call } = await callUpstream(upstream, FORECAST_ENDPOINT, params);
-        const { key } = targetHour(now, timezone);
+        const { key } = targetHour(now, zone);
         const read = readForecast(body, key);
-        return read ? { ...read, hour: key.slice(11), call } : null;
-      } catch {
-        return null; // silent: the trace already holds the error code, the guest hears nothing
+        return read ? { ...read, hour: key.slice(11), call } : skip('weather_hour_not_in_forecast');
+      } catch (err) {
+        return asked ? null : skip(err?.name === 'PiiViolation' ? 'weather_params_refused' : 'weather_skipped');
       }
     },
   };

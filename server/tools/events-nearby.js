@@ -195,7 +195,12 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
   const fetchStart = new Date(Math.floor(win.start.getTime() / 3_600_000) * 3_600_000);
   const [{ events, call }, byTaste] = await Promise.all([
     ticketmaster.events({ lat, lng, radiusMiles, start: tmDate(fetchStart), end: tmDate(win.end), classification, size: take }),
-    artist ? eventsByTaste({ artist, lat, lng, radiusMiles, timezone: tz }, { qloo, ticketmaster, now: () => at, toolSecret }) : null,
+    // The guard runs both ways: fixture similar artists (mock Qloo) never reach a live
+    // Ticketmaster search, where an exact name match would pin a made-up reason on a real show.
+    !artist ? null
+      : qloo?.mode === 'mock' && ticketmaster.mode !== 'mock'
+        ? { status: 'degraded', reason: 'similar_artists_mock', events: [], calls: [] }
+        : eventsByTaste({ artist, lat, lng, radiusMiles, timezone: tz }, { qloo, ticketmaster, now: () => at, toolSecret }),
   ]);
   const { calls: tasteCalls = [], ...byTasteOut } = byTaste ?? {};
   const startedBefore = (e, t) => {

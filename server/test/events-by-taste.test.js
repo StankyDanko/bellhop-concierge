@@ -247,3 +247,19 @@ test('the plain listing rounds its start to the hour, so a second call that hour
   assert.equal(sent, 1, 'the second call in the same hour never reaches Ticketmaster');
   assert.match(starts[0], /T22:00:00Z$/);
 });
+
+test('the guard, the other way: mock Qloo with live Ticketmaster makes no attraction search', async () => {
+  const seen = [];
+  const cache = new ResponseCache({ path: ':memory:' });
+  const qloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock: true, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger });
+  const ticketmaster = createTicketmasterClient({ config: { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: 'fx-key', mock: false, timeoutMs: 1000 },
+    cache, logger: silentLogger, transport: async (endpoint, params) => { seen.push({ endpoint, params }); return { status: 200, body: { _embedded: { events: [] } } }; } });
+  const app = createApp({ secret: SECRET, qloo, ticketmaster, timezone: TZ, logger: silentLogger,
+    sms: createSmsSender({ config: { mock: true }, logger: silentLogger }),
+    sessions: new SessionStore({ path: ':memory:', hashKey: SECRET, now: () => FIXED_NOW }), now: () => FIXED_NOW });
+  const res = await callTool(app, 'events_nearby', BODY);
+  assert.equal(res.status, 200);
+  assert.equal(res.json.by_taste.status, 'degraded');
+  assert.equal(res.json.by_taste.reason, 'similar_artists_mock');
+  assert.ok(seen.every((s) => s.endpoint !== ATTRACTIONS_ENDPOINT && !s.params.attractionId), 'no search for a fixture artist on the live listing');
+});
