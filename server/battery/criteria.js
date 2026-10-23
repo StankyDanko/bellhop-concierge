@@ -17,7 +17,7 @@
 //   init                { status, json, ms } from the initiation webhook
 //   prior               the previous call's record for the same caller, or null
 //   committed           log_session answered ok (the call was folded into memory)
-//   texted              ids of the places this call texted (submitted picks mapped through recommend)
+//   texted              ids of the places this call texted: submitted picks whose name is in the sent body
 //   forget, afterForget forget_guest's answer and a webhook probe made after it
 //   memoryRows          memory rows plus live links left for the caller (mock only)
 //   apiSweep            [{ path, status, text, valuesOnly? }] every dashboard route after the call

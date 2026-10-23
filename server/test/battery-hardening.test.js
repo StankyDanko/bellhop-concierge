@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { evaluate } from '../battery/criteria.js';
-import { exitCodeFor, healthProblem, liveEnv, pacedCall, parseArgs, qlooLimited, runBattery } from '../scripts/battery.js';
+import { exitCodeFor, healthProblem, liveEnv, liveSpend, pacedCall, parseArgs, qlooLimited, runBattery, textedIds } from '../scripts/battery.js';
 import { PROPERTY } from './helpers.js';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -102,4 +102,20 @@ test('a frozen server gets the cache path, the freeze flag, and an empty key', (
   assert.equal(env.QLOO_API_KEY, '');
   assert.equal(env.CACHE_PATH, '/tmp/fx-cache.sqlite');
   assert.equal(liveEnv({ port: 18899, runDir: '/tmp/fx-run', secret: 'fx' }).CACHE_FREEZE, undefined);
+});
+
+test('texted means in the sent body: a pick the composer dropped to fit is not expected to be excluded', () => {
+  const ids = new Map([["Fx Tequila's Town", 'fx-place-1'], ['Fx Bull Street Taco', 'fx-place-2']]);
+  const body = "Fx Tequila's Town - Fans of Fx Band love it https://example.com/x\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.";
+  assert.deepEqual(textedIds(["Fx Tequila's Town", 'Fx Bull Street Taco'], body, ids), ['fx-place-1']);
+  assert.deepEqual(textedIds(["Fx Tequila's Town"], undefined, ids), []);
+});
+
+test('the live request count is Qloo only: Ticketmaster rows never count against the cap', () => {
+  const rec = { trace: [
+    { source: 'qloo', mode: 'live', cache: 'miss' },
+    { source: 'qloo', mode: 'live', cache: 'hit' },
+    { source: 'ticketmaster', mode: 'live', cache: 'miss', error: 'ticketmaster_unavailable' },
+  ] };
+  assert.equal(liveSpend(rec), 1);
 });

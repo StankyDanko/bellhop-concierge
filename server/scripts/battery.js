@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { CRITERIA, CHAIN_BUDGET_MS, TOOL_BUDGET_MS, evaluate, tally } from '../battery/criteria.js';
 import { frozenCacheProblem } from '../lib/cache.js';
+import { toGsm } from '../lib/sms.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = join(HERE, '..');
@@ -177,7 +178,9 @@ export async function playScenario(call, scenario, property, opts = {}) {
   }
   if (inSequence) {
     const placeIds = new Map((rec.recommend?.json?.places ?? []).map((p) => [p.name, p.entity_id]));
-    rec.texted = textedNow ? [...new Set((rec.compose?.submitted ?? []).map((n) => placeIds.get(n)).filter(Boolean))] : [];
+    // Texted means in the body that was sent: compose_itinerary may drop a pick to fit 320
+    // characters, and memory (rightly) remembers only the places the guest actually got.
+    rec.texted = textedNow ? textedIds(rec.compose?.submitted ?? [], rec.compose?.json?.body, placeIds) : [];
   }
   if (inSequence && opts.forget) {
     rec.forget = await run('forget_guest', { session_id: sessionId, caller_id: callerId }, { chain: false });
@@ -229,7 +232,18 @@ export function sequencePlays(sequences, library, { canAdvance = false } = {}) {
 }
 
 /** Live upstream requests this scenario spent (cache misses only). */
-export const liveSpend = (rec) => rec.trace.filter((t) => t.mode === 'live' && t.cache === 'miss').length;
+// Qloo only: an events_nearby row (Ticketmaster mock, or marked unavailable) is not Qloo quota.
+export const liveSpend = (rec) => rec.trace.filter((t) => t.source === 'qloo' && t.mode === 'live' && t.cache === 'miss').length;
+
+/**
+ * The ids of the submitted places whose name is in the sent body, as the composer prints it.
+ * @param {string[]} submitted @param {string|undefined} body @param {Map<string,string>} placeIds name -> id
+ */
+export function textedIds(submitted, body, placeIds) {
+  if (typeof body !== 'string') return [];
+  // The same match memory uses (lib/memory.js noteComposed): the name as given, or as the composer prints it.
+  return [...new Set(submitted.filter((n) => body.includes(n) || body.includes(toGsm(n))).map((n) => placeIds.get(n)).filter(Boolean))];
+}
 const rateLimited = (rec) => rec.rateLimited === true || rec.trace.some((t) => t.source === 'qloo' && t.error === 'rate_limited');
 
 /** True only when the answer is Qloo's own rate limit, by the error's service or a Qloo trace entry. */

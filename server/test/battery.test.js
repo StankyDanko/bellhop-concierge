@@ -238,7 +238,7 @@ test('playScenario never calls send_sms and logs a session row', async () => {
 });
 
 test('the run stops before the cap would be exceeded', async () => {
-  const call = async () => ({ status: 200, json: { trace: Array.from({ length: 10 }, () => ({ mode: 'live', cache: 'miss' })) }, ms: 1 });
+  const call = async () => ({ status: 200, json: { trace: Array.from({ length: 10 }, () => ({ source: 'qloo', mode: 'live', cache: 'miss' })) }, ms: 1 });
   const out = await runBattery({ call, scenarios: [{ id: 'a', mentions: ['x'] }, { id: 'b', mentions: ['x'] }, { id: 'c', mentions: ['x'] }], property: PROPERTY, cap: 30, perScenarioReserve: 14 });
   assert.ok(out.stoppedBy);
   assert.ok(out.skipped.length >= 1);
