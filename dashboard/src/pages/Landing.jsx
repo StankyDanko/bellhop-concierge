@@ -64,7 +64,9 @@ function NumberCard({ number, onCopy, cardRef, live, innName, health }) {
       <a className="number-link" href={telHref(number)} aria-label={`Call ${pretty}`}>
         <span className="the-number">{pretty}</span>
       </a>
-      <p className="caption">{live ? 'The inn is fictional. The calls and texts are real.' : 'The inn is fictional. Today the line answers with sample places until the Qloo key is live.'}</p>
+      <p className="caption">{!live ? 'The inn is fictional. Today the line answers with sample places until the Qloo key is live.'
+        : health.data?.tools?.sms === 'live' ? 'The inn is fictional. The calls and texts are real.'
+          : 'The inn is fictional. The calls are real. Texts are in test mode until the toll-free number is approved.'}</p>
       <div className="row number-actions">
         <a className="btn btn-primary btn-lg only-coarse" href={telHref(number)}><Icon name="phone" />Call now</a>
         <button type="button" className="btn btn-primary only-fine" onClick={onCopy}><Icon name="copy" />Copy number</button>

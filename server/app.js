@@ -70,6 +70,8 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
   const app = new Hono();
   const ctx = { qloo, ticketmaster, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory };
 
+  // One tool list for /health and the dashboard's health summary, so the two always agree.
+  const toolList = [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)];
   app.get('/health', (c) => c.json({
     ok: true,
     service: 'bellhop-concierge-tools',
@@ -77,7 +79,7 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
     ticketmaster: ticketmaster.mode ?? (ticketmaster.enabled ? 'live' : 'disabled'),
     sms: sms.mode,
     cache: cacheMode ?? 'on',
-    tools: [...Object.keys(TOOLS), ...Object.keys(MEMORY_TOOLS)],
+    tools: toolList,
   }));
 
   // Conversation initiation webhook: answers the call's dynamic variables before the first word.
@@ -113,7 +115,7 @@ export function createApp({ secret, qloo, ticketmaster, timezone, logger, sms, s
 
   // Innkeeper dashboard: JSON under /api, the built React app at /, /build, /property/:id.
   // Optional, so the tool server runs without it (tests, a tools-only deploy).
-  if (dashboard) mountDashboard(app, { ...dashboard, ctx, sessionsDb: dashboard.sessionsDb ?? sessions?.db, toolNames: Object.keys(TOOLS) });
+  if (dashboard) mountDashboard(app, { ...dashboard, ctx, sessionsDb: dashboard.sessionsDb ?? sessions?.db, toolNames: toolList });
 
   app.notFound((c) => c.json({ ok: false, status: 'error', error: { code: 'not_found' } }, 404));
   return app;

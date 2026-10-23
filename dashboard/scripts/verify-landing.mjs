@@ -103,6 +103,11 @@ try {
 
   const health = { state: 'answering', data: { demo_number: '+15550100199', demo: { id: 'demo', name: 'The Juniper House' }, last_session_at: null, tools: { qloo: 'mock', ticketmaster: 'mock' }, checked_at: new Date().toISOString() } };
   const land = render(h(Landing, { health }), 'landing (with a number)');
+  // The caveat follows the texting mode /health reports: texts are called real only when sms is live.
+  check(land.includes('The calls are real. Texts are in test mode until the toll-free number is approved.') && !land.includes('The calls and texts are real.'),
+    'answering with sms mock: texts said to be in test mode');
+  const smsLive = render(h(Landing, { health: { ...health, data: { ...health.data, tools: { ...health.data.tools, sms: 'live' } } } }), 'landing (sms live)');
+  check(smsLive.includes('The calls and texts are real.') && !smsLive.includes('test mode'), 'answering with sms live: calls and texts real');
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
   check(h1 === 'The front desk concierge for small inns.', `H1 = ${JSON.stringify(h1)}`);
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
