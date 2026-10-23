@@ -279,6 +279,14 @@ goes to `/search`. Each taste word goes to `/v2/tags` on its own, scoped to plac
 words ("splurge", "easy") come back as `preferences: { "budget": "splurge" }` without
 being sent upstream.
 
+Dish, dessert, and drink words ("spaghetti", "cheesecake", "ice cream") resolve through
+place-scoped `/v2/tags`, never `/search`, so a dish can never come back as a business that has the
+word in its name. A food phrase said as a title ("Hot Chocolate", "the Cheesecake Factory") is
+still a name. An occasion ("game day", "just won", "anniversary", "date night", "birthday",
+"after the show") becomes one vibe signal (celebration to lively, anniversary and date night to
+candlelit, birthday to fun) and a `preferences.occasion` note; it is never a filter and never said
+back.
+
 ### `recommend_nearby`
 
 Places near the property, ranked by Qloo affinity for this guest's taste.
@@ -387,7 +395,9 @@ your overall taste". The server never invents an attribution. The reason names t
 drivers Qloo attributed ("Fans of X love it") and then, when the pick's own tag list carries
 one of the guest's cuisine or vibe tags, "tagged Thai". That second part is a fact about the
 place, not an attribution: Qloo's explainability names entity signals only, so a tag is never
-said as "fans of".
+said as "fans of". Dish tags read "A spot for spaghetti and cheesecake"; a driver named only by
+a dish word is a dish, never a fan favorite, and `compose_itinerary` rewrites a copied "Fans of
+<dish> love it" reason the same plain way.
 
 ### Weather order
 
@@ -788,8 +798,14 @@ Any other outcome is a 502 with `sent: false` and a `say` line, so the agent nev
 went out when it did not. At most three texts go to one number per hour; the fourth answers 429
 with `reason: "rate_limited"`, `sent: false`, and `say: "The text could not be sent right now,
 so here is the top pick by name."`, and nothing reaches Twilio. The log records the
-message sid and Twilio's status, never the number or the body. `SMS_MOCK=1` returns a fake
-`SMmock...` sid.
+message sid and Twilio's status, never the number or the body.
+
+While texting is in test mode (`SMS_MOCK=1`), `send_sms` never answers `sent: true`. It answers
+`{ sent: false, status: "test_mode", test_mode: true, say }`, and the say line tells the guest
+texting is in test mode and the picks come again by voice. Every check a real send gets (E.164,
+320 characters, https links, one text per call, three per number per hour) still runs. For
+returning-guest memory and the battery, a test-mode send counts as texted, so the demo behaves
+as it will once texts go out.
 
 ### `log_session`
 
@@ -956,7 +972,7 @@ shape side by side with what the normalizers read. The row-by-row record is
 
 ```bash
 npm test                     # Node's built-in runner, offline, mock transports
-npm run battery -- --mock    # seventeen simulated callers and two two-call sequences, nineteen criteria, offline
+npm run battery -- --mock    # eighteen simulated callers and two two-call sequences, twenty-one criteria, offline
 ```
 
 The suite covers every tool end to end over HTTP on its mock path, the SMS composer, the

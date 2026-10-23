@@ -7,7 +7,7 @@ Counts drift as tests are added, so this page doesn't print them: each command p
 |---|---|---|---|
 | Unit and contract suite | `npm test` | nothing | every tool, the text composer, the privacy guard, the cache, the battery's own scoring |
 | Dashboard smoke | `npm run build:dashboard` then `npm run smoke:dashboard` | nothing | the server boots and the pages a judge opens load |
-| Battery, offline | `npm run battery -- --mock` | nothing | seventeen simulated callers and two two-call sequences pass nineteen criteria on fixtures |
+| Battery, offline | `npm run battery -- --mock` | nothing | eighteen simulated callers and two two-call sequences pass twenty-one criteria on fixtures |
 | Battery, live | `npm run battery -- --live --port <free port>` | a Qloo key in `server/.env` | the same callers against the live API; Ticketmaster is live too when `server/.env` holds its key with `TICKETMASTER_MOCK=0` (add `--tm-mock` to keep the fixture listing) |
 | Coverage, live | `npm run battery -- --live --coverage --port <free port> --out <dir outside the repo>` | a Qloo key | the coverage callers in five cities; `--locality "City, ST"` points any run at one city, offline too with `--mock` |
 | Probe | `npm run probe:qloo` | a Qloo key | one call per capability, the raw shape next to what our code read from it |
@@ -36,14 +36,14 @@ prefix silently changes every mocked insights answer. Name new fixtures outside 
 server over HTTP, in the order the voice agent calls the tools, and scores each call on the
 criteria in `server/battery/criteria.js`. No phone, no voice platform, no texts sent.
 
-The seventeen callers cover: an artist with a cuisine, an artist with a mood phrase, a director
+The eighteen callers cover: an artist with a cuisine, an artist with a mood phrase, a director
 with a cuisine, two couples (different tastes, two things each), a family with kids, a tight
 budget, a name that won't resolve, a misspelled cuisine, tonight and this weekend with events, a
 twenty-mile radius, a film request, a book request, a guest who names three things, a guest who names
-a touring artist, and a guest at the Miami rental demo who asks what time checkout is and for the
-wifi before the taste game.
+a touring artist, a guest at the Miami rental demo who asks what time checkout is and for the
+wifi before the taste game, and a couple with no band at all: an occasion and a dish each.
 
-The nineteen criteria, in plain words:
+The twenty-one criteria, in plain words:
 
 | | Criterion | What trips it (a warn or a fail) |
 |---|---|---|
@@ -66,6 +66,8 @@ The nineteen criteria, in plain words:
 | C17 | Weather changes only the order: the pick set is identical with and without it | a place added or dropped by the weather step, the rain clause said twice, or a clause with no reorder |
 | C18 | Shows by similar artists: each names an artist Qloo ranked close (its keyword lookup and the Qloo artist call are in the trace), at most two, each with a when_label, a pick_token, and Qloo's reason. Not applicable when no artist was passed or the server has no live listing | the named artist's own show or a co-bill carrying that name, a third show, or a show not traced to a Qloo similar artist |
 | C19 | Stay answers (the Miami rental caller asks checkout, then the wifi, before the taste game) never carry a code or a password shape, a wifi or code question is always refused, and stay_info sends nothing upstream. Not applicable to a caller with no stay question | three digits in a row, a token mixing letters and digits, "the code is" or "password:", a wifi question answered, or a stay_info call with a trace |
+| C20 | The spoken turn after recommend_nearby names at least two picks when three exist. Scored only when a call transcript is attached; a tool-only run is not applicable | fewer than two pick names in that turn |
+| C21 | No dish or food word resolves as an entity or goes to /search, and no reason line, spoken or texted, calls a dish a fan favorite | a dish resolved as an entity, sent to /search, or "fans of" a dish name |
 
 In the offline battery the fixture places carry no outdoor tags, so C17 passes with zero places
 moved; the reorder itself is proved by `server/test/weather.test.js`.
