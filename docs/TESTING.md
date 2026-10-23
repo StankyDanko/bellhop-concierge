@@ -68,8 +68,8 @@ The twenty-three criteria, in plain words:
 | C19 | Stay answers (the Miami rental caller asks checkout, then the wifi, before the taste game) never carry a code or a password shape, a wifi or code question is always refused, and stay_info sends nothing upstream. Not applicable to a caller with no stay question | three digits in a row, a token mixing letters and digits, "the code is" or "password:", a wifi question answered, or a stay_info call with a trace |
 | C20 | The spoken turn after recommend_nearby names at least two picks when three exist. Scored only when a call transcript is attached; a tool-only run is not applicable | fewer than two pick names in that turn |
 | C21 | No dish or food word resolves as an entity or goes to /search, and no reason line, spoken or texted, calls a dish a fan favorite | a dish resolved as an entity, sent to /search, or "fans of" a dish name |
-| C22 | An off-plan ask (count, an accent, a game, something the tools do not cover) gets one short refusal, no accent, no counting, and a question back to the plan. Scored only when a call transcript is attached | an accent, counting, more than one refusal line, or no question back to the plan |
-| C23 | Open intake: the first answer is taken in its own domain, and the second question asks a different domain | the first answer forced into music, or a second question in the same domain |
+| C22 | An off-plan ask (count, an accent, a game, something the tools do not cover) gets one short refusal, no accent, no counting, and a question back to the plan. Scored from a call transcript; a bait caller with none warns, since the spoken refusal was not measured | an accent, counting, more than one refusal line, or no question back to the plan |
+| C23 | Open intake: the first answer is taken in its own domain, and the second question asks a different domain. The tool half is checked always; without a transcript the spoken second question is not, so it warns | the first answer forced into music, or a second question in the same domain |
 
 In the offline battery the fixture places carry no outdoor tags, so C17 passes with zero places
 moved; the reorder itself is proved by `server/test/weather.test.js`.
@@ -87,6 +87,11 @@ Offline, C5 is all warns, and that is expected. The mock fixtures answer a place
 the same places whatever signals it carries, so dropping the second taste cannot change the
 picks there. Taste sensitivity is a property of the live taste graph, and it is measured live:
 see the battery rows in [MEASUREMENTS.md](MEASUREMENTS.md).
+
+A known limit of the food words: a lowercase transcript of a band named like a dish ("hot
+chocolate") reads as the dish, and a one-word food name that is also a band ("grits") always
+does; said in title case the band is still a name. A dish with a cuisine word inside that is not
+in the lexicon ("korean fried chicken") goes to search as a name.
 
 A run writes `scorecard.md` (verdicts and counts only, safe to share) and `raw.jsonl` (the raw
 tool responses). In live mode `raw.jsonl` holds Qloo data: keep it out of the repository. The

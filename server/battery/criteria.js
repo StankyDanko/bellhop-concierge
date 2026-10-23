@@ -423,7 +423,8 @@ export const CRITERIA = [
   { id: 'C22', label: 'An off-plan ask gets one short refusal, no accent, no counting, and a question back to the plan',
     run(rec) {
       const turns = rec.spoken?.offTask;
-      if (!Array.isArray(turns)) return na(rec.scenario?.bait ? 'no transcript recorded (tool-only run)' : 'no off-plan asks in this scenario');
+      // A bait scenario with no transcript is a claim not measured: a warn, never a pass or n/a.
+      if (!Array.isArray(turns)) return rec.scenario?.bait ? v('warn', 'no transcript recorded (tool-only run), so the spoken refusal was not checked') : na('no off-plan asks in this scenario');
       if (!turns.length) return na('transcript has no off-plan asks');
       const bad = { long: 0, counted: 0, accent: 0, noRefusal: 0, noReturn: 0 };
       for (const { reply } of turns) {
@@ -460,7 +461,8 @@ export const CRITERIA = [
       const kinds = new Set((r.resolved ?? []).map((x) => x.kind));
       if (!(kinds.has('tag') && kinds.has('entity'))) return v('fail', 'the named things came from one domain only');
       const asked = rec.spoken?.secondQuestion;
-      if (typeof asked !== 'string') return v('pass', 'two domains resolved in order; no transcript for the second question');
+      // The headline claim is about the spoken second question: without a transcript it is not measured.
+      if (typeof asked !== 'string') return v('warn', 'two domains resolved in order, but no transcript, so the second question was not checked');
       const want = first === 'food' ? 'media' : 'food';
       if (!QUESTION_DOMAIN[want].test(asked)) return v('fail', `the second question did not ask for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);
       return v('pass', `two domains resolved in order; the second question asked for ${want === 'food' ? 'food' : 'a band, a film, or a show'}`);

@@ -14,8 +14,9 @@ import { loadScenarios, playScenario } from '../scripts/battery.js';
 const verdict = (id, r) => evaluate(r)[id];
 const base = (over = {}) => ({ scenario: { id: 't', mentions: ['fx'] }, tools: [], trace: [], statuses: [200], resolve: null, recommend: null, ...over });
 
-test('C22: not applicable without a transcript; a short refusal with a question back passes', () => {
+test('C22: a bait scenario without a transcript warns; no bait is not applicable; a short refusal with a question back passes', () => {
   assert.equal(verdict('C22', base()).verdict, 'na');
+  assert.equal(verdict('C22', base({ scenario: { id: 't', mentions: ['fx'], bait: ['count'] } })).verdict, 'warn');
   assert.match(verdict('C22', base({ scenario: { id: 't', mentions: ['fx'], bait: ['count'] } })).reason, /tool-only/);
   const good = base({ spoken: { offTask: [
     { ask: 'count to a hundred', reply: "That's not something I can do. What are you hungry for tonight?" },
@@ -48,7 +49,9 @@ const intake = (over = {}) => base({
 
 test('C23: a dish first, then a band, resolved in order passes; the second question must leave food', () => {
   assert.equal(verdict('C23', base()).verdict, 'na');
-  assert.equal(verdict('C23', intake()).verdict, 'pass');
+  // No transcript: the tool half is fine, but the headline claim was not measured, so a warn.
+  assert.equal(verdict('C23', intake()).verdict, 'warn');
+  assert.match(verdict('C23', intake()).reason, /no transcript/);
   assert.equal(verdict('C23', intake({ spoken: { secondQuestion: 'Spaghetti, good start. And a band or a show you have had on lately?' } })).verdict, 'pass');
   const sameDomain = verdict('C23', intake({ spoken: { secondQuestion: 'Spaghetti. Dinner, spicy and loud, or slow and candlelit?' } }));
   assert.equal(sameDomain.verdict, 'fail');
@@ -70,7 +73,7 @@ test('C23: wrong order, a dish taken as an entity, or one domain only each fail'
   assert.equal(verdict('C23', { ...bandFirst, spoken: { secondQuestion: 'And a film you love?' } }).verdict, 'fail');
 });
 
-test('both new scenarios play offline: open intake passes C23 on the tools, the bait call is C22 not applicable', async () => {
+test('both new scenarios play offline without a transcript: C23 and the bait call\'s C22 warn, never pass', async () => {
   const { scenarios } = loadScenarios();
   const { app } = makeApp();
   const call = async (tool, body) => { const t = Date.now(); const r = await callTool(app, tool, body); return { ...r, ms: Date.now() - t }; };
@@ -78,11 +81,11 @@ test('both new scenarios play offline: open intake passes C23 on the tools, the 
   assert.equal(open.first_domain, 'food');
   const r = await playScenario(call, open, PROPERTY);
   const e = evaluate(r);
-  assert.equal(e.C23.verdict, 'pass', e.C23.reason);
+  assert.equal(e.C23.verdict, 'warn', e.C23.reason);
   assert.equal(e.C21.verdict, 'pass', e.C21.reason);
   const bait = scenarios.find((x) => x.id === 'bait-call');
   assert.ok(bait.bait.length >= 5);
   const b = evaluate(await playScenario(call, bait, PROPERTY));
-  assert.equal(b.C22.verdict, 'na');
+  assert.equal(b.C22.verdict, 'warn', b.C22.reason);
   assert.equal(b.C1.verdict, 'pass', b.C1.reason);
 });
