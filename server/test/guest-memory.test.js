@@ -38,8 +38,8 @@ function fullCall(m, sid, { caller = CALLER, property = 'demo', ids = ['fx-artis
   start(m, sid, { caller, property });
   m.noteResolved(sid, ids.map((id, i) => ({ id, mention: `taste ${i}` })));
   m.noteOffered(sid, [{ entity_id: placeId, name: `Place ${placeId}` }], { party_size: 2 });
-  m.noteComposed(sid, [`Place ${placeId}`], 'fx body');
-  if (texted) m.noteTexted(caller, 'fx body', sid);
+  m.noteComposed(sid, [`Place ${placeId}`], `Place ${placeId}\nfx body`);
+  if (texted) m.noteTexted(caller, `Place ${placeId}\nfx body`, sid);
   m.commit(sid, { nights });
 }
 
@@ -104,13 +104,15 @@ test('caps: twelve tastes (four companion), fifteen texted, words filtered, row 
   const comp = Array.from({ length: 8 }, (_, i) => ({ id: `fx-film-${i}`, mention: `film ${i}`, who: 'companion' }));
   m.noteResolved('conv-cap', [...many, ...comp]);
   m.noteOffered('conv-cap', Array.from({ length: 20 }, (_, i) => ({ entity_id: `fx-place-${i}`, name: `P${i}` })));
-  m.noteComposed('conv-cap', Array.from({ length: 20 }, (_, i) => `P${i}`), 'fx body');
-  m.noteTexted(CALLER, 'fx body', 'conv-cap');
+  // A body that carries every name, as a real composed text does (texted ids come from the body).
+  const capBody = Array.from({ length: 20 }, (_, i) => `P${i}`).join('\n');
+  m.noteComposed('conv-cap', Array.from({ length: 20 }, (_, i) => `P${i}`), capBody);
+  m.noteTexted(CALLER, capBody, 'conv-cap');
   m.commit('conv-cap');
   const row = m.read(m.keyFor(CALLER), 'demo');
   assert.ok(row.tastes.length <= MAX_TASTES);
   assert.ok(row.tastes.filter((t) => t.who === 'companion').length <= MAX_COMPANION);
-  assert.ok(row.texted.length <= MAX_TEXTED);
+  assert.equal(row.texted.length, MAX_TEXTED, 'twenty texted, the cap keeps fifteen');
   const size = row.tastes_json.length + row.texted_json.length + row.party_json.length + row.variety_json.length;
   assert.ok(size <= ROW_JSON_MAX, `row json ${size} bytes`);
   assert.ok(memoryLine(row.tastes).length <= MEMORY_LINE_MAX);
@@ -376,16 +378,16 @@ test('a place is remembered as texted only after the server sent it, never on th
   const { m } = mem();
   start(m, 'conv-claim');
   m.noteOffered('conv-claim', [{ entity_id: 'fx-place-claim', name: 'Fx Claim Place' }]);
-  m.noteComposed('conv-claim', ['Fx Claim Place'], 'fx claim body');
+  m.noteComposed('conv-claim', ['Fx Claim Place'], 'Fx Claim Place\nfx claim body');
   // The model says it texted, but no send happened: log_session's flag no longer reaches commit.
   m.commit('conv-claim', { smsSent: true });
   assert.deepEqual(m.read(m.keyFor(CALLER), 'demo').texted, [], 'composed but never sent is not texted');
 
   start(m, 'conv-sent');
   m.noteOffered('conv-sent', [{ entity_id: 'fx-place-sent', name: 'Fx Sent Place' }]);
-  m.noteComposed('conv-sent', ['Fx Sent Place'], 'fx sent body');
-  assert.equal(m.noteTexted(CALLER, 'fx sent body', 'conv-other'), false, 'another call id never marks this call');
-  assert.equal(m.noteTexted(CALLER, 'fx sent body', 'conv-sent'), true);
+  m.noteComposed('conv-sent', ['Fx Sent Place'], 'Fx Sent Place\nfx sent body');
+  assert.equal(m.noteTexted(CALLER, 'Fx Sent Place\nfx sent body', 'conv-other'), false, 'another call id never marks this call');
+  assert.equal(m.noteTexted(CALLER, 'Fx Sent Place\nfx sent body', 'conv-sent'), true);
   m.commit('conv-sent');
   assert.deepEqual(m.read(m.keyFor(CALLER), 'demo').texted.map((t) => t.id), ['fx-place-sent']);
 });

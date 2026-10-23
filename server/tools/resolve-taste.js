@@ -27,7 +27,7 @@
 // recommend_nearby sends as a hard filter. Vibe words are always place-scoped too.
 
 import { arr, TASTE_MAX } from '../lib/validate.js';
-import { InputError } from '../lib/errors.js';
+import { InputError, UpstreamError } from '../lib/errors.js';
 import { withTraceNote } from '../lib/upstream.js';
 import { isCuisineTag } from './places.js';
 
@@ -358,10 +358,19 @@ export async function resolveTaste(body, { qloo }) {
     return null;
   };
 
+  // A frozen cache (the key gone dark) may hold some of the guest's words and not others. Each
+  // mention is its own lookup, so a miss leaves that one unresolved; only when every lookup
+  // missed does the call answer as a cache miss (app.js turns that into a line to say).
+  const misses = [];
+  const orMiss = (p) => p.catch((err) => {
+    if (err instanceof UpstreamError && err.code === 'cache_miss') { misses.push(err); return null; }
+    throw err;
+  });
   const [results, companionResults] = await Promise.all([
-    Promise.all(mentions.map((m) => resolveOne(m, 'guest'))),
-    Promise.all(companionMentions.map((m) => resolveOne(m, 'companion'))),
+    Promise.all(mentions.map((m) => orMiss(resolveOne(m, 'guest')))),
+    Promise.all(companionMentions.map((m) => orMiss(resolveOne(m, 'companion')))),
   ]);
+  if (misses.length && ![...results, ...companionResults].some(Boolean)) throw misses[0];
   /**
    * What recommend_nearby can take back. Every named mention keeps its own item, one per
    * mention as before. A vibe phrase expands into one tag per taste word, so a tag already

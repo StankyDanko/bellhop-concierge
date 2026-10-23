@@ -22,6 +22,7 @@ import { createHash, createHmac } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { localParts } from '../conversation/choose.js';
+import { toGsm } from './sms.js';
 
 /** Days a memory lasts after the last call when no stay length is known. */
 export const TTL_DEFAULT_DAYS = 7;
@@ -44,6 +45,8 @@ export const LINK_TTL_MIN = 60;
 export const MAX_LINKS = 2000;
 /** Total interest signals on one place request: the call's own first, remembered ones after. */
 export const MAX_SIGNALS = 12;
+/** Compositions kept per call, so a send can match an earlier one. */
+const COMPOSITIONS_KEEP = 4;
 /** Variety ids remembered per kind (opener, pair, bet). */
 const VARIETY_KEEP = 2;
 /** What forget_guest says, whether or not anything was stored. */
@@ -343,10 +346,15 @@ export class GuestMemory {
   /** compose_itinerary: which offered places went into the text, and a digest of the body to match a send against. */
   noteComposed(sessionId, pickNames, body) {
     if (typeof body !== 'string') return false;
+    // Only picks whose name made it into the body: compose can drop a whole pick to fit 320.
+    const inBody = (n) => typeof n === 'string' && n !== '' && (body.includes(n) || body.includes(toGsm(n)));
     return this.updateScratch(sessionId, (s) => {
       const offered = s.offered ?? [];
-      const ids = [...new Set((pickNames ?? []).map((n) => offered.find((o) => o.name === n)?.id).filter(Boolean))];
-      return { ...s, composed: ids, body_digest: sha256(body) };
+      const ids = [...new Set((pickNames ?? []).filter(inBody).map((n) => offered.find((o) => o.name === n)?.id).filter(Boolean))];
+      const digest = sha256(body);
+      // Every composition of this call (the last few), so the one actually sent is the one matched.
+      const compositions = [...(s.compositions ?? []).filter((c) => c.digest !== digest), { digest, ids }].slice(-COMPOSITIONS_KEEP);
+      return { ...s, composed: ids, body_digest: digest, compositions };
     });
   }
 
@@ -369,8 +377,11 @@ export class GuestMemory {
     for (const l of links) {
       if (sid && l.session_id !== sid) continue;
       const s = parse(l.scratch_json, {});
-      if (s.forgotten || s.body_digest !== digest) continue;
-      const textedIds = [...new Set([...(s.texted_ids ?? []), ...(s.composed ?? [])])];
+      if (s.forgotten) continue;
+      const sent = (s.compositions ?? []).find((c) => c.digest === digest)
+        ?? (s.body_digest === digest ? { ids: s.composed ?? [] } : null);
+      if (!sent) continue;
+      const textedIds = [...new Set([...(s.texted_ids ?? []), ...sent.ids])];
       this.db.prepare('UPDATE call_links SET scratch_json = ? WHERE session_id = ?').run(JSON.stringify({ ...s, texted_ids: textedIds }), l.session_id);
       marked = true;
     }
