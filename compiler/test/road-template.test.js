@@ -36,7 +36,7 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['These rules come before everything above.', 'no innkeeper settings on the road line', 'ee81fddba1d05bfb'],
   ['This step is important. Codes and passwords.', 'no innkeeper or check-in message to point at', '79a3007fa39e361f'],
   ['This step is important. No promises you cannot keep.', 'no innkeeper to send rates and bookings to', 'e2ef37d76960a99e'],
-  ['This step is important. Only what you know.', "no owner's picks or answers; never name a place from memory of a city", 'e25621c3d8eb8578'],
+  ['This step is important. Only what you know.', "no owner's picks or answers; never name a place from memory of a city", '1ac4a8b627c17ae0'],
   ['This step is important. Emergencies.', 'no innkeeper to tell afterward', '638cf14c71c4ca6d'],
   ['This step is important. Handing off to a person.', 'no person; the one transfer is the inn demo', 'b6ee834806ccc944'],
   ['{{rules}}', 'no house rules', '03835ae7cab2398a'],
@@ -46,8 +46,8 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['{{picks}}', 'no owner picks', '7a1b466493c5c0ed'],
   ['{{faq}}', 'no owner answers', '09f788d85f6836b7'],
   ['2. recommend_nearby.', 'takes the locality, ranks near that city', '8eb8678922d59dcc'],
-  ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'ace30c7b138aa345'],
-  ['When results come back, say up to three picks', 'no owner avoid list', 'ad9f627857d5bee9'],
+  ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'e87ec571029ff3a7'],
+  ['When results come back, say up to three picks', 'no owner avoid list', '7abb0ff8f0311ceb'],
   ['If a lookup is taking a while', "no owner's picks to fall back on", '95c84f8102088e67'],
 ]).map(([start, reason, pin]) => [start, { reason, pin }]));
 

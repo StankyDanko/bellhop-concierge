@@ -280,7 +280,7 @@ function renderSending(c) {
   }
   const offer = c.trust_level === 'suggest'
     ? 'Only if the guest asks for it, offer to text the plan.'
-    : 'Offer to text the picks you hold: the names, and a reason where it fits.';
+    : 'Offer to text the picks you hold: the names, and a reason where it fits. Offer it once on the call and never again.';
   return [
     `Texting the plan. After you say the top pick, ${offer.charAt(0).toLowerCase()}${offer.slice(1)}`,
     'When the guest agrees, call compose_itinerary with up to three picks copied from the tool results, then call send_sms with the body it returned, unchanged.',

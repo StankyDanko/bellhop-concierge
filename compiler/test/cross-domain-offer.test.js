@@ -16,7 +16,7 @@ for (const persona of ['harper', 'maybelle']) {
     const r = compile(demo(), { ...OPTS, persona });
     assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
     const p = prompt(r);
-    assert.match(p, /4\. cross_domain\.[^\n]*A cross-domain pick is something to watch, read, or listen to at the inn, and you offer it as that, with the other picks and in the text with them\./);
+    assert.match(p, /4\. cross_domain\.[^\n]*A cross-domain pick is something to watch, read, or listen to at the inn, and you offer it as that, with the other picks\./);
     assert.match(p, /4\. cross_domain\.[^\n]*Never take it back afterward, so "[^"]+" is right, never "I can only recommend what's playing nearby" or "you'd want a streaming service"\./);
     assert.match(p, /4\. cross_domain\.[^\n]*Never compare its genre either, so never "a different genre"\./);
   });

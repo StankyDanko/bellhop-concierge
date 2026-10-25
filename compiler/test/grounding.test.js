@@ -30,7 +30,7 @@ for (const persona of ['harper', 'maybelle']) {
     const r = compile(demo(), { ...OPTS, persona });
     assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
     const p = prompt(r);
-    assert.match(p, /This step is important\. Only what you know\.[^\n]*If a guest asks something the tool did not return, like the cuisine, the hours, the price, or parking, say you do not have that listed, and offer the name and the text so they can check\. Never work it out from a place's name/);
+    assert.match(p, /This step is important\. Only what you know\.[^\n]*If a guest asks something the tool did not return, like the cuisine, the hours, the price, or parking, say you do not have that listed, and offer the name so they can check\. Mention the text only if you have not offered it yet on this call\. Never work it out from a place's name/);
     // The sentences the guardrail already had are still there, whole.
     assert.match(p, /Describe a place only with the words in its tool result or its reason line\. If the result does not say what a place feels like, do not say what it feels like\./);
     assert.match(p, /never "the name suggests Thai"/);
