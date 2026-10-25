@@ -35,7 +35,7 @@ test('compose_itinerary accepts a cross_domain pick with its token and drops non
   assert.equal(status, 200);
   assert.equal(json.tokens_dropped, 0);
   assert.equal(json.favors_dropped, 0);
-  assert.ok(json.body.startsWith(`Tonight:\n${movie.name}`), json.body);
+  assert.ok(json.body.startsWith(`Bellhop Concierge: Tonight:\n${movie.name}`), json.body);
 });
 
 test('a token made from an entity id is dropped and counted, and the pick still goes out', async () => {

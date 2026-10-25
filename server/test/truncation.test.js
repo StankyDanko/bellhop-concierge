@@ -21,7 +21,8 @@ function overBy(picks, over) {
   const pad = 'x'.repeat(MAX_CHARS - base.char_count + over);
   return picks.map((p, i) => (i === 0 ? { ...p, name: `${p.name}${pad}` } : p));
 }
-const lines = (body) => body.split('\n').slice(0, -1);
+// Every body opens with the sender tag line (intro '' leaves it alone) and ends with the footer.
+const lines = (body) => body.split('\n').slice(1, -1);
 /** Applied steps, each named once, in the order they first ran. */
 const steps = (r) => r.truncation.filter((s, i) => r.truncation.indexOf(s) === i && s !== 'drop_header');
 
@@ -41,7 +42,7 @@ test('step 2: lower reasons go whole, lowest-ranked first, and the top reason st
   assert.match(one.body, /\n2\. P2 - Fans of Thai food love it\n3\. P3\n/);
   const two = composeItinerary({ picks: overBy(picks, 40), intro: '' });
   assert.equal(two.truncation.filter((s) => s === 'drop_last_why').length, 2);
-  assert.match(two.body, /^1\. P1x+ - Fans of Thai food love it\n2\. P2\n3\. P3\n/);
+  assert.match(two.body, /^Bellhop Concierge:\n1\. P1x+ - Fans of Thai food love it\n2\. P2\n3\. P3\n/);
   assert.equal(two.picks_included, 3);
 });
 
@@ -96,7 +97,7 @@ test('steps 6 to 8: the last pick loses its reason, then detail, then name lengt
   assert.deepEqual(steps(r), ['drop_why', 'drop_detail', 'trim_name']);
   assert.equal(r.picks_included, 1);
   assert.ok(r.char_count <= MAX_CHARS);
-  assert.match(r.body, /^Lemongrass Lanternx+ https:\/\/example\.com\/p1\n/);
+  assert.match(r.body, /^Bellhop Concierge:\nLemongrass Lanternx+ https:\/\/example\.com\/p1\n/);
 });
 
 test('step 9 waits behind a shorter name: a very long name still keeps the whole link', () => {
@@ -121,7 +122,7 @@ test('step 5: an event the guest asked for by name is the last pick to go', () =
   // So far over that only one pick fits: even the top pick goes before the requested show.
   const one = composeItinerary({ picks: overBy(picks, 200), intro: '' });
   assert.equal(one.picks_included, 1);
-  assert.match(one.body, /^Hollow Pines String Band/);
+  assert.match(one.body, /^Bellhop Concierge:\nHollow Pines String Band/);
   // Without the flag the show is ranked last like any pick, so it is the first to go.
   const plain = picks.map(({ requested: _r, ...p }) => p);
   const r = composeItinerary({ picks: overBy(plain, 56 + 3 * LINK + 8), intro: '' });

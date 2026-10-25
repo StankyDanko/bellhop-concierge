@@ -7,6 +7,9 @@
 //     whole when it must go, never cut mid-phrase ("Strong match for" says nothing)
 //   - the body is pure GSM-7 so carriers bill it as 160/153-char segments, not 70/67
 //   - the footer is fixed and always present
+//   - the body opens with SENDER_TAG, because the text arrives from the toll-free line, a number
+//     the guest does not know. The tag is never dropped: it is not a step in TRUNCATION_ORDER,
+//     and the name trim and hard cut below leave room for it
 //
 // When the full message is too long, content is removed in a fixed, documented
 // order (TRUNCATION_ORDER) and the response lists which steps were applied.
@@ -14,6 +17,8 @@
 import { InputError } from './errors.js';
 
 export const MAX_CHARS = 320;
+/** The first words of every text: who it is from. Never dropped, see the header comment. */
+export const SENDER_TAG = 'Bellhop Concierge:';
 export const FOOTER = 'Picks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.';
 
 /**
@@ -23,7 +28,7 @@ export const FOOTER = 'Picks from Qloo taste graph + Ticketmaster. Reply STOP to
  * A link stays whole or goes whole, never shortened, so every body passes send_sms.
  */
 export const TRUNCATION_ORDER = [
-  'drop_header',     // 1. the "Tonight for 2:" line
+  'drop_header',     // 1. the "Tonight for 2:" words after the sender tag (the tag itself stays)
   'drop_last_why',   // 2. lower picks' reasons, lowest-ranked first, each one whole. Never the
                      //    top pick's here. Reasons are never trimmed.
   'drop_last_link',  // 3. lower picks' links, lowest-ranked first, each one whole. Never the
@@ -132,7 +137,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
       if (it.url) line += ` ${it.url}`;
       return line;
     });
-    return [header, ...lines, FOOTER].filter(Boolean).join('\n');
+    return [[SENDER_TAG, header].filter(Boolean).join(' '), ...lines, FOOTER].join('\n');
   };
 
   /** @type {string[]} */
@@ -178,7 +183,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
 
   if (body.length > MAX_CHARS) {
     // Only reachable with a pathological name; the footer alone is far under budget.
-    items = [{ ...items[0], name: items[0].name.slice(0, MAX_CHARS - FOOTER.length - 1) }];
+    items = [{ ...items[0], name: items[0].name.slice(0, MAX_CHARS - FOOTER.length - SENDER_TAG.length - 2) }];
     applied.push('hard_cut_name');
     body = render();
   }

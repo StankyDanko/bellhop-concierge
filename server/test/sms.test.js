@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { composeItinerary, FOOTER, MAX_CHARS, segmentCount, toGsm, httpsOnly, TRUNCATION_ORDER } from '../lib/sms.js';
+import { composeItinerary, FOOTER, SENDER_TAG, MAX_CHARS, segmentCount, toGsm, httpsOnly, TRUNCATION_ORDER } from '../lib/sms.js';
 
 const pick = (n, extra = {}) => ({
   name: `Place Number ${n}`,
@@ -11,7 +11,7 @@ const pick = (n, extra = {}) => ({
 
 test('short itinerary keeps header, every line, and the footer', () => {
   const r = composeItinerary({ picks: [pick(1), pick(2)], guest: { party_size: 2, when: 'tonight' } });
-  assert.ok(r.body.startsWith('Tonight for 2:\n1. Place Number 1'));
+  assert.ok(r.body.startsWith('Bellhop Concierge: Tonight for 2:\n1. Place Number 1'));
   assert.ok(r.body.includes('2. Place Number 2'));
   assert.ok(r.body.endsWith(FOOTER));
   assert.equal(r.char_count, r.body.length);
@@ -149,4 +149,23 @@ test('input validation', () => {
   assert.throws(() => composeItinerary({ picks: [] }), /non-empty/);
   assert.throws(() => composeItinerary({ picks: Array(6).fill({ name: 'x' }) }), /at most 5/);
   assert.throws(() => composeItinerary({ picks: [{ why: 'no name' }] }), /name is required/);
+});
+
+// The text now comes from the toll-free line, a number the guest does not know, so the body
+// says who it is from before anything else, and no truncation step ever drops that.
+test('every body opens with the sender tag, and the tag survives every truncation step', () => {
+  assert.equal(SENDER_TAG, 'Bellhop Concierge:');
+  const short = composeItinerary({ picks: [pick(1)], guest: { party_size: 2, when: 'tonight' } });
+  assert.ok(short.body.startsWith(`${SENDER_TAG} Tonight for 2:\n`));
+  assert.ok(!TRUNCATION_ORDER.some((s) => /tag|sender/.test(s)), 'the tag is not a truncation step');
+  for (let n = 1; n <= 5; n++) {
+    const picks = Array.from({ length: n }, (_, i) => pick(i + 1, { why: 'Fans of Thai food love it', detail: 'Fri 8pm @ A Rather Long Venue Name Here' }));
+    const r = composeItinerary({ picks, guest: { party_size: 4, when: 'weekend' } });
+    assert.ok(r.body.startsWith(SENDER_TAG), `n=${n}`);
+    assert.ok(r.char_count <= MAX_CHARS);
+  }
+  const long = composeItinerary({ picks: [{ name: 'x'.repeat(400), url: 'https://example.com/p1' }] });
+  assert.ok(long.body.startsWith(SENDER_TAG) && long.char_count <= MAX_CHARS);
+  assert.ok(/^[\x20-\x7e\n]+$/.test(short.body), 'still GSM-7 plain');
+  assert.equal(short.segments, 2);
 });

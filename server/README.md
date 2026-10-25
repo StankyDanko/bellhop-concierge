@@ -742,8 +742,8 @@ Rules:
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Tonight for 2:\n1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 270, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "body": "Bellhop Concierge: Tonight for 2:\n1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
+  "char_count": 289, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
   "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "tokens_dropped": 0, "meta": { "upstream": [] } }
 ```
 
