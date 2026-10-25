@@ -91,7 +91,7 @@ if printf '%s\n' "${staged[@]}" | grep -q -E '\.(js|jsx|mjs|json)$|^(template|pe
   trap 'rm -rf "$snap"' EXIT
   git checkout-index -a --prefix="$snap/" || fail "could not export the staged tree for the tests."
   [ -d "$top/node_modules" ] && ln -s "$top/node_modules" "$snap/node_modules"
-  (cd "$snap" && npm test --silent >/dev/null 2>&1) || fail "npm test failed on the staged files. Stage what the change needs, or fix it, then commit."
+  (cd "$snap" && env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX npm test --silent >/dev/null 2>&1) || fail "npm test failed on the staged files. Stage what the change needs, or fix it, then commit."
 fi
 
 echo "pre-commit: clean. Nothing private, nothing off-voice. Lay the brick."

@@ -12,14 +12,18 @@ import { fileURLToPath } from 'node:url';
 const HOOK = fileURLToPath(new URL('../../scripts/githooks/pre-commit', import.meta.url));
 const DASH = String.fromCharCode(0x2014);
 
+// The suite also runs inside the real pre-commit hook, where git exports GIT_INDEX_FILE and its
+// kin. Left in place they point these throwaway repos at the real index and overwrite it.
+const CLEAN_ENV = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+
 function repo() {
   const dir = mkdtempSync(join(tmpdir(), 'fx-hook-'));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
+  spawnSync('git', ['init', '-q'], { cwd: dir, env: CLEAN_ENV });
   return {
     dir,
     write(path, text) { mkdirSync(dirname(join(dir, path)), { recursive: true }); writeFileSync(join(dir, path), text); },
-    stage(path) { spawnSync('git', ['add', path], { cwd: dir }); },
-    hook() { return spawnSync('bash', [HOOK], { cwd: dir, encoding: 'utf8' }); },
+    stage(path) { spawnSync('git', ['add', path], { cwd: dir, env: CLEAN_ENV }); },
+    hook() { return spawnSync('bash', [HOOK], { cwd: dir, encoding: 'utf8', env: CLEAN_ENV }); },
     done() { rmSync(dir, { recursive: true, force: true }); },
   };
 }
