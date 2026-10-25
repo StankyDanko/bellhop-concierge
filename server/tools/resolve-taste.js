@@ -75,6 +75,7 @@ export const FOOD_PHRASES = Object.freeze(new Set([
   'ice cream', 'fried chicken', 'hot dogs', 'mac and cheese', 'chicken wings', 'key lime pie', 'apple pie',
   'hot chocolate', 'fish and chips', 'shrimp and grits', 'chicken and waffles', 'craft beer', 'red wine', 'white wine',
   'soul food', 'comfort food', 'street tacos', 'dim sum', 'pad thai', 'crab cakes', 'fish tacos', 'chili dogs',
+  'po boy', 'po boys', 'poboy', 'poboys',
 ]));
 
 /**
@@ -93,8 +94,13 @@ export function properNounShape(mention) {
 /** True when the mention is a dish or drink said as a phrase ("ice cream"), not as a title. */
 function isFoodPhrase(mention) {
   if (properNounShape(mention)) return false;
-  const core = tokens(mention).filter((w) => !FOOD_KIND_SET.has(w)).join(' ');
-  return FOOD_PHRASES.has(core);
+  const words = tokens(mention).filter((w) => !FOOD_KIND_SET.has(w));
+  if (FOOD_PHRASES.has(words.join(' '))) return true;
+  // A food word in front of a dish phrase is still that dish: "shrimp po' boy", "oyster po boy".
+  for (let i = 1; i < words.length; i++) {
+    if (FOOD_PHRASES.has(words.slice(i).join(' ')) && words.slice(0, i).every((w) => FOOD_WORDS.has(w))) return true;
+  }
+  return false;
 }
 
 /**
@@ -407,6 +413,15 @@ export async function resolveTaste(body, { qloo }) {
       name: sentenceCase(mention), type: 'tag', confidence: round2(confidence), ...(weakCuisine ? { filter_ok: false } : {}) };
   };
 
+  /**
+   * The name a resolved entity goes by in a reason line. A place or brand that stands in for the
+   * guest's words ("Po Boy Factory" for "shrimp po' boy") is never named: the guest never said
+   * it, so the reason would send them asking what it is. The guest's own words are used, and the
+   * id still goes to Qloo. A band, film, or show keeps its own name.
+   */
+  const spokenName = (mention, e, score) =>
+    (e.type === 'place' || e.type === 'brand') && score < 0.99 ? sentenceCase(mention) : e.name;
+
   const resolveNamed = async (mention) => {
     const named = nameCore(mention);
     if (named) {
@@ -437,7 +452,7 @@ export async function resolveTaste(body, { qloo }) {
       }
       if (best && best.score >= ENTITY_THRESHOLD) {
         return { mention, kind: 'entity', id: best.e.entity_id, entity_id: best.e.entity_id, tag_id: null,
-          name: best.e.name, type: best.e.type, confidence: round2(best.score) };
+          name: spokenName(mention, best.e, best.score), type: best.e.type, confidence: round2(best.score) };
       }
     }
 
@@ -451,7 +466,7 @@ export async function resolveTaste(body, { qloo }) {
     if (best) {
       // Weak name match and no tag: keep it, flagged low-confidence for the agent to confirm.
       return { mention, kind: 'entity', id: best.e.entity_id, entity_id: best.e.entity_id, tag_id: null,
-        name: best.e.name, type: best.e.type, confidence: round2(best.score) };
+        name: spokenName(mention, best.e, best.score), type: best.e.type, confidence: round2(best.score) };
     }
     return null;
   };
