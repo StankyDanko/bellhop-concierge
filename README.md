@@ -64,7 +64,7 @@ curl -s -X POST localhost:8787/tools/resolve_taste \
    a drive in the next three weeks: "Fans of Sturgill Simpson also love Tyler Childers, playing
    Friday at eight." Qloo supplies the reason, Ticketmaster only the date and the venue. Two
    shows at most.
-7. One text, at most 320 characters, goes to the number that called, and only that number.
+7. One text, at most 480 characters, goes to the number that called, and only that number.
 
 **Weather can reorder, never replace.** For a tonight plan the server asks Open-Meteo for the
 hourly rain chance once per call (no key, cached for the hour per inn). If the chance at seven
@@ -195,7 +195,7 @@ npm run battery -- --mock        # twenty simulated callers and two two-call seq
 
 The battery plays callers against the tool server in the order the voice agent calls the
 tools and scores each call: every name resolved or said unresolved, every pick inside the
-radius, every pick with a reason, the text under 320 characters, every outbound parameter
+radius, every pick with a reason, the text under 480 characters, every outbound parameter
 through the allowlist, and seven more. With a key, `--live` runs the same callers against
 Qloo. What each layer checks and how to read a scorecard: [docs/TESTING.md](docs/TESTING.md).
 

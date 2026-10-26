@@ -239,9 +239,9 @@ export function stationsOf(trace, { said = [], plusOne = [], textChars } = {}) {
       caption: crossType ? `One kind of taste in, a ${crossType} out.` : 'One kind of taste in, another kind of pick out.' },
     { id: 'events', label: 'What is on nearby', rows: events,
       caption: `${plural(results(events), 'event')} came back.` },
-    { id: 'text', label: 'One text, at most 320 characters', rows: [], keep: true,
-      // 320: MAX_CHARS in server/lib/sms.js (grep -n "MAX_CHARS = 320" server/lib/sms.js)
-      caption: typeof textChars === 'number' ? `This one: ${textChars} characters.` : 'Each pick with its reason, and a link.' },
+    { id: 'text', label: 'One text, at most 480 characters', rows: [], keep: true,
+      // 480: MAX_CHARS in server/lib/sms.js (grep -n "MAX_CHARS = 480" server/lib/sms.js)
+      caption: typeof textChars === 'number' ? `This one: ${textChars} characters.` : 'Each pick with a few words and a short link.' },
   ];
   return all.filter((s) => s.keep || s.rows.length > 0).map((s) => ({
     ...s,

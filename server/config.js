@@ -42,6 +42,7 @@ export const DEFAULT_RATE_LIMIT_BACKOFF_MS = 2100;
  * @property {boolean} cache.freeze     CACHE_FREEZE=1: cache.only under the dark-period name; /health says 'frozen'
  * @property {import('./lib/twilio.js').SmsConfig} sms
  * @property {string} sessionsPath     SQLite file for the session log
+ * @property {string} publicBaseUrl    where the short links in a text point: PUBLIC_BASE_URL, https only
  * @property {string} defaultTimezone  IANA zone used to compute "tonight" / "this weekend"
  * @property {object} memory           returning-guest memory (server/lib/memory.js)
  * @property {string} memory.path      its own SQLite file, never the session log's
@@ -55,6 +56,7 @@ export function loadConfig(env = process.env) {
   return {
     port: int(env.PORT, 8787),
     toolSecret: env.CONCIERGE_TOOL_SECRET ?? '',
+    publicBaseUrl: /^https:\/\/[^\s/]+$/.test(env.PUBLIC_BASE_URL ?? '') ? env.PUBLIC_BASE_URL : 'https://concierge.southernsky.cloud',
     qloo: {
       baseUrl: env.QLOO_BASE_URL ?? 'https://hackathon.api.qloo.com',
       apiKey: env.QLOO_API_KEY ?? '',

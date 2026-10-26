@@ -129,7 +129,7 @@ export function SmsPreview({ itinerary }) {
         {itinerary.char_count} characters, {itinerary.segments} segment{itinerary.segments === 1 ? '' : 's'}, {itinerary.encoding}
         <span className="visually-hidden">, from compose_itinerary</span>
       </p>
-      {steps.length > 0 && <p><span className="chip chip-warning wrap">Shortened to fit 320 characters: {steps.join(', ')}</span></p>}
+      {steps.length > 0 && <p><span className="chip chip-warning wrap">Shortened to fit 480 characters: {steps.join(', ')}</span></p>}
     </div>
   );
 }

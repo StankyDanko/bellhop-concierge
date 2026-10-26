@@ -18,7 +18,7 @@ These change only with a commit, and the command shows the current value.
 
 | Number | Where it's said | Command |
 |---|---|---|
-| Text at most 320 characters | README, ARCHITECTURE, TESTING | `grep -n "MAX_CHARS =" server/lib/sms.js` |
+| Text at most 480 characters | README, ARCHITECTURE, TESTING | `grep -n "MAX_CHARS =" server/lib/sms.js` |
 | Three texts per number per hour | README, PRIVACY | `grep -n "SENDS_PER_HOUR =" server/tools/send-sms.js` |
 | Panels dark below five calls | README, ARCHITECTURE, PRIVACY | `grep -n "SESSION_GATE =" server/api/routes.js` |
 | Free-text taste capped at 80 characters | PRIVACY | `grep -n "MAX_FREE_TEXT =" server/lib/pii-guard.js` |

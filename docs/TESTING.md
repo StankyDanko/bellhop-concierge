@@ -56,7 +56,7 @@ The twenty-four criteria, in plain words:
 | C7 | With a plus-one whose tastes differ, not every pick is labelled "both" | everything "both" |
 | C8 | With kids along, no adults-only places | a bar or a brewery in the picks |
 | C9 | Cross-domain never hands back one of the guest's own inputs | the band recommended to its fan |
-| C10 | The text is 320 characters or fewer, plain characters, every line traceable to a tool | too long, or a line nobody returned |
+| C10 | The text is 480 characters or fewer, plain characters, every line traceable to a tool | too long, or a line nobody returned |
 | C11 | Each tool answers in under 2.5 s, the whole chain in under 6 s | a slow tool or chain |
 | C12 | Every outbound Qloo parameter passed the privacy allowlist | anything that didn't |
 | C13 | A second call from the same number hears a new opener and a new food choice | the same opener or pair twice running |

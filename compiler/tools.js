@@ -191,8 +191,8 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
               required: ['name'],
               properties: {
                 name: s('The name exactly as a tool returned it'),
-                why: s('The why field from the tool result'),
-                url: s('The url field from the tool result, if there was one'),
+                blurb: s('The blurb field from the tool result, copied exactly, if there was one. Leave out otherwise.'),
+                url: s('The url field from the tool result, if there was one. It is turned into a short link in the text.'),
                 when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
                 favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
                 pick_token: s('The pick_token field from the tool result, copied exactly'),

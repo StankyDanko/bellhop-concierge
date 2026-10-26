@@ -30,7 +30,7 @@ sequenceDiagram
     Tools->>TM: Discovery API, the inn's point and a time window
     Tools-->>Voice: events, each with a line to say as given
     Voice->>Tools: compose_itinerary (the picks and their tokens)
-    Tools-->>Voice: one text, 320 characters or fewer
+    Tools-->>Voice: one text, 480 characters or fewer
     Voice->>Tools: send_sms
     Tools->>Text: to the number that called, never another
     Voice->>Tools: log_session

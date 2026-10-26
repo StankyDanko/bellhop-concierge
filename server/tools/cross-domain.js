@@ -6,6 +6,7 @@ import { ENTITY_TYPES } from '../lib/qloo.js';
 import { buildWhy } from '../lib/why.js';
 import { InputError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
+import { kindBlurb } from '../lib/blurb.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
 import { isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
 
@@ -47,7 +48,10 @@ export async function crossDomain(body, { qloo, toolSecret }) {
   const results = entities.filter((e) => !inputIds.has(e.entity_id)).slice(0, take).map((e) => {
     if (origin) return shapePlace(e, taste.signals, origin);
     const why = buildWhy(e, taste.signals);
-    return { name: e.name, entity_id: e.entity_id, type: e.type, year: e.year, affinity: e.affinity,
+    // A link the text can carry: the title's own site when Qloo has one, else a web search for it.
+    const url = e.website?.startsWith('https://') ? e.website
+      : `https://www.google.com/search?q=${encodeURIComponent([e.name, kindBlurb({ type: e.type }) ?? ''].join(' ').trim())}`;
+    return { name: e.name, entity_id: e.entity_id, type: e.type, year: e.year, affinity: e.affinity, url, blurb: kindBlurb(e),
       why: why.why, why_trace: { basis: why.basis, drivers: why.drivers }, source: 'Qloo' };
   });
 

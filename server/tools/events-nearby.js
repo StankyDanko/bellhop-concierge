@@ -242,7 +242,7 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
     // this call is not "to come", so it is dropped here (a date with no time stays).
     events: events.filter((e) => !startedBefore(e, at)).slice(0, take).map((e) => {
       const w = eventWhen(e, at, tz);
-      const out = { ...e, when_label: w.when_label, tonight: w.tonight, say: sayLine(e, w.say_when) };
+      const out = { ...e, blurb: e.venue || null, when_label: w.when_label, tonight: w.tonight, say: sayLine(e, w.say_when) };
       return toolSecret ? { ...out, pick_token: signPick(toolSecret, out) } : out;
     }),
     calls: [call, ...tasteCalls],

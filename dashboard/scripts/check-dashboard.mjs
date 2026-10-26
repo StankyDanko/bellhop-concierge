@@ -132,7 +132,7 @@ try {
   check(a.includes('aria-label="A sample call"'), 'calls: sample call card shown, badged');
   check(a.includes('class="whypick"') && ta.includes('Why the Qloo line was picked') || ta.includes('Why a pick was made, for the same sample guest'), 'the text: V3 why-this-pick reused');
   check(ta.includes('matches your words') || !P.pick.places?.[0]?.why_trace?.drivers?.some((d) => d.source === 'tag_match'), 'V3 keeps "matches your words"');
-  check(ta.includes('at most 320 characters'), 'the text: 320 stated as at most');
+  check(ta.includes('at most 480 characters'), 'the text: 480 stated as at most');
   check(a.includes('Age and gender lean') && !ta.includes('Shown with example data until 5 calls'), 'more: demographics, no repeated floor sentence');
 
   // b. A dark inn: sample off, no calls.
@@ -183,7 +183,7 @@ try {
 
   // ---- 5. numbers: live count, clock, or a measured constant ----
   const MEASURED = new Map([
-    ['320', 'MEASUREMENTS.md: "Text at most 320 characters" (grep -n "MAX_CHARS =" server/lib/sms.js)'],
+    ['480', 'MEASUREMENTS.md: "Text at most 480 characters" (grep -n "MAX_CHARS =" server/lib/sms.js)'],
     ['20', 'MEASUREMENTS.md: "Twenty calls a day on the test line" (grep -n "daily_limit" compiler/compile.js)'],
     ['5', 'MEASUREMENTS.md: "Panels dark below five calls" (grep -n "SESSION_GATE =" server/api/routes.js)'],
     ['1', 'radius control and ranks'], ['2', 'radius control'], ['3', 'ranks and the three-station rail'],

@@ -591,7 +591,7 @@ async function sampleItinerary(ctx, config, lat, lng) {
   try {
     const s = await samplePicks(ctx, lat, lng);
     calls.push(...s.upstream);
-    if (s.places[0]) picks.push({ name: s.places[0].name, why: s.places[0].why, url: s.places[0].url, source: 'Qloo' });
+    if (s.places[0]) picks.push({ name: s.places[0].name, why: s.places[0].why, blurb: s.places[0].blurb ?? undefined, url: s.places[0].url, source: 'Qloo' });
   } catch (err) {
     if (!(err instanceof UpstreamError)) throw err;
   }
@@ -599,14 +599,14 @@ async function sampleItinerary(ctx, config, lat, lng) {
     const ev = await eventsNearby({ lat, lng, when: 'tonight', classification: 'music', take: 1, timezone: config.property.timezone }, ctx);
     calls.push(...upstreamSummary(ev.calls));
     const e = ev.events?.[0];
-    if (e) picks.push({ name: e.name, detail: e.when_label, why: e.venue ? `At ${e.venue}` : undefined, url: e.url ?? undefined, source: 'Ticketmaster' });
+    if (e) picks.push({ name: e.name, detail: e.when_label, why: e.venue ? `At ${e.venue}` : undefined, blurb: e.venue || undefined, url: e.url ?? undefined, source: 'Ticketmaster' });
   } catch (err) {
     if (!(err instanceof UpstreamError)) throw err;
   }
   const own = config.picks?.[0];
-  if (own) picks.push({ name: own.name, why: own.why, source: 'Owner' });
+  if (own) picks.push({ name: own.name, why: own.why, blurb: own.why, source: 'Owner' });
   if (!picks.length) return { picks: [], itinerary: null, upstream: calls, as_of: new Date().toISOString() };
-  const it = await composeItinerary({ picks: picks.map(({ source, ...p }) => p), guest: { party_size: 2, when: 'tonight' } });
+  const it = await composeItinerary({ picks: picks.map(({ source, ...p }) => p), guest: { when: 'tonight' } }, ctx);
   const { calls: _ignored, ...itinerary } = it;
   return { picks, itinerary, upstream: calls, as_of: new Date().toISOString() };
 }

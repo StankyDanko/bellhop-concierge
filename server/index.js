@@ -61,6 +61,7 @@ let app;
 try {
   app = createApp({
     secret: config.toolSecret,
+    publicBaseUrl: config.publicBaseUrl,
     qloo: createQlooClient({ config: config.qloo, cache, logger }),
     ticketmaster: createTicketmasterClient({ config: config.ticketmaster, cache, logger }),
     // No forecast in mock mode (offline) or with WEATHER=0; frozen mode serves the cached one.

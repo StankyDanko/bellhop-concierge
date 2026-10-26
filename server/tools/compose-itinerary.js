@@ -18,15 +18,19 @@
 // text drops last. It is kept on a verified event and nowhere else, so the model cannot use it
 // to pin a place.
 //
-// A pick's why is the line the tool returned, said plainly: a dish named as if it were a band
-// ("Fans of Spaghetti love it") becomes "A spot for spaghetti" (lib/why.js plainWhy).
+// A pick in the text is its name, a few words about the place (the blurb the tool returned,
+// built from the place's own data), and a link. The tool's why is for the agent's voice and is
+// not used here: the text never repeats the guest's tastes back (lib/sms.js). A blurb that reads
+// like a reason ("Fans of ...", "tagged ...") is dropped, never texted.
+//
+// Each pick's link becomes a short one on our own domain (lib/links.js) when the server has a
+// link store. A link that is not an acceptable https address is dropped and reported.
 //
 // The header follows the events, never the request: "Tonight" only when every event in the
 // plan is tonight. A plan with a Friday show says "Your plan" and lets each line carry its day.
 
 import { composeItinerary as compose } from '../lib/sms.js';
 import { verifyPick } from '../lib/pick-token.js';
-import { plainWhy } from '../lib/why.js';
 import { arr, oneOf, optNum } from '../lib/validate.js';
 
 /**
@@ -83,7 +87,16 @@ export function honorClaims(picks, secret) {
 /** True when a verified event in the plan is not tonight, so a "Tonight" header would be false. */
 const hasLaterEvent = (picks) => picks.some((p) => typeof p.when_label === 'string' && !/^Tonight\b/.test(p.when_label));
 
-/** @param {any} body @param {{ toolSecret?: string }} [ctx] */
+/** A blurb that explains a ranking or repeats a taste instead of describing the place. */
+const REASON_LIKE = /\b(fans? of|tagged|love it|loves it|you like|your taste|because you|matches? your)\b/i;
+
+/** @param {unknown} b @returns {string} */
+const cleanBlurb = (b) => {
+  const t = typeof b === 'string' ? b.trim() : '';
+  return t && t.length <= 60 && !REASON_LIKE.test(t) ? t : '';
+};
+
+/** @param {any} body @param {{ toolSecret?: string, links?: import('../lib/links.js').LinkStore|null }} [ctx] */
 export async function composeItinerary(body, ctx = {}) {
   const raw = arr(body?.picks, 'picks', { min: 1, max: 5 });
   const { picks, favorsDropped, whenDropped, tokensDropped } = honorClaims(raw, ctx.toolSecret);
@@ -94,10 +107,20 @@ export async function composeItinerary(body, ctx = {}) {
   };
   let intro = typeof body?.intro === 'string' ? body.intro.slice(0, 60) : undefined;
   if (intro === undefined && guest.when !== 'weekend' && hasLaterEvent(picks)) {
-    intro = `Your plan${Number.isInteger(guest.party_size) ? ` for ${guest.party_size}` : ''}:`;
+    intro = 'Your plan:';
   }
-  // A reason that names a dish as a band ("Fans of Spaghetti love it") is said plainly instead.
-  const plain = picks.map(({ when_label: _w, ...p }) => (typeof p.why === 'string' ? { ...p, why: plainWhy(p.why) } : p));
-  return { status: 'ok', ...compose({ picks: plain, guest, intro }), favors_dropped: favorsDropped, when_dropped: whenDropped,
+  let linksShortened = 0;
+  /** @type {string[]} */
+  const refused = [];
+  const plain = picks.map(({ when_label: _w, why: _why, ...p }) => {
+    const short = ctx.links && p.url ? ctx.links.shorten(p.url) : null;
+    if (short) linksShortened += 1;
+    else if (ctx.links && p.url) refused.push(String(p.url).slice(0, 80));
+    // A link the store refused (not https, too long) is dropped, not sent raw; with no store the link goes as given.
+    return { ...p, blurb: cleanBlurb(p.blurb), ...(ctx.links ? { url: short ?? undefined } : {}) };
+  });
+  const composed = compose({ picks: plain, guest, intro });
+  composed.rejected_links.push(...refused);
+  return { status: 'ok', ...composed, links_shortened: linksShortened, favors_dropped: favorsDropped, when_dropped: whenDropped,
     tokens_dropped: tokensDropped, calls: [] };
 }

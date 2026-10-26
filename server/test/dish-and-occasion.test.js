@@ -58,7 +58,7 @@ test('a dish that an older answer turned into an entity is never a "fans of" nam
   assert.doesNotMatch(only.why, /Fans of/);
 });
 
-test('compose_itinerary says a copied "fans of <dish>" reason plainly; artist reasons are untouched', async () => {
+test('plainWhy says a "fans of <dish>" reason plainly, and the text carries no reason at all', async () => {
   assert.equal(plainWhy('Fans of Spaghetti and Cheesecake love it'), 'A spot for spaghetti and cheesecake');
   assert.equal(plainWhy('Fans of Sturgill Simpson and Spaghetti love it; tagged Lively'), 'Fans of Sturgill Simpson love it; a spot for spaghetti; tagged Lively');
   assert.equal(plainWhy('Fans of Sturgill Simpson and Wes Anderson love it'), 'Fans of Sturgill Simpson and Wes Anderson love it');
@@ -68,9 +68,9 @@ test('compose_itinerary says a copied "fans of <dish>" reason plainly; artist re
     { name: 'Fx Noodle House', why: 'Fans of Spaghetti and Cheesecake love it' },
     { name: 'Fx Music Hall', why: 'Fans of Sturgill Simpson love it' },
   ] });
-  assert.match(json.body, /Fx Noodle House - A spot for spaghetti and cheesecake/);
-  assert.match(json.body, /Fx Music Hall - Fans of Sturgill Simpson love it/);
-  assert.doesNotMatch(json.body, /Fans of Spaghetti/);
+  // The text is names, a few words about the place, and links: no reason is ever printed.
+  assert.doesNotMatch(json.body, /Fans of|a spot for|love it/i);
+  assert.match(json.body, /1\. Fx Noodle House\n2\. Fx Music Hall\n/);
 });
 
 test('dish tastes for two: no reason names a dish as a band, and favors come from tag signals only', async () => {

@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { requireSecret } from './lib/auth.js';
 import { sessionIdFrom } from './lib/sessions.js';
+import { LinkStore, TOKEN_PATTERN } from './lib/links.js';
 import { withTrace } from './lib/upstream.js';
 import { runWithLocality } from './lib/locality.js';
 import { InputError, PiiViolation, RateLimited, UpstreamError } from './lib/errors.js';
@@ -66,16 +67,21 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {import('./lib/sessions.js').SessionStore} deps.sessions
  * @param {string} [deps.cacheMode]  'frozen' | 'only' | 'on' | 'off', reported by /health
  * @param {() => Date} [deps.now]
+ * @param {string} [deps.publicBaseUrl]  where the short links in a text point (PUBLIC_BASE_URL); the default is the hosted demo
  * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the innkeeper dashboard (server/api/)
  * @param {import('./lib/memory.js').GuestMemory|null} [deps.memory]  returning-guest memory; null switches it off
  * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
  * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
  * @param {(propertyId: string) => any} [deps.stays]  a property's config by id, for stay_info (lib/stay.js); defaults to the dashboard database, then config/examples
  */
-export function createApp({ secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng, stays }) {
+export const DEFAULT_PUBLIC_BASE_URL = 'https://concierge.southernsky.cloud';
+
+export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng, stays }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
-  const ctx = { qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory,
+  // Short links for the text live in the session database, beside the log, and expire after 30 days.
+  const links = sessions.db ? new LinkStore({ db: sessions.db, secret, baseUrl: publicBaseUrl, now }) : null;
+  const ctx = { links, qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory,
     stays: stays ?? stayLookup({ db: dashboard?.db ?? null }) };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
@@ -95,6 +101,15 @@ export function createApp({ secret, qloo, ticketmaster, weather = null, geocoder
   // Its own auth inside (a bad secret still answers the default lines, so the call connects).
   app.post(INIT_PATH, bodyLimit({ maxSize: INIT_BODY_MAX, onError: (c) => c.json({ ok: false, status: 'error', error: { code: 'body_too_large' } }, 413) }),
     conversationInit({ secret, memory, agents, timezone, now, logger, rng: initRng }));
+
+  // A short link from a text: public by design (the guest taps it), so no secret. It answers a
+  // redirect to the stored https target, or 404 for a token never issued or past its 30 days.
+  app.get('/go/:token', (c) => {
+    const token = c.req.param('token');
+    const url = links && TOKEN_PATTERN.test(token) ? links.resolve(token) : null;
+    if (!url) return c.text('This link has expired.', 404, { 'Cache-Control': 'no-store' });
+    return c.redirect(url, 302);
+  });
 
   app.use('/tools/*', requireSecret(secret));
   app.use('/tools/*', bodyLimit({ maxSize: 32 * 1024, onError: (c) => c.json({ ok: false, status: 'error', error: { code: 'body_too_large' } }, 413) }));

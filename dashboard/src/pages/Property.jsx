@@ -432,7 +432,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
       </Part>
 
       {/* 3. The text, where each line came from, and V3 for the Qloo line. */}
-      <Part id="text" title="The text a guest gets." line="One pick from Qloo, one listing from Ticketmaster, and one of your favorites, in at most 320 characters."
+      <Part id="text" title="The text a guest gets." line="One pick from Qloo, one listing from Ticketmaster, and one of your favorites, in at most 480 characters."
         aside={<SampleBadge>Sample guest</SampleBadge>}>
         <div className="grid grid-2">
           <div className="card">
@@ -448,7 +448,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
               </ol>
             )}
             <p className="dim text-note">
-              The same sample guest as the front page. Links are https only, and the whole text stays at most 320 characters long.
+              The same sample guest as the front page. Links are https only, and the whole text stays at most 480 characters long.
             </p>
             {itin.state === 'ok' && <p style={{ marginTop: 'var(--space-2)' }}><ViaChip upstream={itin.data.upstream} /></p>}
           </div>

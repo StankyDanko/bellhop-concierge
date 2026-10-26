@@ -65,11 +65,11 @@ test('send_sms refuses a non-E.164 to, an over-long body, and non-https links', 
     assert.equal(status, 400, to);
     assert.equal(json.error.code, 'invalid_input');
   }
-  for (const body of ['x'.repeat(321), 'see http://example.com now', 'see www.example.com', 'ftp://example.com/f', '   ']) {
+  for (const body of ['x'.repeat(481), 'see http://example.com now', 'see www.example.com', 'ftp://example.com/f', '   ']) {
     const { status } = await callTool(app, 'send_sms', { to: TO, body });
     assert.equal(status, 400, body.slice(0, 30));
   }
-  assert.equal((await callTool(app, 'send_sms', { to: TO, body: 'x'.repeat(320) })).status, 200);
+  assert.equal((await callTool(app, 'send_sms', { to: TO, body: 'x'.repeat(480) })).status, 200);
 });
 
 test('bodyProblem passes https links and plain text', () => {

@@ -304,11 +304,11 @@ describe('landing data', () => {
     assert.equal(r.json.places[0].source, 'Qloo');
   });
 
-  it('serves a sample itinerary under 320 characters', async () => {
+  it('serves a sample itinerary under 480 characters', async () => {
     const { req } = build();
     const r = await req('GET', '/api/properties/demo/itinerary-sample');
     assert.equal(r.status, 200);
-    assert.ok(r.json.itinerary.char_count <= 320);
+    assert.ok(r.json.itinerary.char_count <= 480);
     assert.ok(r.json.picks.length >= 1);
   });
 

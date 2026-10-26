@@ -2,6 +2,7 @@
 
 import { milesToMeters, toWktPoint } from '../lib/qloo.js';
 import { buildWhy } from '../lib/why.js';
+import { placeBlurb } from '../lib/blurb.js';
 import { UpstreamError } from '../lib/errors.js';
 
 /** Great-circle distance in miles. */
@@ -151,6 +152,8 @@ export function shapePlace(e, signals, origin) {
     rating: e.rating,
     distance_miles: e.location ? Math.round(haversineMiles(origin, e.location) * 10) / 10 : null,
     url: website ?? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`,
+    // A few words about the place from its own data, for the text. Never the guest's tastes.
+    blurb: placeBlurb(e),
     affinity: e.affinity,
     why: why.why,
     why_trace: { basis: why.basis, drivers },

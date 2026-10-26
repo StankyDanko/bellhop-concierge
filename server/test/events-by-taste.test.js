@@ -160,7 +160,7 @@ test('the token: each show is signed for its name and when_label, and compose_it
   assert.equal(composed.json.when_dropped, 0);
   assert.equal(composed.json.tokens_dropped, 0);
   assert.ok(composed.json.body.includes(hit.when_label));
-  assert.ok(composed.json.body.includes('per Qloo'));
+  assert.doesNotMatch(composed.json.body, /per Qloo|fans of/i, 'the text carries no reason');
   const forged = await callTool(app, 'compose_itinerary', { picks: [{ name: hit.name, when_label: 'Tonight 7pm', pick_token: hit.pick_token }] });
   assert.equal(forged.json.when_dropped, 1);
 });

@@ -24,7 +24,7 @@ The voice agent does not make up places. It reads back what these tools return.
   |    lib/ticketmaster.js   Discovery API client + normalization                      |
   |    lib/pii-guard.js      allowlist check on every outbound Qloo param              |
   |    lib/why.js            explainability -> "Fans of X and Y love it"               |
-  |    lib/sms.js            320-char GSM-7 composer with a fixed truncation order     |
+  |    lib/sms.js            480-char GSM-7 composer with a fixed truncation order     |
   |    lib/upstream.js       cache -> transport -> bounded retries -> log line         |
   |       |                     |                                                      |
   |       v                     v                                                      |
@@ -104,6 +104,7 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `GEOCODE_TIMEOUT_MS` | `2000` | one lookup per city, cached 30 days |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
+| `PUBLIC_BASE_URL` | `https://concierge.southernsky.cloud` | the origin of the short links in a text (`/go/<token>`); https, no path |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
 | `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | | revocable API key pair (preferred) |
 | `TWILIO_AUTH_TOKEN` | | used only when no key pair is set |
@@ -542,8 +543,8 @@ top pick never moves). `companion.promoted_shared_pick` names it.
   "meta": { "upstream": [ { "endpoint": "/v2/insights" }, { "endpoint": "/v2/insights" }, { "endpoint": "/v2/insights" } ] } }
 ```
 
-**The text message.** The ` (both)` marker is 7 characters and the 320 limit still holds. It
-gives way after the reason and link steps and before `drop_last_pick` in `TRUNCATION_ORDER`,
+**The text message.** The ` (both)` marker is 7 characters and the length limit still holds. It
+gives way after the blurb and link steps and before `drop_last_pick` in `TRUNCATION_ORDER`,
 so a marker never costs a pick. With no marker present the step is skipped.
 
 **Mock mode.** `fixtures/qloo.insights.companion.json` holds hand-made cases (never a recorded
@@ -698,52 +699,62 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 | (response) `favors_dropped` | number | picks whose `favors` was removed because no tool issued their `pick_token` for that name and value |
 | (response) `when_dropped` | number | events whose `when_label` was removed for the same reason |
 | (response) `tokens_dropped` | number | picks that sent a `pick_token` no tool issued for that pick (checked on every pick, including a name-only `cross_domain` result); the token is dropped and the pick is still sent by name. A real token carrying one forged `favors` or `when_label` is not counted here: that field is dropped and counted in its own counter |
-| `guest.party_size` | number | used in the header |
+| `guest.party_size` | number | accepted, never printed: the text states no head count |
 | `guest.when` | `tonight` or `weekend` | used in the header, except that a plan with a verified event that is not tonight says `Your plan` instead of `Tonight` |
 | `intro` | string, optional | replaces the default header |
 
 Rules:
 
-- At most **320 characters**, including the fixed footer
-  `Picks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.`
+- A pick is its **name, a few words about the place, and a link**: `O-Ku - rooftop sushi, West Midtown https://concierge.southernsky.cloud/go/AbCdEfGh`. The few words are the `blurb` the
+  tool returned, built from the place's own Qloo data (primary genre or cuisine, one feel word,
+  neighborhood). The text never carries the guest's tastes, never "fans of", never "tagged":
+  a pick's `why` is for the agent's voice and is ignored here, and a blurb that reads like a
+  reason is dropped.
+- At most **480 characters**, including the fixed footer
+  `via Qloo + Ticketmaster. Reply STOP to opt out.`
 - **https links only.** Other links are dropped from the text and listed in `rejected_links`.
+- **Short links.** Each link becomes `https://concierge.southernsky.cloud/go/<token>` (the host
+  is `PUBLIC_BASE_URL`). The token and its https target are stored in the session database for
+  30 days. `GET /go/<token>` answers `302` to the target, which is the place's own website when
+  Qloo returns one and otherwise a Google Maps search for its name and address. An unknown or
+  expired token answers `404`. An event keeps its Ticketmaster page as the target.
 - **GSM-7 only.** Smart quotes, dashes, and ellipses become ASCII, accents are stripped, and
   emoji are removed, so the message is billed in 160/153-character segments instead of
-  70/67. At 320 characters the message is at most 3 segments.
+  70/67. At 480 characters the message is at most 4 segments.
 - When the full message is too long, content gives way in this order, and the response
   lists each step taken in `truncation`:
   1. `drop_header`
-  2. `drop_last_why`: lower picks' reasons, lowest-ranked first, each one whole, never the top
+  2. `drop_last_blurb`: lower picks' blurbs, lowest-ranked first, each one whole, never the top
      pick's
   3. `drop_last_link`: lower picks' links, lowest-ranked first, each one whole, never the
      top pick's (a link is never shortened, so every composed body passes `send_sms`)
   4. `drop_marker`: the ` (both)` markers
   5. `drop_last_pick`: whole picks, lowest-ranked first, skipping an event flagged
      `requested`, which goes last; at least one pick stays
-  6. `drop_why`: the remaining pick's whole reason
+  6. `drop_blurb`: the remaining pick's whole blurb
   7. `drop_detail`
   8. `trim_name`
   9. `drop_link`: last, because a shortened link is a broken link
 
-  Each step runs only while the text is still over 320, so every pick the guest heard stays
+  Each step runs only while the text is still over 480, so every pick the guest heard stays
   as long as its words and links can make room.
 
-  A reason is never trimmed. It is either in the text whole or not at all, because a cut
-  reason ("Strong match for") reads as a broken sentence and can change its meaning.
+  A blurb is never trimmed. It is either in the text whole or not at all, because a cut
+  phrase reads as a broken sentence and can change its meaning.
 
 ```json
 // request
 { "picks": [
-    { "name": "Lemongrass Lantern", "why": "Fans of Sturgill Simpson love it; tagged Thai",
+    { "name": "Lemongrass Lantern", "blurb": "thai restaurant, Old Town",
       "url": "https://example.com/lemongrass-lantern" },
-    { "name": "Hollow Pines String Band", "when_label": "Tonight 8pm", "pick_token": "<from events_nearby>",
+    { "name": "Hollow Pines String Band", "blurb": "The Lyric Annex", "when_label": "Tonight 8pm", "pick_token": "<from events_nearby>",
       "url": "https://example.com/events/hollow-pines" } ],
-  "guest": { "party_size": 2, "when": "tonight" } }
+  "guest": { "when": "tonight" } }
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Bellhop Concierge: Tonight for 2:\n1. Lemongrass Lantern - Fans of Sturgill Simpson love it; tagged Thai https://example.com/lemongrass-lantern\n2. Hollow Pines String Band Tonight 8pm https://example.com/events/hollow-pines\nPicks from Qloo taste graph + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 289, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "body": "Bellhop Concierge: Tonight:\n1. Lemongrass Lantern - thai restaurant, Old Town https://concierge.southernsky.cloud/go/fvLJZF1a\n2. Hollow Pines String Band Tonight 8pm - The Lyric Annex https://concierge.southernsky.cloud/go/vb_npvHn\nvia Qloo + Ticketmaster. Reply STOP to opt out.",
+  "char_count": 279, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
   "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "tokens_dropped": 0, "meta": { "upstream": [] } }
 ```
 
@@ -792,7 +803,7 @@ the model cannot choose the recipient.
 | Field | Type | Notes |
 |---|---|---|
 | `to` | E.164 string | bound to `system__caller_id` |
-| `body` | string | at most 320 characters, every link https; sent exactly as given, nothing appended |
+| `body` | string | at most 480 characters, every link https; sent exactly as given, nothing appended |
 
 Answers `{ ok: true, sent: true, sid, status }` only after Twilio returned 2xx with a message sid.
 Any other outcome is a 502 with `sent: false` and a `say` line, so the agent never claims a text
@@ -804,7 +815,7 @@ message sid and Twilio's status, never the number or the body.
 While texting is in test mode (`SMS_MOCK=1`), `send_sms` never answers `sent: true`. It answers
 `{ sent: false, status: "test_mode", test_mode: true, say }`, and the say line tells the guest
 texting is in test mode and the picks come again by voice. Every check a real send gets (E.164,
-320 characters, https links, one text per call, three per number per hour) still runs. For
+480 characters, https links, one text per call, three per number per hour) still runs. For
 returning-guest memory and the battery, a test-mode send counts as texted, so the demo behaves
 as it will once texts go out.
 

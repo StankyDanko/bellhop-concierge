@@ -106,7 +106,16 @@ function entitiesOf(body) {
  * @property {string|null} website
  * @property {number|null} popularity
  * @property {number|null} year
+ * @property {string|null} genre         the place's primary genre name ("Cocktail bar"), from properties.primary_genre
+ * @property {string|null} neighborhood  its neighborhood name when Qloo has one ("Midtown")
  */
+
+/** A short name from a string or an object with a name; null for anything else (the akas lists are never read). */
+function nameOf(v) {
+  const s = typeof v === 'string' ? v : typeof v?.name === 'string' ? v.name : '';
+  const t = s.trim();
+  return t && t.length <= 60 ? t : null;
+}
 
 /** @returns {QlooEntity} */
 export function normalizeEntity(e) {
@@ -133,6 +142,8 @@ export function normalizeEntity(e) {
     website: typeof p.website === 'string' ? p.website : null,
     popularity: num(e?.popularity),
     year: num(p.release_year ?? p.publication_year),
+    genre: nameOf(p.primary_genre),
+    neighborhood: nameOf(p.neighborhood) ?? nameOf(p.locality?.neighborhood),
   };
 }
 

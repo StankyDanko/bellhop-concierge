@@ -1,7 +1,7 @@
 // The truncation order, one step at a time. A long text keeps every pick the guest heard for
-// as long as it can: lower reasons go first, then lower links (each whole, never shortened),
+// as long as it can: lower blurbs go first, then lower links (each whole, never shortened),
 // then the (both) markers, and only then a whole pick, with an event the guest asked for by
-// name last. The remaining pick then loses its reason, detail, name length, and link.
+// name last. The remaining pick then loses its blurb, detail, name length, and link.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { honorClaims } from '../tools/compose-itinerary.js';
 import { signPick } from '../lib/pick-token.js';
 import { callTool, makeApp, PROPERTY, SECRET } from './helpers.js';
 
-const WHY = 'Fans of Thai food love it'; // " - " + WHY is 28 characters
+const WHY = 'Thai spot, Five Points St'; // a blurb; " - " + it is 28 characters
 const URL_OF = (n) => `https://example.com/p${n}`; // " " + URL is 23 characters
 const LINK = 23;
 
@@ -26,23 +26,23 @@ const lines = (body) => body.split('\n').slice(1, -1);
 /** Applied steps, each named once, in the order they first ran. */
 const steps = (r) => r.truncation.filter((s, i) => r.truncation.indexOf(s) === i && s !== 'drop_header');
 
-test('the documented order is reasons, links, markers, picks, then the last pick', () => {
+test('the documented order is blurbs, links, markers, picks, then the last pick', () => {
   assert.deepEqual(TRUNCATION_ORDER, [
-    'drop_header', 'drop_last_why', 'drop_last_link', 'drop_marker', 'drop_last_pick',
-    'drop_why', 'drop_detail', 'trim_name', 'drop_link',
+    'drop_header', 'drop_last_blurb', 'drop_last_link', 'drop_marker', 'drop_last_pick',
+    'drop_blurb', 'drop_detail', 'trim_name', 'drop_link',
   ]);
   assert.ok(!TRUNCATION_ORDER.includes('drop_scheme'), 'a link is never shortened');
 });
 
-test('step 2: lower reasons go whole, lowest-ranked first, and the top reason stays', () => {
-  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, why: WHY }));
+test('step 2: lower blurbs go whole, lowest-ranked first, and the top blurb stays', () => {
+  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, blurb: WHY }));
   const one = composeItinerary({ picks: overBy(picks, 10), intro: '' });
-  assert.deepEqual(steps(one), ['drop_last_why']);
-  assert.equal(one.truncation.filter((s) => s === 'drop_last_why').length, 1);
-  assert.match(one.body, /\n2\. P2 - Fans of Thai food love it\n3\. P3\n/);
+  assert.deepEqual(steps(one), ['drop_last_blurb']);
+  assert.equal(one.truncation.filter((s) => s === 'drop_last_blurb').length, 1);
+  assert.match(one.body, /\n2\. P2 - Thai spot, Five Points St\n3\. P3\n/);
   const two = composeItinerary({ picks: overBy(picks, 40), intro: '' });
-  assert.equal(two.truncation.filter((s) => s === 'drop_last_why').length, 2);
-  assert.match(two.body, /^Bellhop Concierge:\n1\. P1x+ - Fans of Thai food love it\n2\. P2\n3\. P3\n/);
+  assert.equal(two.truncation.filter((s) => s === 'drop_last_blurb').length, 2);
+  assert.match(two.body, /^Bellhop Concierge:\n1\. P1x+ - Thai spot, Five Points St\n2\. P2\n3\. P3\n/);
   assert.equal(two.picks_included, 3);
 });
 
@@ -59,13 +59,13 @@ test('step 3: lower links go whole, lowest-ranked first, and the top link stays 
   assert.equal(two.picks_included, 3);
 });
 
-test('steps 2 and 3: reasons go before links, and no link loses its scheme', () => {
-  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, why: WHY, url: URL_OF(n) }));
+test('steps 2 and 3: blurbs go before links, and no link loses its scheme', () => {
+  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, blurb: WHY, url: URL_OF(n) }));
   const r = composeItinerary({ picks: overBy(picks, 56 + 5), intro: '' });
-  assert.deepEqual(steps(r), ['drop_last_why', 'drop_last_link']);
+  assert.deepEqual(steps(r), ['drop_last_blurb', 'drop_last_link']);
   assert.ok(r.char_count <= MAX_CHARS);
   assert.equal(r.picks_included, 3);
-  assert.match(r.body, / - Fans of Thai food love it https:\/\/example\.com\/p1\n/, 'top reason and link stay');
+  assert.match(r.body, / - Thai spot, Five Points St https:\/\/example\.com\/p1\n/, 'top blurb and link stay');
   assert.match(r.body, /\n2\. P2 https:\/\/example\.com\/p2\n3\. P3\n/);
   assert.doesNotMatch(r.body, /(^|\s)example\.com/, 'every link in the body is whole');
 });
@@ -82,26 +82,26 @@ test('step 4: the (both) marker goes after the links and before any pick', () =>
 });
 
 test('step 5: a whole pick goes only after all that, lowest-ranked first', () => {
-  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, why: WHY, url: URL_OF(n) }));
+  const picks = [1, 2, 3].map((n) => ({ name: `P${n}`, blurb: WHY, url: URL_OF(n) }));
   const r = composeItinerary({ picks: overBy(picks, 56 + 2 * LINK + 5), intro: '' });
-  assert.deepEqual(steps(r), ['drop_last_why', 'drop_last_link', 'drop_last_pick']);
+  assert.deepEqual(steps(r), ['drop_last_blurb', 'drop_last_link', 'drop_last_pick']);
   assert.equal(r.picks_included, 2);
   assert.match(r.body, /\n2\. P2\n/);
-  assert.match(r.body, / - Fans of Thai food love it https:\/\/example\.com\/p1\n/);
+  assert.match(r.body, / - Thai spot, Five Points St https:\/\/example\.com\/p1\n/);
 });
 
-test('steps 6 to 8: the last pick loses its reason, then detail, then name length, link kept', () => {
-  const pick = { name: 'Lemongrass Lantern', detail: 'Fri 8pm', why: WHY, url: URL_OF(1) };
-  // 28 for the reason, 8 for the detail, then 5 more: only a shorter name frees it.
+test('steps 6 to 8: the last pick loses its blurb, then detail, then name length, link kept', () => {
+  const pick = { name: 'Lemongrass Lantern', detail: 'Fri 8pm', blurb: WHY, url: URL_OF(1) };
+  // 28 for the blurb, 8 for the detail, then 5 more: only a shorter name frees it.
   const r = composeItinerary({ picks: overBy([pick], 28 + 8 + 5), intro: '' });
-  assert.deepEqual(steps(r), ['drop_why', 'drop_detail', 'trim_name']);
+  assert.deepEqual(steps(r), ['drop_blurb', 'drop_detail', 'trim_name']);
   assert.equal(r.picks_included, 1);
   assert.ok(r.char_count <= MAX_CHARS);
   assert.match(r.body, /^Bellhop Concierge:\nLemongrass Lanternx+ https:\/\/example\.com\/p1\n/);
 });
 
 test('step 9 waits behind a shorter name: a very long name still keeps the whole link', () => {
-  const r = composeItinerary({ picks: [{ name: 'x'.repeat(300), url: URL_OF(1) }], intro: '' });
+  const r = composeItinerary({ picks: [{ name: 'x'.repeat(500), url: URL_OF(1) }], intro: '' });
   assert.equal(r.truncation.at(-1), 'trim_name');
   assert.ok(!r.truncation.includes('drop_link'));
   assert.ok(r.body.includes(` ${URL_OF(1)}\n`));
@@ -110,9 +110,9 @@ test('step 9 waits behind a shorter name: a very long name still keeps the whole
 
 test('step 5: an event the guest asked for by name is the last pick to go', () => {
   const picks = [
-    { name: 'P1', why: WHY, url: URL_OF(1) },
-    { name: 'P2', why: WHY, url: URL_OF(2) },
-    { name: 'P3', why: WHY, url: URL_OF(3) },
+    { name: 'P1', blurb: WHY, url: URL_OF(1) },
+    { name: 'P2', blurb: WHY, url: URL_OF(2) },
+    { name: 'P3', blurb: WHY, url: URL_OF(3) },
     { name: 'Hollow Pines String Band', detail: 'Fri 8pm', url: URL_OF(4), requested: true },
   ];
   // Words and links free 56 + 3 x 23; 8 more means picks must go. P3 and P2 go, the show stays.
@@ -132,17 +132,17 @@ test('step 5: an event the guest asked for by name is the last pick to go', () =
 
 test('the round-two shapes keep every pick: a dinner and a show, and three places with a maps link', () => {
   const show = composeItinerary({ picks: [
-    { name: 'Lemongrass Lantern', why: 'Fans of Thai food and Sturgill Simpson love it', url: 'https://example.com/lemongrass-lantern' },
-    { name: 'The Low Lantern Listening Room', why: 'Fans of Sturgill Simpson and Wes Anderson love it', url: 'https://example.com/low-lantern' },
-    { name: 'Hollow Pines String Band', detail: 'Fri 8pm', why: 'Friday at eight, The Lyric Annex, Hollow Pines String Band.', url: 'https://example.com/events/hollow-pines', requested: true },
+    { name: 'Lemongrass Lantern', blurb: 'Thai restaurant, Five Points', url: 'https://example.com/lemongrass-lantern' },
+    { name: 'The Low Lantern Listening Room', blurb: 'listening room, Old Town', url: 'https://example.com/low-lantern' },
+    { name: 'Hollow Pines String Band', detail: 'Fri 8pm', blurb: 'The Lyric Annex', url: 'https://example.com/events/hollow-pines', requested: true },
   ], guest: { party_size: 2, when: 'tonight' }, intro: 'Your plan for 2:' });
   assert.equal(show.picks_included, 3);
   assert.match(show.body, /3\. Hollow Pines String Band Fri 8pm/);
   assert.equal(show.truncation.includes('drop_last_pick'), false);
   const three = composeItinerary({ picks: [
-    { name: 'Lemongrass Lantern', why: 'Fans of Thai food love it', url: 'https://example.com/lemongrass-lantern' },
-    { name: 'The Low Lantern Listening Room', why: 'Strong match for your overall taste', url: 'https://example.com/low-lantern' },
-    { name: 'Pastel Diner & Pie', why: 'Strong match for your overall taste', url: 'https://www.google.com/maps/search/?api=1&query=Pastel%20Diner%20%26%20Pie%209%20Sample%20Sq' },
+    { name: 'Lemongrass Lantern', blurb: 'Thai spot, Five Points St', url: 'https://example.com/lemongrass-lantern' },
+    { name: 'The Low Lantern Listening Room', blurb: 'diner, Five Points', url: 'https://example.com/low-lantern' },
+    { name: 'Pastel Diner & Pie', blurb: 'diner, Five Points', url: 'https://www.google.com/maps/search/?api=1&query=Pastel%20Diner%20%26%20Pie%209%20Sample%20Sq' },
   ], guest: { party_size: 2, when: 'tonight' } });
   assert.equal(three.picks_included, 3);
   assert.ok(three.char_count <= MAX_CHARS);
@@ -160,7 +160,7 @@ test('requested is kept only on an event whose pick_token verifies', () => {
   assert.deepEqual(picks.map((p) => p.requested === true), [false, true, false, false]);
 });
 
-test('over HTTP: four picks with a requested event, the event survives a long text', async () => {
+test('over HTTP: four picks with a requested event, every pick fits, each with a short link', async () => {
   const { app } = makeApp();
   const thai = { id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' };
   const sturgill = { id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' };
@@ -168,7 +168,7 @@ test('over HTTP: four picks with a requested event, the event survives a long te
   const events = (await callTool(app, 'events_nearby', { ...PROPERTY, when: 'weekend' })).json.events;
   const show = events.at(-1);
   const picks = [
-    ...places.map((p) => ({ name: p.name, why: p.why, url: p.url, pick_token: p.pick_token })),
+    ...places.map((p) => ({ name: p.name, blurb: p.blurb, url: p.url, pick_token: p.pick_token })),
     { name: show.name, url: show.url, when_label: show.when_label, pick_token: show.pick_token, requested: true },
   ];
   assert.equal(picks.length, 4);
@@ -176,5 +176,6 @@ test('over HTTP: four picks with a requested event, the event survives a long te
   assert.equal(status, 200);
   assert.ok(json.char_count <= MAX_CHARS);
   assert.ok(json.body.includes(`${show.name} ${show.when_label}`), json.body);
-  assert.ok(json.truncation.length > 0, 'the four-pick text was long enough to truncate');
+  assert.equal(json.picks_included, 4, 'short links and blurbs leave room for all four');
+  assert.equal((json.body.match(/https:\/\/concierge\.southernsky\.cloud\/go\/[A-Za-z0-9_-]{8}/g) ?? []).length, picks.filter((p) => p.url).length, json.body);
 });

@@ -205,7 +205,7 @@ test('compose_itinerary: the shared pick carries the (both) marker', async () =>
   const { app } = makeApp();
   // Kids leaves a three-place shortlist where Riverbend sits in both top halves.
   const recs = (await callTool(app, 'recommend_nearby', { taste: [STURGILL, THAI], companion_taste: [KACEY], ...PROPERTY, take: 2, constraints: { kids: true } })).json.places;
-  const picks = recs.map((p) => ({ name: p.name, why: p.why, url: p.url, favors: p.favors, pick_token: p.pick_token }));
+  const picks = recs.map((p) => ({ name: p.name, blurb: p.blurb, url: p.url, favors: p.favors, pick_token: p.pick_token }));
   const { json } = await callTool(app, 'compose_itinerary', { picks, guest: { party_size: 2, when: 'tonight' } });
   assert.equal(json.favors_dropped, 0);
   assert.ok(json.char_count <= MAX_CHARS);
@@ -221,13 +221,13 @@ test('sms: the marker fits when there is room and costs nothing when absent', ()
   assert.ok(!plain.body.includes(BOTH_MARKER));
 });
 
-const longPick = (n, favors) => ({ name: `Place Number ${n}`, why: 'Fans of Sturgill Simpson and Wes Anderson love it', url: `https://example.com/p${n}`, favors });
+const longPick = (n, favors) => ({ name: `Place Number ${n}`, blurb: 'rooftop sushi, West Midtown', url: `https://example.com/p${n}`, favors });
 
 test('sms: drop_marker sits after the link steps and before drop_last_pick in the documented order', () => {
   const at = (s) => TRUNCATION_ORDER.indexOf(s);
   assert.ok(at('drop_marker') > at('drop_last_link'));
   assert.ok(at('drop_marker') < at('drop_last_pick'));
-  assert.ok(at('drop_marker') < at('drop_why'));
+  assert.ok(at('drop_marker') < at('drop_blurb'));
 });
 
 test('sms: a marker is never cut for nothing; dropping lower picks keeps it', () => {
@@ -251,16 +251,16 @@ test('sms: when the marker alone is the overflow, it goes before a pick does', (
   assert.ok(r.char_count <= MAX_CHARS);
 });
 
-test('sms: a single marked pick that cannot fit loses the marker before its why', () => {
-  const r = composeItinerary({ picks: [{ ...longPick(1, 'both'), name: 'N'.repeat(250) }] });
+test('sms: a single marked pick that cannot fit loses the marker before its blurb', () => {
+  const r = composeItinerary({ picks: [{ ...longPick(1, 'both'), name: 'N'.repeat(430) }] });
   assert.ok(r.char_count <= MAX_CHARS);
   const seen = r.truncation;
   assert.ok(seen.includes('drop_marker'));
-  if (seen.includes('drop_why')) assert.ok(seen.indexOf('drop_marker') < seen.indexOf('drop_why'));
+  if (seen.includes('drop_blurb')) assert.ok(seen.indexOf('drop_marker') < seen.indexOf('drop_blurb'));
 });
 
 test('sms: without a marker, drop_marker never appears in truncation', () => {
-  const pick = (n) => ({ name: `Place Number ${n}`, why: 'Fans of Sturgill Simpson and Wes Anderson love it', url: `https://example.com/p${n}` });
+  const pick = (n) => ({ name: `Place Number ${n}`, blurb: 'rooftop sushi, West Midtown', url: `https://example.com/p${n}` });
   const r = composeItinerary({ picks: [1, 2, 3, 4, 5].map(pick) });
   assert.equal(r.truncation.includes('drop_marker'), false);
 });
