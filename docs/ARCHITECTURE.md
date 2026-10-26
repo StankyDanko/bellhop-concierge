@@ -53,7 +53,7 @@ guest ──> voice agent ──> POST /tools/<name>, header X-Concierge-Secret
                                    (the innkeeper dashboard, never the call)
 ```
 
-## The ten tools
+## The eleven tools
 
 Counted from the server: `curl -s localhost:8787/health` lists them under `tools` (`TOOLS` and
 `MEMORY_TOOLS` in `server/app.js`). All are `POST /tools/<name>` with a JSON body and the shared-secret header. Full contracts,
@@ -70,6 +70,7 @@ request and response shapes included, are in [`server/README.md`](../server/READ
 | `log_session` | none | stores the session row and its call trace |
 | `area_insights` | Qloo heatmap, demographics, compare | the innkeeper's panels, aggregate only |
 | `forget_guest` | none | erases the caller's returning-guest memory at once; it has nothing to erase unless memory is on |
+| `remember_guest` | none | notes the first name a caller gives, or whether a caller is still the person remembered on that phone; it answers the same either way and stores nothing unless memory is on |
 | `stay_info` | none | one line about the stay, by topic, from the property's stay sheet; never a wifi password or a door code, and compiled only for a property that has a sheet |
 
 ## The pieces that keep it honest

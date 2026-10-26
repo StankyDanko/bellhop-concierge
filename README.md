@@ -75,7 +75,7 @@ whatever Qloo picked; weather changes only their order. If the forecast is unava
 picks go out exactly as Qloo ranked them. Battery criterion C17 checks the sets match.
 (`grep -n "RAIN_THRESHOLD_PCT\|OUTDOOR_TAG" server/lib/weather.js`)
 
-The picture, the ten tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The picture, the eleven tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Works anywhere in the US
 
@@ -203,7 +203,7 @@ Qloo. What each layer checks and how to read a scorecard: [docs/TESTING.md](docs
 
 | Path | What it is |
 |---|---|
-| [`server/`](server/README.md) | The tool server the voice line calls: ten tools over Qloo, Ticketmaster, and Twilio, a PII guard, a private cache, the dashboard API, and the battery. |
+| [`server/`](server/README.md) | The tool server the voice line calls: eleven tools over Qloo, Ticketmaster, and Twilio, a PII guard, a private cache, the dashboard API, and the battery. |
 | `dashboard/` | The landing page, the builder, the innkeeper dashboard, and the printable brief (React, Vite). |
 | [`compiler/`](compiler/README.md) | Turns an innkeeper's answers and a persona into a voice agent definition, then lints it. |
 | [`template/`](template/concierge.md) | The concierge prompt, with its locked rules. |

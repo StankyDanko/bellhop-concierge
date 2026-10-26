@@ -269,6 +269,18 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
         },
       },
     },
+    remember_guest: {
+      description: 'Notes who is on the phone, so the next call from this number can greet them by name. Call it once near the start, silently: with first_name when a caller gives a first name, with same_guest true when they say they are the person you remembered, or with same_guest false and their first_name when they are someone else. It returns nothing to say.',
+      timeout: 8,
+      body: {
+        type: 'object',
+        required: [],
+        properties: {
+          first_name: s('The first name the caller gave, only a first name, in their words. Leave it out if they gave none.'),
+          same_guest: b('Only on a call where your first message asked whether you are talking to the person you remembered: true if they said yes, false if they are someone else. Leave it out otherwise.'),
+        },
+      },
+    },
     forget_guest: {
       description: 'Deletes what the concierge remembers about this caller. Call it at once when the guest asks you to forget them, then say its say line. It needs nothing from you.',
       timeout: 8,
@@ -291,7 +303,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
  * @param {string} p.persona      persona id for the session log
  * @param {string} p.baseUrl      where the tool server is reachable, https in production
  * @param {string} p.secretId     ElevenLabs workspace secret id holding CONCIERGE_TOOL_SECRET
- * @param {boolean} [p.memory]    include the returning-guest memory tools (forget_guest)
+ * @param {boolean} [p.memory]    include the returning-guest memory tools (remember_guest, forget_guest)
  * @param {boolean} [p.roaming]   a road line: place tools take a locality, no coordinates are compiled
  * @returns {Array<{ tool_config: object }>}
  */

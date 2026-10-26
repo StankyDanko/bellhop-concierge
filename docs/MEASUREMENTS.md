@@ -23,7 +23,7 @@ These change only with a commit, and the command shows the current value.
 | Panels dark below five calls | README, ARCHITECTURE, PRIVACY | `grep -n "SESSION_GATE =" server/api/routes.js` |
 | Free-text taste capped at 80 characters | PRIVACY | `grep -n "MAX_FREE_TEXT =" server/lib/pii-guard.js` |
 | At most eight taste ids per place call | LEARNED | `grep -n "TASTE_MAX =" server/lib/validate.js` |
-| Ten tools | README | `curl -s localhost:8787/health` lists them under `tools` (nine in `TOOLS`, `stay_info` the newest, plus `forget_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows ten tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
+| Eleven tools | README | `curl -s localhost:8787/health` lists them under `tools` (nine in `TOOLS`, plus `forget_guest` and `remember_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows eleven tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
 | One text per call | privacy page (dashboard/src/legal-content.js) | `grep -n "ONE_PER_CALL_SAY\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
 | Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |

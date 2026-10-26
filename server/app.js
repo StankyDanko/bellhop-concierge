@@ -19,6 +19,7 @@ import { resolveTaste } from './tools/resolve-taste.js';
 import { logSession } from './tools/log-session.js';
 import { createSendLimiter, sendSms } from './tools/send-sms.js';
 import { forgetGuest } from './tools/forget-guest.js';
+import { rememberGuest } from './tools/remember-guest.js';
 import { stayInfo } from './tools/stay-info.js';
 import { stayLookup } from './lib/stay.js';
 import { observeTool, redactTrace } from './lib/memory.js';
@@ -45,6 +46,7 @@ export const TOOLS = {
  */
 export const MEMORY_TOOLS = {
   forget_guest: forgetGuest,
+  remember_guest: rememberGuest,
 };
 
 /** A line the agent can say when a lookup fails, instead of inventing an answer. */

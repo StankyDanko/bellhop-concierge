@@ -1,8 +1,11 @@
 // Returning-guest memory (better-sqlite3), in its own file that the dashboard is never handed.
 //
 // What a caller told the concierge on one call, kept for a few days so the next call from the
-// same number can pick up where it left off: the tastes that resolved, the places that were
-// texted, the party and stay length, and which opening lines were already heard.
+// same number can pick up where it left off: the first name they gave, how many times that
+// person has called, whether they already heard that every call is recorded, the tastes that
+// resolved, the places that were suggested and texted, the party and stay length, and which
+// opening lines were already heard. Expiry rolls from the last call, so a guest who keeps
+// calling through a trip is never dropped in the middle of it.
 //
 // Keyed by a second keyed hash of the caller's number with its own secret (GUEST_MEMORY_SECRET)
 // and a domain prefix, so a memory row and a session-log row can never be joined by hash, even
@@ -47,7 +50,7 @@ export const MAX_LINKS = 2000;
 export const MAX_SIGNALS = 12;
 /** Compositions kept per call, so a send can match an earlier one. */
 const COMPOSITIONS_KEEP = 4;
-/** Variety ids remembered per kind (opener, pair, bet). */
+/** Variety ids remembered per kind (opener, pair). */
 const VARIETY_KEEP = 2;
 /** What forget_guest says, whether or not anything was stored. */
 export const FORGET_SAY = "Done. I've cleared what I remembered from your calls.";
@@ -67,6 +70,7 @@ export const MEMORY_SCHEMA = `
     texted_json    TEXT NOT NULL DEFAULT '[]',
     party_json     TEXT NOT NULL DEFAULT '{}',
     variety_json   TEXT NOT NULL DEFAULT '{}',
+    guest_json     TEXT NOT NULL DEFAULT '{}',
     calls_count    INTEGER NOT NULL DEFAULT 0,
     first_call_at  TEXT NOT NULL,
     last_call_at   TEXT NOT NULL,
@@ -87,6 +91,15 @@ export const MEMORY_SCHEMA = `
   CREATE INDEX IF NOT EXISTS call_links_expires ON call_links (expires_at);
   CREATE INDEX IF NOT EXISTS call_links_caller ON call_links (caller_hash);
 `;
+
+/** Columns added after the first schema, with their definitions, for a file created before them. */
+const ADDED_COLUMNS = Object.freeze([['guest_memory', 'guest_json', "TEXT NOT NULL DEFAULT '{}'"]]);
+/** Longest first name kept, in characters. */
+export const NAME_MAX = 24;
+/** Places and tastes kept from the last call for the next call's one callback. */
+export const LAST_KEEP = 3;
+/** Longest last_call_hook, in characters. */
+export const HOOK_MAX = 110;
 
 /** The caller number, or null when withheld, unfilled ({{system__caller_id}}), or malformed. */
 export function callerFrom(v) {
@@ -136,6 +149,41 @@ export function expiresAt(lastCall, firstCall, nights, ttlDays = TTL_DEFAULT_DAY
   const days = Math.min(TTL_CEILING_DAYS, n === null ? ttlDays : n + 1);
   const t = Math.min(lastCall.getTime() + days * DAY_MS, firstCall.getTime() + ABSOLUTE_LIFE_DAYS * DAY_MS);
   return new Date(t);
+}
+
+/**
+ * A first name the guest said, safe to speak back on a later call: letters, apostrophes and
+ * spaces only, at most two words and NAME_MAX characters. Empty string when nothing is left, so
+ * a stray phrase, a number, or anything shaped like an instruction never becomes a name.
+ * @param {unknown} s
+ */
+export function cleanName(s) {
+  if (typeof s !== 'string') return '';
+  const t = s.normalize('NFKC').replace(/[^\p{L}' ]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const words = t.split(' ').filter(Boolean);
+  if (!words.length || words.length > 2 || t.length > NAME_MAX) return '';
+  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+const andList = (items) => (items.length <= 2 ? items.join(' and ') : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`);
+
+/**
+ * One thing from the last call for the concierge to ask or riff about, written as a fact about
+ * that call, never as a line to read out: what was texted, else what was suggested, else what
+ * the guest talked about. 'none' when the last call left nothing.
+ * @param {{ texted?: string[], offered?: string[], tastes?: string[] }} [last]
+ */
+export function lastCallHook(last = {}) {
+  const fit = (lead, items) => {
+    const words = (items ?? []).map(cleanWords).filter(Boolean).slice(0, LAST_KEEP);
+    while (words.length) {
+      const line = `${lead} ${andList(words)}`;
+      if (line.length <= HOOK_MAX) return line;
+      words.pop();
+    }
+    return '';
+  };
+  return fit('you texted them', last.texted) || fit('you suggested', last.offered) || fit('they talked about', last.tastes) || 'none';
 }
 
 const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
@@ -205,6 +253,20 @@ function fitRow(parts) {
   return parts;
 }
 
+/** The guest column, with only known fields and their caps. */
+function guestPart(g = {}) {
+  const out = {};
+  const name = cleanName(g.name);
+  if (name) out.name = name;
+  if (Number.isInteger(g.person_calls) && g.person_calls > 0) out.person_calls = g.person_calls;
+  if (g.recording_noted === true) out.recording_noted = true;
+  if (g.last && typeof g.last === 'object') {
+    const keep = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string').map((x) => x.slice(0, 120)).slice(0, LAST_KEEP) : []);
+    out.last = { texted: keep(g.last.texted), offered: keep(g.last.offered), tastes: keep(g.last.tastes) };
+  }
+  return out;
+}
+
 export class GuestMemory {
   /**
    * @param {{ path: string, secret: string, now?: () => Date, ttlDays?: number, logger?: (o: object) => void }} opts
@@ -220,6 +282,10 @@ export class GuestMemory {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(MEMORY_SCHEMA);
+    for (const [table, column, def] of ADDED_COLUMNS) {
+      const has = this.db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+      if (!has) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+    }
   }
 
   /** @param {string|null} callerId */
@@ -236,24 +302,26 @@ export class GuestMemory {
     const r = this.db.prepare('SELECT * FROM guest_memory WHERE caller_hash = ? AND property_id = ? AND expires_at > ?')
       .get(hash, propertyId, this.now().toISOString());
     if (!r) return null;
-    return { ...r, tastes: parse(r.tastes_json, []), texted: parse(r.texted_json, []), party: parse(r.party_json, {}), variety: parse(r.variety_json, {}) };
+    return { ...r, tastes: parse(r.tastes_json, []), texted: parse(r.texted_json, []), party: parse(r.party_json, {}), variety: parse(r.variety_json, {}),
+      guest: parse(r.guest_json, {}) };
   }
 
-  /** @param {any} row the parsed row with tastes, texted, party, variety */
+  /** @param {any} row the parsed row with tastes, texted, party, variety, guest */
   writeRow(row) {
     const parts = fitRow({ tastes: capTastes(row.tastes ?? []), texted: (row.texted ?? []).slice(-MAX_TEXTED), party: row.party ?? {}, variety: row.variety ?? {} });
+    const guest = row.guest ?? {};
     const expires = expiresAt(new Date(row.last_call_at), new Date(row.first_call_at), parts.party.nights, this.ttlDays);
     this.db.prepare(`
-      INSERT INTO guest_memory (caller_hash, property_id, tastes_json, texted_json, party_json, variety_json, calls_count, first_call_at, last_call_at, last_call_day, expires_at)
-      VALUES (@caller_hash, @property_id, @tastes_json, @texted_json, @party_json, @variety_json, @calls_count, @first_call_at, @last_call_at, @last_call_day, @expires_at)
+      INSERT INTO guest_memory (caller_hash, property_id, tastes_json, texted_json, party_json, variety_json, guest_json, calls_count, first_call_at, last_call_at, last_call_day, expires_at)
+      VALUES (@caller_hash, @property_id, @tastes_json, @texted_json, @party_json, @variety_json, @guest_json, @calls_count, @first_call_at, @last_call_at, @last_call_day, @expires_at)
       ON CONFLICT(caller_hash, property_id) DO UPDATE SET tastes_json = excluded.tastes_json, texted_json = excluded.texted_json,
-        party_json = excluded.party_json, variety_json = excluded.variety_json, calls_count = excluded.calls_count,
+        party_json = excluded.party_json, variety_json = excluded.variety_json, guest_json = excluded.guest_json, calls_count = excluded.calls_count,
         first_call_at = excluded.first_call_at, last_call_at = excluded.last_call_at, last_call_day = excluded.last_call_day,
         expires_at = excluded.expires_at
     `).run({
       caller_hash: row.caller_hash, property_id: row.property_id,
       tastes_json: JSON.stringify(parts.tastes), texted_json: JSON.stringify(parts.texted),
-      party_json: JSON.stringify(parts.party), variety_json: JSON.stringify(parts.variety),
+      party_json: JSON.stringify(parts.party), variety_json: JSON.stringify(parts.variety), guest_json: JSON.stringify(guestPart(guest)),
       calls_count: row.calls_count ?? 0, first_call_at: row.first_call_at, last_call_at: row.last_call_at,
       last_call_day: row.last_call_day, expires_at: expires.toISOString(),
     });
@@ -264,7 +332,7 @@ export class GuestMemory {
    * (variety ids heard, count, last-call time) without any guest data, so a second call varies
    * even if the first hung up before log_session. An expired row is replaced, never revived.
    * @param {{ hash: string, sessionId: string|null, propertyId: string, persona?: string, timezone?: string,
-   *           variety: { opener: string, pair: string, bet: string } }} a
+   *           variety: { opener: string, pair: string } }} a
    */
   startCall({ hash, sessionId, propertyId, persona = null, timezone, variety }) {
     const now = this.now();
@@ -272,11 +340,14 @@ export class GuestMemory {
     const tx = this.db.transaction(() => {
       const live = this.read(hash, propertyId);
       if (!live) this.db.prepare('DELETE FROM guest_memory WHERE caller_hash = ? AND property_id = ?').run(hash, propertyId);
-      const row = live ?? { caller_hash: hash, property_id: propertyId, tastes: [], texted: [], party: {}, variety: {}, calls_count: 0, first_call_at: iso };
+      const row = live ?? { caller_hash: hash, property_id: propertyId, tastes: [], texted: [], party: {}, variety: {}, guest: {}, calls_count: 0, first_call_at: iso };
       const v = row.variety ?? {};
+      const g = row.guest ?? {};
       this.writeRow({
         ...row,
-        variety: { opener: pushRecent(v.opener, variety.opener), pair: pushRecent(v.pair, variety.pair), bet: pushRecent(v.bet, variety.bet) },
+        variety: { opener: pushRecent(v.opener, variety.opener), pair: pushRecent(v.pair, variety.pair) },
+        // Counted as the same person until the call says otherwise (remember_guest, same_guest false).
+        guest: { ...g, person_calls: (g.person_calls ?? 0) + 1 },
         calls_count: (row.calls_count ?? 0) + 1,
         last_call_at: iso,
         last_call_day: localParts(now, timezone).day,
@@ -333,6 +404,8 @@ export class GuestMemory {
     return this.updateScratch(sessionId, (s) => {
       const offered = [...(s.offered ?? []).filter((o) => !add.some((x) => x.id === o.id)), ...add].slice(-40);
       const next = { ...s, offered };
+      // The top of the latest answer, in rank order: what the guest most likely heard.
+      if (add.length) next.last_offered = add.slice(0, LAST_KEEP).map((o) => o.name);
       if (party) {
         const p = { ...(s.party ?? {}) };
         if (Number.isInteger(party.party_size)) p.party_size = party.party_size;
@@ -389,6 +462,25 @@ export class GuestMemory {
   }
 
   /**
+   * remember_guest: who is on the phone. A first name is kept in the guest's filtered words. A
+   * guest who says they are the person remembered on this phone confirms it; a guest who says
+   * they are someone else makes this call fresh: nothing remembered reaches the tools for the
+   * rest of the call, and the commit replaces the old person's row with this call alone.
+   * @param {string} sessionId @param {{ firstName?: unknown, sameGuest?: unknown }} who
+   * @returns {boolean} whether a live link took the note
+   */
+  noteGuest(sessionId, { firstName, sameGuest } = {}) {
+    const name = cleanName(firstName);
+    return this.updateScratch(sessionId, (s) => {
+      const next = { ...s };
+      if (name) next.name = name;
+      if (sameGuest === true && !s.fresh) next.confirmed = true;
+      if (sameGuest === false) { next.fresh = true; delete next.confirmed; }
+      return next;
+    });
+  }
+
+  /**
    * Fold a call's scratch into the caller's row. log_session calls this; the sweep calls it for
    * a call that ended without log_session. Skipped when the guest said forget me.
    * @param {string} sessionId @param {{ nights?: number|null }} [opts]
@@ -417,21 +509,36 @@ export class GuestMemory {
     if (!row) return; // the row expired or was forgotten since the call started: nothing to build on
     const s = l.scratch;
     const at = this.now().toISOString();
-    const tastes = [...row.tastes];
+    // Someone else on a remembered phone: this call starts the row over, as that person's first.
+    const base = s.fresh ? { ...row, tastes: [], texted: [], party: {}, guest: { person_calls: 1 } } : row;
+    const tastes = [...base.tastes];
     for (const r of s.resolved ?? []) {
       const i = tastes.findIndex((t) => t.id === r.id && t.who === r.who);
       if (i >= 0) tastes.splice(i, 1);
       tastes.push({ ...r, at });
     }
     // Only what the server itself sent (noteTexted, at send time) counts as texted.
-    let texted = [...row.texted];
+    let texted = [...base.texted];
     for (const id of s.texted_ids ?? []) {
       texted = texted.filter((t) => t.id !== id);
       texted.push({ id, at });
     }
-    const party = { ...row.party, ...(s.party ?? {}) };
+    const party = { ...base.party, ...(s.party ?? {}) };
     if (Number.isFinite(nights) && nights > 0) party.nights = Math.min(STAY_MAX_NIGHTS, Math.max(1, Math.round(nights)));
-    this.writeRow({ ...row, tastes, texted, party });
+    const guest = { ...base.guest };
+    if (s.name) guest.name = s.name;
+    else if (s.fresh) delete guest.name;
+    // The guest confirmed who they are, so they heard this call's reminder that every call is recorded.
+    if (s.confirmed) guest.recording_noted = true;
+    const nameOf = (id) => (s.offered ?? []).find((o) => o.id === id)?.name;
+    const last = {
+      texted: (s.texted_ids ?? []).map(nameOf).filter(Boolean).slice(0, LAST_KEEP),
+      offered: (s.last_offered ?? []).slice(0, LAST_KEEP),
+      tastes: (s.resolved ?? []).filter((r) => r.who === 'guest').map((r) => r.words).slice(-LAST_KEEP),
+    };
+    // A call that left nothing (a hang-up) keeps the callback from the call before it.
+    if (last.texted.length || last.offered.length || last.tastes.length || s.fresh) guest.last = last;
+    this.writeRow({ ...base, tastes, texted, party, guest });
   }
 
   // ---- read path for the tools ---------------------------------------------
@@ -444,7 +551,8 @@ export class GuestMemory {
    */
   recallFor(sessionId) {
     const l = this.link(sessionId);
-    if (!l || l.scratch.forgotten) return null;
+    // A different person on a remembered phone gets nothing remembered, not even the exclusions.
+    if (!l || l.scratch.forgotten || l.scratch.fresh) return null;
     const row = this.read(l.caller_hash, l.property_id);
     const split = (who) => {
       const ids = [...new Set((row?.tastes ?? []).filter((t) => t.who === who).map((t) => t.id))];
