@@ -23,8 +23,10 @@ export const SUPPORT_EMAIL = 'support@southernsky.cloud';
 /** The toll-free line under carrier review. Printed on the opt-in page's room card only. */
 export const OPT_IN_NUMBER = '(833) 658-4321';
 /** Harper's first sentence (personas/harper.md `opener`), with the demo inn's name filled in. */
-export const OPENER = 'Hi, this is Harper, the automated concierge at The Juniper House, this call is recorded, and any text I send goes only to the number you are calling from.';
-export const OFFER_LINE = "I can text the plan to the number you're calling from. Want that?";
+export const OPENER = 'This is Harper, your concierge at The Juniper House, who am I speaking with?';
+/** What the concierge says in its next turn on every first call (template/concierge.md, The opening). */
+export const RECORDING_LINE = 'Just so you know, this call is being recorded so I can give you the best service possible going forward.';
+export const OFFER_LINE = 'Want me to text these? Any text I send goes only to the number you are calling from.';
 export const STOP_HELP = 'Reply STOP to opt out, HELP for help. Message and data rates may apply.';
 export const SMS_SENTENCE = 'Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.';
 
@@ -53,7 +55,7 @@ export const PRIVACY = {
       id: 'call',
       heading: 'When you call',
       blocks: [{ ul: [
-        'The concierge says it is automated and that the call is recorded, in its first sentence.',
+        'The concierge asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it says it is a computer voice.',
         "The call runs on ElevenLabs' voice platform, which records it. This server never stores a transcript or a recording.",
         'The demo inn, The Juniper House, is fictional. The calls to it are real.',
       ] }],
@@ -176,6 +178,8 @@ export const SMS_OPT_IN = {
       blocks: [
         { p: 'The first sentence of every call:' },
         { quote: OPENER },
+        { p: 'The next line, on every first call:' },
+        { quote: RECORDING_LINE },
         { p: 'When the plan is ready, the concierge asks before it sends anything:' },
         { quote: OFFER_LINE },
         { p: 'The text goes out only if the guest says yes.' },

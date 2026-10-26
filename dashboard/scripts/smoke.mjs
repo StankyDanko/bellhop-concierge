@@ -105,7 +105,7 @@ try {
     const html = await res.text();
     check(res.status === 200 && /^<!doctype html>/i.test(html) && !/<script/i.test(html), '/sms-opt-in returns a whole HTML document with no scripts');
     for (const words of ['<h1 id="legal-title">How guests opt in to texts</h1>', 'The Juniper House', 'Call the concierge: <span class="oc-number">(833) 658-4321</span>',
-      'Ask for a text and the plan goes to the number you call from', 'any text I send goes only to the number you are calling from',
+      'Ask for a text and the plan goes to the number you call from', 'Any text I send goes only to the number you are calling from',
       'Reply STOP to opt out, HELP for help. Message and data rates may apply.', 'support@southernsky.cloud',
       'a service of E Brands, LLC.', 'href="/privacy"', 'href="/sms-terms"']) {
       check(html.includes(words), `/sms-opt-in carries ${JSON.stringify(words.slice(0, 60))}`);

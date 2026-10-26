@@ -1,11 +1,12 @@
-// Conversation variety: the pools read clean, every food-choice side is a word the taste
-// resolver knows, defaults reproduce today's first message, and a repeat caller never hears
-// the same opener or pair twice running. Fake callers and a seeded random source throughout.
+// Conversation variety: the pools read clean, every mood-choice side is a word the taste
+// resolver knows, defaults reproduce the compiled first message, a remembered caller hears
+// their name and a question, and a repeat caller never hears the same hook or pair twice
+// running. Fake callers and a seeded random source throughout.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { POOLS, callerStatus, choose, daypartOf, defaultVars, spokenLines } from '../conversation/choose.js';
+import { POOLS, SAMPLE_NAME, callerStatus, choose, daypartOf, defaultVars, spokenLines } from '../conversation/choose.js';
 import { BUDGET_WORDS, VIBE_PHRASES, vibeOf } from '../tools/resolve-taste.js';
 import { RULES, sentences } from '../../compiler/lint.js';
 
@@ -29,6 +30,7 @@ const at = (iso) => new Date(iso);
 const WED = { morning: at('2026-10-21T12:00:00Z'), afternoon: at('2026-10-21T18:00:00Z'), evening: at('2026-10-21T22:00:00Z'), late: at('2026-10-22T03:00:00Z') };
 const FRI_EVENING = at('2026-10-23T22:00:00Z');
 const SUN_NOON = at('2026-10-25T16:00:00Z');
+const opener = (name) => readFileSync(new URL(`../../personas/${name}.md`, import.meta.url), 'utf8').match(/^opener: (.+)$/m)[1];
 
 test('every pair side is a word resolve_taste knows, or the pair ships disabled', () => {
   for (const p of POOLS.pairs) {
@@ -55,18 +57,17 @@ test('every enabled side resolves as a vibe, not as a name search', () => {
 test('pool sizes meet the design', () => {
   for (const name of PERSONAS) {
     const p = POOLS.personas[name];
-    assert.equal(p.openers.length, 10, `${name} openers`);
-    assert.equal(p.returning.length, 4, `${name} returning`);
-    assert.equal(p.same_day.length, 3, `${name} same_day`);
+    assert.ok(p.openers.length >= 4, `${name} openers`);
+    assert.ok(p.returning.length >= 3, `${name} returning`);
+    assert.ok(p.same_day.length >= 3, `${name} same_day`);
   }
   assert.equal(POOLS.pairs.length, 12);
-  assert.equal(POOLS.bets.length, 6);
-  assert.ok(POOLS.bets.filter((b) => b.enabled).length >= 5);
+  assert.equal(POOLS.bets, undefined, 'the scripted bet is gone');
 });
 
 test('every spoken line obeys the copy rules', () => {
   const lines = spokenLines();
-  assert.ok(lines.length > 60);
+  assert.ok(lines.length > 40);
   for (const { where, text } of lines) {
     for (const rule of ['em_dash', 'forbidden_word', 'phone_number', 'url', 'punctuation', 'unfilled_slot']) {
       assert.ok(!RULES[rule].test(text), `${where} breaks ${rule}: ${text}`);
@@ -75,62 +76,73 @@ test('every spoken line obeys the copy rules', () => {
     assert.ok(!/\bhost\b/i.test(text), `${where} says host; say innkeeper`);
     assert.ok(!/<|>/.test(text), `${where} has an unfilled placeholder: ${text}`);
     assert.ok(text.length <= 130, `${where} is long for a spoken line (${text.length})`);
-    if (/^[A-Z]/.test(text) && text.includes(' ')) assert.equal(sentences(text).length, 1, `${where} must be one sentence: ${text}`);
+    assert.doesNotMatch(text, /loving lately|a band, a dish|city and state/i, `${where} is the old quiz`);
   }
 });
 
-test('hooks and greetings keep the compiled first message to two sentences', () => {
-  // The compiled disclosure is one sentence, so greeting + disclosure + hook must stay at two.
+test('every hook ends on a question, and a first message stays at two sentences', () => {
   for (const name of PERSONAS) {
+    const p = POOLS.personas[name];
+    for (const o of [...p.openers, ...p.returning, ...p.same_day]) assert.match(o.text, /\?$/, `${name}.${o.id}`);
     for (const status of ['new', 'returning', 'same_day']) {
-      const { vars } = choose({ persona: name, status, now: WED.evening, rng: seeded(7) });
-      const first = `${vars.greeting} this is X, the automated concierge at Y, this call is recorded. ${vars.opener_hook}`;
-      assert.equal(sentences(first).length, 2, first);
+      for (let seed = 1; seed <= 20; seed++) {
+        const { vars } = choose({ persona: name, status, name: SAMPLE_NAME, now: WED.evening, rng: seeded(seed) });
+        const intro = opener(name).slice(0, -defaultVars(name).opener_hook.length);
+        const first = `${intro}${vars.opener_hook}`;
+        assert.ok(sentences(first).length <= 2, first);
+      }
     }
   }
 });
 
-test('empty memory and default variables give today\'s first message, byte for byte', () => {
+test('empty memory and default variables give the compiled first message, byte for byte, and a first call', () => {
   for (const name of PERSONAS) {
-    const persona = readFileSync(new URL(`../../personas/${name}.md`, import.meta.url), 'utf8');
-    const opener = persona.match(/^opener: (.+)$/m)[1];
-    const display = persona.match(/^display_name: (.+)$/m)[1];
     const v = defaultVars(name);
-    // A rental persona's disclosure also says she can answer questions about the stay.
-    const tail = /^mode: rental$/m.test(persona)
-      ? ', this call is recorded, any text I send goes only to the number you are calling from, and I can answer questions about your stay.'
-      : ', this call is recorded, and any text I send goes only to the number you are calling from.';
-    const rebuilt = `${v.greeting} this is ${display}, the automated concierge at {{property_name}}${tail} ${v.opener_hook}`;
-    assert.equal(rebuilt, opener, `${name} first message`);
-    assert.equal(v.caller_status, 'new');
+    assert.ok(opener(name).endsWith(` ${v.opener_hook}`), `${name} first message ends with its default hook`);
+    assert.match(v.opener_hook, /^who\b.*\?$/, `${name}: the first message asks who is calling`);
+    assert.deepEqual([v.caller_status, v.caller_name, v.call_number, v.recording_noted, v.last_call_hook, v.memory_line, v.stay_line, v.texted_count],
+      ['new', 'none', 1, 'no', 'none', 'none', 'none', 0]);
     assert.equal(v.plan_window, 'tonight');
-    assert.equal(v.bet_domain, 'a film or a director');
-    assert.equal(v.memory_line, 'none');
-    assert.equal(v.stay_line, 'none');
-    assert.equal(v.texted_count, 0);
+    assert.equal(v.greeting, undefined);
+    assert.equal(v.bet_domain, undefined);
   }
   assert.equal(defaultVars('harper').choice_pair, 'spicy and loud, or slow and candlelit');
   assert.equal(defaultVars('maybelle').choice_pair, 'spicy and lively, or slow and candlelit');
-  assert.equal(defaultVars('road').choice_pair, 'spicy and loud, or slow and candlelit');
-  assert.equal(defaultVars('marisol').choice_pair, 'spicy and loud, or slow and candlelit');
   assert.ok(POOLS.personas.marisol, 'Marisol has her own pools, not Harper\'s');
   // An unknown persona is Harper, never an exception.
   assert.deepEqual(defaultVars('nobody'), defaultVars('harper'));
 });
 
-test('a second call never repeats the first call\'s opener or pair (all personas, dayparts, statuses)', () => {
+test('a remembered name: the hook names them and asks if it is still them; no name means the first-call question', () => {
+  for (const name of PERSONAS) {
+    for (const status of ['returning', 'same_day']) {
+      for (let seed = 1; seed <= 20; seed++) {
+        const { vars, ids } = choose({ persona: name, status, name: 'Dana', now: WED.evening, rng: seeded(seed) });
+        assert.match(vars.opener_hook, /\bDana\b.*\?$/, `${name} ${status} ${ids.opener}`);
+        assert.ok(POOLS.personas[name][status].some((x) => x.id === ids.opener));
+      }
+      const unnamed = choose({ persona: name, status, now: WED.evening, rng: seeded(4) });
+      assert.ok(POOLS.personas[name].openers.some((x) => x.id === unnamed.ids.opener), `${name} ${status} without a name asks who is calling`);
+    }
+    // A name on a caller with nothing remembered is never used: a new status is a first call.
+    const fresh = choose({ persona: name, status: 'new', name: 'Dana', now: WED.evening, rng: seeded(4) });
+    assert.doesNotMatch(fresh.vars.opener_hook, /Dana/);
+  }
+});
+
+test('a second call never repeats the first call\'s hook or pair (all personas, dayparts, statuses)', () => {
   for (const name of PERSONAS) {
     for (const [dp, now] of Object.entries({ ...WED, friEvening: FRI_EVENING, sunNoon: SUN_NOON })) {
       for (const status of ['new', 'returning', 'same_day']) {
         const rng = seeded(name.length * 31 + dp.length);
         let last = { hasTastes: status !== 'new' };
         for (let call = 0; call < 200; call++) {
-          const { ids } = choose({ persona: name, status, now, last, rng });
+          const { ids } = choose({ persona: name, status, name: 'Dana', now, last, rng });
           if (call > 0) {
-            assert.notEqual(ids.opener, last.openerIds.at(-1), `${name} ${dp} ${status} call ${call}: opener repeated`);
+            assert.notEqual(ids.opener, last.openerIds.at(-1), `${name} ${dp} ${status} call ${call}: hook repeated`);
             assert.notEqual(ids.pair, last.pairIds.at(-1), `${name} ${dp} ${status} call ${call}: pair repeated`);
           }
-          last = { ...last, openerIds: [...(last.openerIds ?? []), ids.opener], pairIds: [...(last.pairIds ?? []), ids.pair], betIds: [...(last.betIds ?? []), ids.bet] };
+          last = { ...last, openerIds: [...(last.openerIds ?? []), ids.opener], pairIds: [...(last.pairIds ?? []), ids.pair] };
         }
       }
     }
@@ -148,41 +160,18 @@ test('the next pair shares no side with the last pair', () => {
   }
 });
 
-test('two-back avoidance holds while the pool is big enough, and the bet never matches the opener\'s anchor', () => {
-  const rng = seeded(99);
-  let last = {};
-  for (let i = 0; i < 300; i++) {
-    const { ids } = choose({ persona: 'maybelle', status: 'new', now: WED.evening, last, rng });
-    const pool = POOLS.personas.maybelle.openers.find((o) => o.id === ids.opener);
-    assert.notEqual(ids.bet_domain, pool.anchor, `${ids.opener} paired with a ${ids.bet_domain} bet`);
-    if (i >= 2) assert.ok(!last.openerIds.slice(-2).includes(ids.opener), `opener came back within two calls at ${i}`);
-    last = { openerIds: [...(last.openerIds ?? []), ids.opener], pairIds: [...(last.pairIds ?? []), ids.pair], betIds: [...(last.betIds ?? []), ids.bet] };
-  }
-});
-
-test('daypart and weekday tags are honored', () => {
+test('daypart tags are honored', () => {
   const seen = (now, name = 'harper') => {
     const out = new Set();
     for (let s = 1; s <= 400; s++) out.add(choose({ persona: name, status: 'new', now, rng: seeded(s) }).ids.opener);
     return out;
   };
-  const morning = seen(WED.morning);
-  assert.ok(!morning.has('h-song') && !morning.has('h-movie'), 'evening-only hooks stay out of the morning');
-  assert.ok(!morning.has('h-weekend') && !morning.has('h-sunday'), 'weekday hooks stay out of a Wednesday');
-  assert.ok(seen(FRI_EVENING).has('h-weekend'), 'the weekend hook can play on a Friday night');
-  assert.ok(!seen(WED.evening).has('h-weekend'));
-  assert.ok(seen(SUN_NOON).has('h-sunday'), 'the Sunday hook can play on a Sunday');
-  assert.ok(!seen(WED.morning, 'maybelle').has('m-porch'), 'the porch hook needs an afternoon or an evening');
-  assert.ok(seen(WED.afternoon, 'maybelle').has('m-porch'));
+  assert.ok(!seen(WED.morning).has('h-ask-tonight'), 'an evening hook stays out of the morning');
+  assert.ok(seen(WED.evening).has('h-ask-tonight'));
+  assert.ok(!seen(WED.evening).has('h-ask-today'));
   assert.equal(choose({ persona: 'harper', now: WED.morning, rng: () => 0 }).vars.plan_window, 'today');
   assert.equal(choose({ persona: 'harper', now: WED.afternoon, rng: () => 0 }).vars.plan_window, 'this afternoon');
   assert.equal(choose({ persona: 'harper', now: WED.late, rng: () => 0 }).vars.plan_window, 'tonight');
-  // The window word lands in the hooks that carry one: the road default, and Maybelle's windows-down hook.
-  assert.match(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, /for your day\.$/);
-  assert.match(choose({ persona: 'road', now: WED.late, rng: () => 0 }).vars.opener_hook, /for your night\.$/);
-  const windowsDown = (now) => choose({ persona: 'maybelle', now, last: { openerIds: ['m-band'] }, rng: () => 0.2 }).vars.opener_hook;
-  assert.match(windowsDown(WED.evening), /put your evening together,/);
-  assert.match(windowsDown(WED.late), /put your night together,/);
 });
 
 test('daypart edges and the inn\'s own timezone', () => {
@@ -198,38 +187,35 @@ test('status: variety history alone stays new; tastes make it returning; tastes 
   assert.equal(callerStatus({ hasTastes: false, lastCallDay: '2026-10-21', now, timezone: 'America/New_York' }), 'new');
   assert.equal(callerStatus({ hasTastes: true, lastCallDay: '2026-10-20', now, timezone: 'America/New_York' }), 'returning');
   assert.equal(callerStatus({ hasTastes: true, lastCallDay: '2026-10-21', now, timezone: 'America/New_York' }), 'same_day');
-  // Same instant, but "today" is the inn's today: 22:00 UTC is still the 21st in New York, and the 21st in Los Angeles.
   assert.equal(callerStatus({ hasTastes: true, lastCallDay: '2026-10-22', now: at('2026-10-22T02:00:00Z'), timezone: 'America/New_York' }), 'returning');
-  const call = choose({ persona: 'harper', now, last: { hasTastes: true, lastCallDay: '2026-10-21', openerIds: ['h-s1'] }, rng: seeded(3) });
+  const call = choose({ persona: 'harper', name: 'Dana', now, last: { hasTastes: true, lastCallDay: '2026-10-21', openerIds: ['h-s-earlier'] }, rng: seeded(3) });
   assert.equal(call.vars.caller_status, 'same_day');
-  assert.equal(call.vars.greeting, 'Back again,');
-  assert.notEqual(call.ids.opener, 'h-s1');
+  assert.notEqual(call.ids.opener, 'h-s-earlier');
   assert.ok(POOLS.personas.harper.same_day.some((x) => x.id === call.ids.opener));
-  assert.equal(choose({ persona: 'maybelle', now, last: { hasTastes: true, lastCallDay: '2026-10-01' }, rng: seeded(3) }).vars.greeting, 'Well, welcome back,');
   assert.equal(choose({ persona: 'maybelle', now, last: { hasTastes: false, lastCallDay: '2026-10-21' }, rng: seeded(3) }).vars.caller_status, 'new');
 });
 
 test('with no history at all every call still gets a full, valid set', () => {
   for (const name of [...PERSONAS, 'nobody']) {
     const { vars, ids } = choose({ persona: name, now: WED.evening, rng: seeded(5) });
-    for (const k of ['greeting', 'opener_hook', 'choice_pair', 'bet_domain', 'plan_window', 'caller_status', 'memory_line', 'stay_line']) {
+    for (const k of ['opener_hook', 'choice_pair', 'plan_window', 'caller_status', 'caller_name', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line']) {
       assert.equal(typeof vars[k], 'string', k);
       assert.ok(vars[k].length > 0, k);
     }
     assert.equal(vars.texted_count, 0);
+    assert.equal(vars.call_number, 1);
     assert.ok(POOLS.pairs.find((p) => p.id === ids.pair).enabled);
   }
 });
 
-test('the variety actually varies: many callers see many openers, pairs and bets', () => {
-  const o = new Set(); const p = new Set(); const b = new Set();
+test('the variety actually varies: many callers see many hooks and pairs', () => {
+  const o = new Set(); const p = new Set();
   for (let s = 1; s <= 300; s++) {
     const { ids } = choose({ persona: 'harper', now: WED.evening, rng: seeded(s) });
-    o.add(ids.opener); p.add(ids.pair); b.add(ids.bet);
+    o.add(ids.opener); p.add(ids.pair);
   }
-  assert.ok(o.size >= 7, `openers seen: ${o.size}`);
+  assert.ok(o.size >= 4, `hooks seen: ${o.size}`);
   assert.equal(p.size, 5);
-  assert.ok(b.size >= 4, `bets seen: ${b.size}`);
 });
 
 test('an empty pool for a daypart falls back to the persona default and never throws', () => {
@@ -239,43 +225,12 @@ test('an empty pool for a daypart falls back to the persona default and never th
     for (const o of p.openers) o.dayparts = ['morning'];
   }
   for (const p of pools.pairs) p.enabled = false;
-  for (const b of pools.bets) b.enabled = false;
-  for (const [persona, opener, pair] of [['harper', 'h-band', 'p-spicy'], ['maybelle', 'm-band', 'p-lively'], ['road', 'r-city', 'p-spicy']]) {
+  for (const [persona, hook, pair] of [['harper', 'h-ask-who', 'p-spicy'], ['maybelle', 'm-ask-who', 'p-lively'], ['road', 'r-ask-who', 'p-spicy']]) {
     for (const status of ['new', 'returning']) {
-      const { vars, ids } = choose({ persona, status, now: WED.evening, rng: seeded(3), pools });
-      assert.equal(ids.opener, opener, `${persona} ${status}`);
+      const { vars, ids } = choose({ persona, status, name: 'Dana', now: WED.evening, rng: seeded(3), pools });
+      assert.equal(ids.opener, hook, `${persona} ${status}`);
       assert.equal(ids.pair, pair);
-      assert.equal(ids.bet, 'b-film');
-      assert.ok(vars.opener_hook && vars.choice_pair && vars.bet_domain);
+      assert.ok(vars.opener_hook && vars.choice_pair);
     }
   }
-});
-
-test('open intake: every first-time hook names what the concierge finds and asks across at least two domains', () => {
-  const DOMAINS = /\b(band|song|singer|record|music|dish|meal|food|plate|hungry|show|movie|film|place you'd go back to|radio)\b/g;
-  for (const name of PERSONAS) {
-    for (const o of POOLS.personas[name].openers) {
-      assert.match(o.text, /\b(dinner|supper|breakfast|food|places to eat)\b/, `${name}.${o.id} says what the line can find`);
-      assert.match(o.text, /\bdrink/, `${name}.${o.id} says drinks`);
-      assert.equal(o.anchor, 'any', `${name}.${o.id} leans on no one domain`);
-      if (name === 'road') continue;
-      const kinds = new Set((o.text.split(/, so /)[1] ?? '').match(DOMAINS) ?? []);
-      assert.ok(kinds.size >= 2, `${name}.${o.id} asks across domains: ${[...kinds]}`);
-    }
-  }
-});
-
-test('the road persona: every pool line asks for a city and state, and its default rebuilds the opener', () => {
-  const road = POOLS.personas.road;
-  for (const o of [...road.openers, ...road.returning, ...road.same_day]) {
-    assert.match(o.text, /\b(city|town)\b/, `${o.id} must ask where the caller is`);
-    assert.match(o.text, /\bstate\b/, `${o.id} must ask for the state too`);
-  }
-  const persona = readFileSync(new URL('../../personas/road.md', import.meta.url), 'utf8');
-  const opener = persona.match(/^opener: (.+)$/m)[1];
-  const v = defaultVars('road');
-  assert.equal(v.opener_hook, "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your night.");
-  assert.equal(opener, `${v.greeting} this is Hollis, the automated concierge at {{property_name}}, this call is recorded, and any text I send goes only to the number you are calling from. ${v.opener_hook}`);
-  // A morning call keeps the place question and swaps only the window word.
-  assert.equal(choose({ persona: 'road', now: WED.morning, rng: () => 0 }).vars.opener_hook, "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your day.");
 });

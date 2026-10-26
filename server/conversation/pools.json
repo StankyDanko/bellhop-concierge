@@ -1,138 +1,533 @@
 {
-  "version": 1,
-  "windows": {
-    "harper": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
-    "maybelle": { "morning": "day", "afternoon": "afternoon", "evening": "evening", "late": "night" },
-    "road": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" },
-    "marisol": { "morning": "day", "afternoon": "afternoon", "evening": "night", "late": "night" }
+  "version": 2,
+  "plan_windows": {
+    "morning": "today",
+    "afternoon": "this afternoon",
+    "evening": "tonight",
+    "late": "tonight"
   },
-  "plan_windows": { "morning": "today", "afternoon": "this afternoon", "evening": "tonight", "late": "tonight" },
   "personas": {
     "harper": {
-      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "h-band", "anchor": "any", "text": "I can find you dinner, drinks, things to do, and a film for the room, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "h-song", "anchor": "any", "text": "I can plan your <window>, dinner, drinks, or a show, so what's one thing you can't get enough of, a song, a meal, anything?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "h-movie", "anchor": "any", "text": "I find dinner, drinks, and a film for the room, so what's one thing you'd happily have again tonight, a movie, a dish, a band?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "h-drive", "anchor": "any", "text": "I find places to eat or drink and things to do, so what have you been into lately, a band, a show, a place you'd go back to?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-album", "anchor": "any", "text": "I plan dinner, drinks, and things to do around your taste, so what's been on repeat for you lately, music, food, a show?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-cuisine", "anchor": "any", "text": "I find dinner, drinks, and things to do, so what's something you've loved lately, a dish, a band, a show, anything at all?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-show", "anchor": "any", "text": "I can find dinner, drinks, events, or a film for the room, so what have you been into lately, a show, a dish, a band?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-car", "anchor": "any", "text": "I put together dinner, drinks, and things to do, so what's something you've been loving lately, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "h-weekend", "anchor": "any", "text": "It's the weekend, and I can find dinner, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "h-sunday", "anchor": "any", "text": "I find dinner, drinks, and slow Sunday things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
+        {
+          "id": "h-ask-who",
+          "text": "who am I speaking with?",
+          "dayparts": [
+            "any"
+          ],
+          "default": true
+        },
+        {
+          "id": "h-ask-line",
+          "text": "who have I got on the line?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "h-ask-talking",
+          "text": "who am I talking to?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "h-ask-tonight",
+          "text": "who am I talking to tonight?",
+          "dayparts": [
+            "evening",
+            "late"
+          ]
+        },
+        {
+          "id": "h-ask-today",
+          "text": "who am I talking to today?",
+          "dayparts": [
+            "morning",
+            "afternoon"
+          ]
+        }
       ],
       "returning": [
-        { "id": "h-r1", "text": "More like last time, or something new tonight?" },
-        { "id": "h-r2", "text": "Want more in the spirit of last time, or a change of pace?" },
-        { "id": "h-r3", "text": "Same direction as last time, or should I surprise you?" },
-        { "id": "h-r4", "text": "Shall I build on last time, or start fresh?" }
+        {
+          "id": "h-r-last",
+          "text": "and I think the last person I talked to on this phone was <name>. Is this <name>?"
+        },
+        {
+          "id": "h-r-remember",
+          "text": "and I remember talking with <name> on this phone. Is that you, <name>?"
+        },
+        {
+          "id": "h-r-familiar",
+          "text": "and this phone sounds familiar. Am I talking to <name>?"
+        },
+        {
+          "id": "h-r-again",
+          "text": "and I think <name> called me from this phone before. Is this <name>?"
+        }
       ],
       "same_day": [
-        { "id": "h-s1", "text": "Want more like what I found earlier, or something different?" },
-        { "id": "h-s2", "text": "Did the plan hold up, or shall I find you a change?" },
-        { "id": "h-s3", "text": "Round two, more of the same, or something new?" }
+        {
+          "id": "h-s-earlier",
+          "text": "and I talked with <name> on this phone earlier today. Is this <name> again?"
+        },
+        {
+          "id": "h-s-back",
+          "text": "and this phone called me earlier. Is that you again, <name>?"
+        },
+        {
+          "id": "h-s-round",
+          "text": "and I think we spoke earlier today. Is this <name>?"
+        }
       ]
     },
     "maybelle": {
-      "greeting": { "new": "Hey there,", "returning": "Well, welcome back,", "same_day": "Well, hello again," },
       "openers": [
-        { "id": "m-band", "anchor": "any", "text": "I can find you supper, drinks, things to do, and a film for tonight, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "m-supper", "anchor": "any", "text": "I find supper, drinks, and things to do, so what have you been sweet on lately, a dish, a song, a show, anything?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-windows", "anchor": "any", "text": "I can put your <window> together, supper, drinks, or a show, so what's been on your mind lately, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-movie", "anchor": "any", "text": "I find supper, drinks, and a film for the evening, so what's one thing you'd happily have again, a movie, a dish, a band?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-county", "anchor": "any", "text": "I find supper, drinks, and things worth the drive, so what have you been loving lately, a singer, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-dish", "anchor": "any", "text": "I can find supper, drinks, or things to do, so what have you been enjoying lately, a dish, a band, a show, anything at all?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-radio", "anchor": "any", "text": "I put together supper, drinks, and things to do, so what's been on your radio or your plate lately?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "m-porch", "anchor": "any", "text": "I find supper, drinks, and slow evening things to do, so what have you been loving lately, a record, a dish, a show?", "dayparts": ["afternoon", "evening"], "days": ["any"] },
-        { "id": "m-weekend", "anchor": "any", "text": "Well, it's the weekend, and I can find supper, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "m-sunday", "anchor": "any", "text": "I find Sunday supper, drinks, and easy things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
+        {
+          "id": "m-ask-who",
+          "text": "who have I got on the line?",
+          "dayparts": [
+            "any"
+          ],
+          "default": true
+        },
+        {
+          "id": "m-ask-pleasure",
+          "text": "who do I have the pleasure of talking to?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "m-ask-speaking",
+          "text": "who am I speaking with?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "m-ask-sugar",
+          "text": "who have I got calling today?",
+          "dayparts": [
+            "morning",
+            "afternoon"
+          ]
+        },
+        {
+          "id": "m-ask-evening",
+          "text": "who am I talking to this evening?",
+          "dayparts": [
+            "evening",
+            "late"
+          ]
+        }
       ],
       "returning": [
-        { "id": "m-r1", "text": "More like last time, or something new this evening?" },
-        { "id": "m-r2", "text": "Shall I pick up where we left off, or try something different?" },
-        { "id": "m-r3", "text": "Same road as last time, or a new one?" },
-        { "id": "m-r4", "text": "Want me to build on last time, or start fresh?" }
+        {
+          "id": "m-r-last",
+          "text": "and I think the last person I talked to on this phone was <name>. Is this <name>?"
+        },
+        {
+          "id": "m-r-remember",
+          "text": "and I remember talking with <name> on this phone. Is that you, <name>?"
+        },
+        {
+          "id": "m-r-familiar",
+          "text": "and this phone sounds familiar. Am I talking to <name>?"
+        },
+        {
+          "id": "m-r-again",
+          "text": "and I think <name> called me from this phone before. Is this <name>?"
+        }
       ],
       "same_day": [
-        { "id": "m-s1", "text": "Well, more like what I found you earlier, or something different?" },
-        { "id": "m-s2", "text": "Did that plan treat you right, or shall I find a change?" },
-        { "id": "m-s3", "text": "Back for seconds, more of the same, or something new?" }
+        {
+          "id": "m-s-earlier",
+          "text": "and I talked with <name> on this phone earlier today. Is this <name> again?"
+        },
+        {
+          "id": "m-s-back",
+          "text": "and this phone called me earlier. Is that you again, <name>?"
+        },
+        {
+          "id": "m-s-round",
+          "text": "and I think we spoke earlier today. Is this <name>?"
+        }
       ]
     },
     "road": {
-      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "r-city", "anchor": "any", "text": "Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your <window>.", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "r-tonight", "anchor": "any", "text": "Where are you tonight, city and state, so I can find you dinner, drinks, or something to do?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "r-landed", "anchor": "any", "text": "Tell me the city and state you've landed in, and I'll find you dinner, drinks, or things to do.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-town", "anchor": "any", "text": "Tell me what town and state you're in, and I'll find dinner, drinks, or a show for your <window>.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-road", "anchor": "any", "text": "Tell me where the road has you, city and state, and I'll find you food, drinks, and things to do.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-stop", "anchor": "any", "text": "Tell me where you're stopping tonight, city and state, and I'll find dinner, drinks, or a show.", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "r-now", "anchor": "any", "text": "Name the city and state you're in right now, and I'll find dinner, drinks, or things to do nearby.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-home", "anchor": "any", "text": "Tell me the city and state you're in, home or away, and I'll find dinner, drinks, or things to do for your <window>.", "dayparts": ["any"], "days": ["any"] },
-        { "id": "r-weekend", "anchor": "any", "text": "It's the weekend, so tell me what city and state you're in, and I'll find dinner, drinks, or a show.", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "r-sunday", "anchor": "any", "text": "Tell me what city and state you're in this Sunday, and I'll find food, drinks, or something easy to do.", "dayparts": ["any"], "days": ["sun"] }
+        {
+          "id": "r-ask-who",
+          "text": "who am I speaking with?",
+          "dayparts": [
+            "any"
+          ],
+          "default": true
+        },
+        {
+          "id": "r-ask-line",
+          "text": "who have I got on the line?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "r-ask-talking",
+          "text": "who am I talking to?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "r-ask-tonight",
+          "text": "who am I talking to tonight?",
+          "dayparts": [
+            "evening",
+            "late"
+          ]
+        },
+        {
+          "id": "r-ask-today",
+          "text": "who am I talking to today?",
+          "dayparts": [
+            "morning",
+            "afternoon"
+          ]
+        }
       ],
       "returning": [
-        { "id": "r-r1", "text": "What city and state are you in, and do you want more like last time or something new?" },
-        { "id": "r-r2", "text": "Tell me the city and state you're in, and whether you want more like last time or a change of pace." },
-        { "id": "r-r3", "text": "Where are you tonight, city and state, and same direction as last time or a surprise?" },
-        { "id": "r-r4", "text": "Tell me the city and state, and whether I should build on last time or start fresh." }
+        {
+          "id": "r-r-last",
+          "text": "and I think the last person I talked to on this phone was <name>. Is this <name>?"
+        },
+        {
+          "id": "r-r-remember",
+          "text": "and I remember talking with <name> on this phone. Is that you, <name>?"
+        },
+        {
+          "id": "r-r-familiar",
+          "text": "and this phone sounds familiar. Am I talking to <name>?"
+        },
+        {
+          "id": "r-r-again",
+          "text": "and I think <name> called me from this phone before. Is this <name>?"
+        }
       ],
       "same_day": [
-        { "id": "r-s1", "text": "Tell me the city and state you're in now, and I'll find you something different from earlier." },
-        { "id": "r-s2", "text": "Where are you now, city and state, and did the earlier plan hold up?" },
-        { "id": "r-s3", "text": "Round two, so tell me the city and state you're in, and I'll take it from there." }
+        {
+          "id": "r-s-earlier",
+          "text": "and I talked with <name> on this phone earlier today. Is this <name> again?"
+        },
+        {
+          "id": "r-s-back",
+          "text": "and this phone called me earlier. Is that you again, <name>?"
+        },
+        {
+          "id": "r-s-round",
+          "text": "and I think we spoke earlier today. Is this <name>?"
+        }
       ]
     },
     "marisol": {
-      "greeting": { "new": "Hi,", "returning": "Welcome back,", "same_day": "Back again," },
       "openers": [
-        { "id": "mr-band", "anchor": "any", "text": "I can find dinner, drinks, things to do, and a film for the couch, so what have you been loving lately, a band, a dish, a show?", "dayparts": ["any"], "days": ["any"], "default": true },
-        { "id": "mr-porch", "anchor": "any", "text": "I can plan your <window>, dinner, drinks, or a show, so what's been on repeat for you lately, a song, a dish, anything?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "mr-movie", "anchor": "any", "text": "I find dinner, drinks, and a film for the couch, so what's one thing you'd happily have again, a movie, a dish, a band?", "dayparts": ["evening", "late"], "days": ["any"] },
-        { "id": "mr-trip", "anchor": "any", "text": "I find places to eat or drink and things to do, so what have you been into lately, a band, a show, a place you'd go back to?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-album", "anchor": "any", "text": "I plan dinner, drinks, and things to do around your taste, so what sounds like vacation to you, a song, a dish, a show?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-cuisine", "anchor": "any", "text": "I find dinner, drinks, and things to do, so what did you come here hoping to find, a dish, a band, a show, anything?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-show", "anchor": "any", "text": "I can find dinner, drinks, events, or a film for the couch, so what have you been into lately, a show, a dish, a band?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-drive", "anchor": "any", "text": "I put together dinner, drinks, and things to do, so what song played on the drive down, or what are you hungry for?", "dayparts": ["any"], "days": ["any"] },
-        { "id": "mr-weekend", "anchor": "any", "text": "It's the weekend, and I can find dinner, drinks, or a show, so what have you been loving lately, a band, a dish, anything?", "dayparts": ["evening", "late"], "days": ["fri", "sat"] },
-        { "id": "mr-sunday", "anchor": "any", "text": "I find breakfast, drinks, and slow Sunday things to do, so what have you been loving lately, a meal, a band, a show?", "dayparts": ["any"], "days": ["sun"] }
+        {
+          "id": "mr-ask-who",
+          "text": "who am I speaking with?",
+          "dayparts": [
+            "any"
+          ],
+          "default": true
+        },
+        {
+          "id": "mr-ask-line",
+          "text": "who have I got on the line?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "mr-ask-talking",
+          "text": "who am I talking to?",
+          "dayparts": [
+            "any"
+          ]
+        },
+        {
+          "id": "mr-ask-tonight",
+          "text": "who am I talking to tonight?",
+          "dayparts": [
+            "evening",
+            "late"
+          ]
+        },
+        {
+          "id": "mr-ask-today",
+          "text": "who am I talking to today?",
+          "dayparts": [
+            "morning",
+            "afternoon"
+          ]
+        }
       ],
       "returning": [
-        { "id": "mr-r1", "text": "More like last time, or something new for this stay?" },
-        { "id": "mr-r2", "text": "Want more in the spirit of last time, or a change of pace?" },
-        { "id": "mr-r3", "text": "Same direction as last time, or should I surprise you?" },
-        { "id": "mr-r4", "text": "Shall I build on last time, or start fresh for this trip?" }
+        {
+          "id": "mr-r-last",
+          "text": "and I think the last person I talked to on this phone was <name>. Is this <name>?"
+        },
+        {
+          "id": "mr-r-remember",
+          "text": "and I remember talking with <name> on this phone. Is that you, <name>?"
+        },
+        {
+          "id": "mr-r-familiar",
+          "text": "and this phone sounds familiar. Am I talking to <name>?"
+        },
+        {
+          "id": "mr-r-again",
+          "text": "and I think <name> called me from this phone before. Is this <name>?"
+        }
       ],
       "same_day": [
-        { "id": "mr-s1", "text": "Want more like what I found earlier, or something different?" },
-        { "id": "mr-s2", "text": "Did the earlier plan hold up, or shall I find you a change?" },
-        { "id": "mr-s3", "text": "Round two, more of the same, or something new?" }
+        {
+          "id": "mr-s-earlier",
+          "text": "and I talked with <name> on this phone earlier today. Is this <name> again?"
+        },
+        {
+          "id": "mr-s-back",
+          "text": "and this phone called me earlier. Is that you again, <name>?"
+        },
+        {
+          "id": "mr-s-round",
+          "text": "and I think we spoke earlier today. Is this <name>?"
+        }
       ]
     }
   },
   "pairs": [
-    { "id": "p-spicy", "text": "spicy and loud, or slow and candlelit", "sides": [["spicy", "loud"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["harper", "road", "marisol"] },
-    { "id": "p-lively", "text": "spicy and lively, or slow and candlelit", "sides": [["spicy", "lively"], ["slow", "candlelit"]], "dayparts": ["any"], "enabled": true, "default": ["maybelle"] },
-    { "id": "p-adventure", "text": "adventurous and fun, or familiar and quiet", "sides": [["adventurous", "fun"], ["familiar", "quiet"]], "dayparts": ["any"], "enabled": true },
-    { "id": "p-noise", "text": "loud and fun, or quiet and candlelit", "sides": [["loud", "fun"], ["quiet", "candlelit"]], "dayparts": ["any"], "enabled": true },
-    { "id": "p-heat", "text": "spicy and adventurous, or slow and familiar", "sides": [["spicy", "adventurous"], ["slow", "familiar"]], "dayparts": ["any"], "enabled": true },
-    { "id": "p-patio", "text": "casual and outdoors, or cozy and candlelit", "sides": [["casual", "outdoors"], ["cozy", "candlelit"]], "dayparts": ["any"], "enabled": false },
-    { "id": "p-dress", "text": "upscale and quiet, or casual and loud", "sides": [["upscale", "quiet"], ["casual", "loud"]], "dayparts": ["any"], "enabled": false },
-    { "id": "p-light", "text": "fresh and light, or hearty and slow", "sides": [["fresh", "light"], ["hearty", "slow"]], "dayparts": ["any"], "enabled": false },
-    { "id": "p-view", "text": "scenic and slow, or lively and casual", "sides": [["scenic", "slow"], ["lively", "casual"]], "dayparts": ["any"], "enabled": false },
-    { "id": "p-share", "text": "casual and spicy, or upscale and candlelit", "sides": [["casual", "spicy"], ["upscale", "candlelit"]], "dayparts": ["any"], "enabled": false },
-    { "id": "p-cozy", "text": "outdoors and fun, or cozy and quiet", "sides": [["outdoors", "fun"], ["cozy", "quiet"]], "dayparts": ["afternoon"], "enabled": false },
-    { "id": "p-comfort", "text": "hearty and familiar, or fresh and adventurous", "sides": [["hearty", "familiar"], ["fresh", "adventurous"]], "dayparts": ["any"], "enabled": false }
-  ],
-  "bets": [
-    { "id": "b-film", "domain": "movie", "text": "a film or a director", "default": true, "enabled": true },
-    { "id": "b-tv", "domain": "tv_show", "text": "a TV show", "enabled": true },
-    { "id": "b-book", "domain": "book", "text": "a book or an author", "enabled": true },
-    { "id": "b-podcast", "domain": "podcast", "text": "a podcast", "enabled": true },
-    { "id": "b-album", "domain": "artist", "text": "an album from another decade", "enabled": true },
-    { "id": "b-place", "domain": "place", "text": "a city you'd fly to just for the food", "enabled": false }
+    {
+      "id": "p-spicy",
+      "text": "spicy and loud, or slow and candlelit",
+      "sides": [
+        [
+          "spicy",
+          "loud"
+        ],
+        [
+          "slow",
+          "candlelit"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": true,
+      "default": [
+        "harper",
+        "road",
+        "marisol"
+      ]
+    },
+    {
+      "id": "p-lively",
+      "text": "spicy and lively, or slow and candlelit",
+      "sides": [
+        [
+          "spicy",
+          "lively"
+        ],
+        [
+          "slow",
+          "candlelit"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": true,
+      "default": [
+        "maybelle"
+      ]
+    },
+    {
+      "id": "p-adventure",
+      "text": "adventurous and fun, or familiar and quiet",
+      "sides": [
+        [
+          "adventurous",
+          "fun"
+        ],
+        [
+          "familiar",
+          "quiet"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "p-noise",
+      "text": "loud and fun, or quiet and candlelit",
+      "sides": [
+        [
+          "loud",
+          "fun"
+        ],
+        [
+          "quiet",
+          "candlelit"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "p-heat",
+      "text": "spicy and adventurous, or slow and familiar",
+      "sides": [
+        [
+          "spicy",
+          "adventurous"
+        ],
+        [
+          "slow",
+          "familiar"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "p-patio",
+      "text": "casual and outdoors, or cozy and candlelit",
+      "sides": [
+        [
+          "casual",
+          "outdoors"
+        ],
+        [
+          "cozy",
+          "candlelit"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-dress",
+      "text": "upscale and quiet, or casual and loud",
+      "sides": [
+        [
+          "upscale",
+          "quiet"
+        ],
+        [
+          "casual",
+          "loud"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-light",
+      "text": "fresh and light, or hearty and slow",
+      "sides": [
+        [
+          "fresh",
+          "light"
+        ],
+        [
+          "hearty",
+          "slow"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-view",
+      "text": "scenic and slow, or lively and casual",
+      "sides": [
+        [
+          "scenic",
+          "slow"
+        ],
+        [
+          "lively",
+          "casual"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-share",
+      "text": "casual and spicy, or upscale and candlelit",
+      "sides": [
+        [
+          "casual",
+          "spicy"
+        ],
+        [
+          "upscale",
+          "candlelit"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-cozy",
+      "text": "outdoors and fun, or cozy and quiet",
+      "sides": [
+        [
+          "outdoors",
+          "fun"
+        ],
+        [
+          "cozy",
+          "quiet"
+        ]
+      ],
+      "dayparts": [
+        "afternoon"
+      ],
+      "enabled": false
+    },
+    {
+      "id": "p-comfort",
+      "text": "hearty and familiar, or fresh and adventurous",
+      "sides": [
+        [
+          "hearty",
+          "familiar"
+        ],
+        [
+          "fresh",
+          "adventurous"
+        ]
+      ],
+      "dayparts": [
+        "any"
+      ],
+      "enabled": false
+    }
   ]
 }

@@ -84,13 +84,13 @@ test('Marisol compiles through the rental template with zero lint errors and the
   for (const v of [miami().stay.trash, miami().stay.welcome, '3812', '0475', 'MangoBreeze2290', 'CoralinaGuest']) assert.ok(!all.includes(v), `compiled: ${v}`);
 });
 
-test('Marisol: the opener discloses, says she answers stay questions, asks what the guest has been loving, and stays two sentences', () => {
+test('Marisol: the opener names her and the rental, asks who is calling, and stays one sentence', () => {
   const first = compile(miami(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, "Hi, this is Marisol, the automated concierge at Casa Coralina, this call is recorded, any text I send goes only to the number you are calling from, and I can answer questions about your stay. I can find dinner, drinks, things to do, and a film for the couch, so what have you been loving lately, a band, a dish, a show?");
-  assert.equal(sentences(first).length, 2);
-  // With the memory webhook the greeting and hook vary, and the disclosure stays compiled.
+  assert.equal(first, 'This is Marisol, your concierge at Casa Coralina, who am I speaking with?');
+  assert.equal(sentences(first).length, 1);
+  // With the memory webhook the name question varies, and the introduction stays compiled.
   const on = compile(miami(), { ...OPTS, memoryWebhook: true }).agent.conversation_config.agent;
-  assert.match(on.first_message, /^\{\{greeting\}\} this is Marisol, .*automated concierge.*this call is recorded.*questions about your stay\. \{\{opener_hook\}\}$/);
+  assert.equal(on.first_message, 'This is Marisol, your concierge at Casa Coralina, {{opener_hook}}');
 });
 
 test('Marisol: every place tool looks around the rental in Miami, never a locality', () => {

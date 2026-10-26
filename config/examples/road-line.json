@@ -7,7 +7,7 @@
   },
   "voice": {
     "persona_id": "road",
-    "humor_level": 1,
+    "humor_level": 2,
     "languages": ["en"],
     "feel": "Like calling a friend who always knows a good kitchen two exits up."
   },

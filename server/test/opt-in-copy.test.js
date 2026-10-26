@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
-import { BRIDGE, OPENER, SMS_OPT_IN, STOP_HELP } from '../../dashboard/src/legal-content.js';
+import { BRIDGE, OPENER, RECORDING_LINE, SMS_OPT_IN, STOP_HELP } from '../../dashboard/src/legal-content.js';
 
 const persona = readFileSync(new URL('../../personas/harper.md', import.meta.url), 'utf8');
 const demo = JSON.parse(readFileSync(new URL('../../config/examples/demo-inn.json', import.meta.url), 'utf8'));
@@ -13,6 +13,12 @@ describe('sms opt-in page copy', () => {
     const opener = /^opener:\s*(.+)$/m.exec(persona)?.[1] ?? '';
     const said = opener.replaceAll('{{property_name}}', demo.property?.name ?? '');
     assert.ok(said.startsWith(OPENER), `persona opener no longer starts with the quoted sentence:\n${said}`);
+  });
+
+  it('quotes the recording line the template tells every first call to say', () => {
+    const template = readFileSync(new URL('../../template/concierge.md', import.meta.url), 'utf8');
+    assert.ok(template.toLowerCase().includes(RECORDING_LINE.toLowerCase().replace(/\.$/, '')), RECORDING_LINE);
+    assert.ok(SMS_OPT_IN.sections.flatMap((s) => s.blocks).some((b) => b.quote === RECORDING_LINE));
   });
 
   it('shows the room card, the offer, and the consent terms', () => {

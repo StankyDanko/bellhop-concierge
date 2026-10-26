@@ -1,11 +1,13 @@
 // The worked example calls teach the agent more than any rule written next to them, so they
 // must obey the stop rule exactly. This test parses every persona's "Example calls" section
 // and its uncompiled "Example call checks" list and fails if an example:
-//   - puts more than three concierge questions before the lookup (the opener's taste question
-//     counts as the first, since every example opens by answering or ignoring it),
-//   - asks any question once the caller has given three named things, or
+//   - puts more than three concierge questions before the lookup (the first message asks only
+//     for a name, so it does not count, and neither does asking again for a name or a place),
+//   - asks any question once the caller has given three taste signals, or
 //   - ends on a question instead of the lookup line, or
-//   - asks the bet once the caller has named a companion (the plus-one takes the bet's slot).
+//   - makes a playful guess once the caller has named a companion.
+// Every example call also carries the recording note in the concierge's first turn, and no two
+// example calls in one persona open the same way.
 // See "Example calls and the stop rule" in compiler/README.md.
 
 import { test } from 'node:test';
@@ -45,7 +47,10 @@ export function parseChecks(fileText) {
 }
 
 /** A road persona's question about where the caller is: never a taste question. */
-export const PLACE_QUESTION = /\b(city|state|town)\b/i;
+export const PLACE_QUESTION = /\b(city|state|town|staying|where are you)\b/i;
+
+/** Asking again for the caller's name, after a first reply that was not one. */
+export const NAME_QUESTION = /\bwho('ve| have| am| is|'s)\b.*\b(got|calling|speaking|talking|I)\b/i;
 
 /** A rental persona's offer after a stay answer ("want me to plan your night?"): never a taste question. */
 export const STAY_OFFER = /\bplan your night\b|\bfor the stay\b/i;
@@ -56,12 +61,13 @@ export const STAY_OFFER = /\bplan your night\b|\bfor the stay\b/i;
  * neither does a follow-up place question such as "Which state?".
  */
 export function audit(example, named, { road = false, rental = false } = {}) {
-  let questions = road ? 0 : 1; // the opener's taste question
+  let questions = 0; // the first message asks only who is calling
   let guestTurn = -1;
   const breaches = [];
   for (const t of example.turns) {
     if (t.who === 'guest') { guestTurn += 1; continue; }
     if (!t.text.includes('?')) continue;
+    if (NAME_QUESTION.test(t.text) && !/\b(watch|eat|mood)\b/i.test(t.text)) continue;
     if (road && PLACE_QUESTION.test(t.text) && !/\b(band|dinner|loves)\b/i.test(t.text)) continue;
     if (rental && STAY_OFFER.test(t.text)) continue;
     questions += 1;
@@ -99,14 +105,23 @@ for (const id of listPersonas(PERSONAS_DIR.pathname)) {
       assert.deepEqual(breaches, [], `${id} / ${ex.title}`);
       assert.ok(!ex.turns.at(-1).text.includes('?'), `${id} / ${ex.title}: must end on the lookup, not a question`);
       assert.equal(ex.turns.at(-1).who, 'concierge');
-      assert.deepEqual(betsWithCompanion(ex), [], `${id} / ${ex.title}: a companion is named, so the plus-one takes the bet's slot`);
+      assert.deepEqual(betsWithCompanion(ex), [], `${id} / ${ex.title}: a companion is named, so no playful guess`);
+      // The first concierge turn says the call is being recorded, unless the call is a transfer to a demo.
+      const firstTurn = ex.turns.find((t) => t.who === 'concierge');
+      if (!/\bdemo\b/i.test(ex.title)) assert.match(ex.turns.filter((t) => t.who === 'concierge').slice(0, 2).map((t) => t.text).join(' '), /this call is being recorded/, `${id} / ${ex.title}: the recording note`);
+      assert.ok(firstTurn);
     }
+    // Different calls go different ways: no two concierge first turns open on the same words.
+    const openings = examples.map((e) => e.turns.find((t) => t.who === 'concierge').text.split(' ').slice(0, 5).join(' '));
+    const firsts = examples.map((e) => e.turns.filter((t) => t.who === 'concierge').map((t) => t.text).join(' | '));
+    assert.equal(new Set(firsts).size, firsts.length, `${id}: two example calls are the same call`);
+    assert.ok(new Set(openings).size >= Math.min(2, openings.length), `${id}: every example call opens the same way`);
   });
 
-  test(`${id}: the bet detector recognizes this persona's own bet line`, () => {
+  test(`${id}: the guess detector recognizes this persona's own playful guess`, () => {
     const persona = loadPersona(id, PERSONAS_DIR.pathname);
-    const line = persona.sections['sample lines'].split('\n').find((l) => /^- The (bet|hunch):/.test(l));
-    assert.ok(line, `${id}: no bet or hunch sample line`);
+    const line = persona.sections['sample lines'].split('\n').find((l) => /^- A playful guess:/.test(l));
+    assert.ok(line, `${id}: no playful guess sample line`);
     assert.match(line, BET);
   });
 }
@@ -123,8 +138,9 @@ test('audit catches a couple who hear the bet and then the plus-one question', (
     'Guest: "Kacey Musgraves."',
     'Harper: "Got it. Give me a few seconds."',
   ].join('\n'), 'Harper')[0];
+  // Three questions, but one is a guess at a couple, which the plus-one rule forbids.
   const { questions } = audit(bad, [1, 2, 2, 3]);
-  assert.equal(questions, 4);
+  assert.equal(questions, 3);
   assert.equal(betsWithCompanion(bad).length, 1);
 });
 
@@ -139,7 +155,7 @@ test('a guest on their own may still hear the bet', () => {
   assert.deepEqual(betsWithCompanion(solo), []);
 });
 
-test('at least one example call is a couple, and the plus-one answer is the third named thing', () => {
+test('at least one example call is a couple, and the companion gets at most one easy question', () => {
   const found = [];
   for (const id of listPersonas(PERSONAS_DIR.pathname)) {
     const persona = loadPersona(id, PERSONAS_DIR.pathname);
@@ -147,17 +163,24 @@ test('at least one example call is a couple, and the plus-one answer is the thir
     for (const ex of parseExamples(persona.sections['example calls'], persona.display_name)) {
       if (!/couple/i.test(ex.title)) continue;
       const named = /** @type {number[]} */ (checks?.get(ex.title));
-      // The concierge turn just before the guest's last turn asks for the plus-one's thing,
-      // and that answer takes the count to exactly three.
-      const lastGuest = ex.turns.map((t) => t.who).lastIndexOf('guest');
-      const ask = ex.turns[lastGuest - 1];
-      assert.match(ask.text, /one thing your .+ loves\?$/, `${id} / ${ex.title}: plus-one question`);
-      assert.equal(named.at(-1), STOP_AT_NAMED);
-      assert.equal(named.at(-2), STOP_AT_NAMED - 1);
+      // One concierge question is about the other person, and it is asked once.
+      const about = ex.turns.filter((t) => t.who === 'concierge' && /\?$/.test(t.text) && /\b(he|she|they|your (plus-one|friend|wife|husband|partner|sister|brother))\b/i.test(t.text));
+      assert.equal(about.length, 1, `${id} / ${ex.title}: one question about the companion`);
+      assert.doesNotMatch(about[0].text, /one thing your .+ loves/i, 'no quiz about the companion either');
+      assert.ok(named.at(-1) > named.at(-2), `${id} / ${ex.title}: the companion's answer is a signal`);
       found.push(`${id} / ${ex.title}`);
     }
   }
   assert.ok(found.length >= 1, 'no couple example in any persona');
+});
+
+test('no example call asks the old taste quiz', () => {
+  for (const id of listPersonas(PERSONAS_DIR.pathname)) {
+    const persona = loadPersona(id, PERSONAS_DIR.pathname);
+    for (const section of ['sample lines', 'example calls']) {
+      assert.doesNotMatch(persona.sections[section], /loving lately|a band, a dish, a show|and a dish you'd go back for/i, `${id} ${section}`);
+    }
+  }
 });
 
 test('audit catches the old chatty example that asked a question while holding three named things', () => {
@@ -171,6 +194,6 @@ test('audit catches the old chatty example that asked a question while holding t
     'Harper: "Got it. Give me a few seconds."',
   ].join('\n'), 'Harper')[0];
   const { questions, breaches } = audit(old, [2, 3, 4]);
-  assert.equal(questions, 3);
+  assert.equal(questions, 2);
   assert.equal(breaches.length, 1);
 });

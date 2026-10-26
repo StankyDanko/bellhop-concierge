@@ -6,10 +6,10 @@ plus the road persona that answers the main line and the rental persona for a sh
 
 | Persona | Who she is | Pick her for | Humor ceiling |
 |---|---|---|---|
-| [Harper](harper.md) | The night desk. Calm, dry, makes a bet about your taste. | The default. City inns, boutique hotels, any innkeeper who wants a good front desk. | 1 |
+| [Harper](harper.md) | The night desk. Calm, dry, quick to warm. | The default. City inns, boutique hotels, any innkeeper who wants a good front desk. | 1 |
 | [Maybelle](maybelle.md) | A Southern hostess who keeps the neighborhood in her head. | Southern inns, garden bed and breakfasts, talkative innkeepers. | 2 |
-| [Hollis](road.md) | The road concierge. Asks where you are tonight, then plays the same game. | The main line, for a caller anywhere in the United States. Not offered to innkeepers. | 1 |
-| [Marisol](marisol.md) | The rental concierge. Answers the stay question first, from the stay sheet, then plays the same game. | A short-term rental, a home with no front desk. The Miami rental demo, an Airbnb-style stay. | 1 |
+| [Hollis](road.md) | The road concierge. Quick, curious, a friend on the phone who finds out where you are as you talk. | The main line, for a caller anywhere in the United States. Not offered to innkeepers. | 2 |
+| [Marisol](marisol.md) | The rental concierge. Answers the stay question first, from the stay sheet, then asks about your night. | A short-term rental, a home with no front desk. The Miami rental demo, an Airbnb-style stay. | 1 |
 
 Marisol has `mode: rental` and compiles through `template/rental.md`: concierge.md with the front
 desk taken out and the stay sheet put in, held to concierge.md line by line by
@@ -20,7 +20,7 @@ gives out a wifi password or a door code. The schema refuses a rental with an in
 with the rental persona, so the template always matches the place.
 
 Hollis has `mode: road`. A road persona compiles through `template/road.md` instead of
-`template/concierge.md`: there is no inn, so the first question is the city and state, every place
+`template/concierge.md`: there is no inn, so the city and state come up in the conversation, every place
 tool takes that locality instead of fixed coordinates, and two transfers reach the inn demo (a caller
 asks for the inn demo) and the Miami rental demo (the Airbnb demo, or the rental demo). `compiler/test/road-template.test.js` holds the two templates
 together line by line, so a fix to one cannot skip the other.
@@ -33,17 +33,23 @@ more humor than a persona carries gets that persona's maximum, never more.
 Each persona is one Markdown file:
 
 - **Front matter**: `id`, `display_name`, `humor_ceiling`, `tts_stability`, `mode` (`inn`, the
-  default, or `road`), and `opener`, the first message the agent speaks. The opener must name the
-  persona, say it is an automated concierge, say the call is recorded, and ask what the guest has been loving lately, in any domain (a road
-  persona asks for the city and state instead), in two sentences at most.
+  default, `road`, or `rental`), and `opener`, the first message the agent speaks. The opener names
+  the persona and says it is the concierge, then asks who is calling, and nothing else. Its last
+  words are the default of the name question the call setup varies (`server/conversation/pools.json`).
+  The template has the agent say the call is being recorded in its very next turn.
 - **Human sections** (anything not marked compiled): the voice bible for whoever tunes it.
+- **`## Personality (compiled)`**: how the persona is fun. Rhythm, the one detail to grab, when a
+  zinger is fair, how warmth comes back after one, banter, and what is never fair game (loneliness,
+  money, looks, anything sensitive: tease choices, never the person's pain).
 - **`## ... (compiled)` sections**: copied into the prompt word for word. They follow the same
   rules the compiler lints for: no dashes, no web addresses, no phone numbers, no word "live",
   short sentences, one question per turn. A worked example in a prompt outweighs any rule
-  written next to it, so the sample lines are the most important text in the file.
+  written next to it, and the model copies examples word for word, so examples show shapes:
+  names and tastes go in square brackets (`[name]`, `[a dish]`, `[town]`) for the agent to fill
+  from the caller's own words, and no two example calls go the same way.
 
 - **`## Example call checks`** (not compiled): one line per example call, `- <title>: n, n, n`,
-  giving how many named things the caller has said after each of their turns. A test uses it
+  giving how many taste signals the caller has given after each of their turns. A test uses it
   to hold every example call to the stop rule (see `compiler/README.md`).
 
 Slots allowed inside a persona: `{{property_name}}` and `{{handoff_name}}`.

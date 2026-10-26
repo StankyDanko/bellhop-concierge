@@ -10,6 +10,8 @@
 //   phone_number      seven or more digits in a row (separators allowed)
 //   url               a web address in speakable text
 //   first_message     more than two sentences
+//   disclosure        the first message stops saying it is the concierge or stops ending on its
+//                     question, or the prompt loses the rule to say the call is being recorded
 //   heteronym_live    the word "live", which the voice says with the wrong vowel
 //   unfilled_slot     a {{slot}} the compiler did not fill (system variables excepted)
 // warn rules:
@@ -25,11 +27,14 @@ import { secretTokens } from '../config/schema.js';
  * (server/hooks/conversation-init.js). Their compiled placeholders are today's lines, so a call
  * without the webhook (a browser test, a webhook that is switched off) sounds exactly as before.
  */
-export const RUNTIME_VARIABLES = Object.freeze(['greeting', 'opener_hook', 'choice_pair', 'bet_domain', 'plan_window',
-  'caller_status', 'memory_line', 'stay_line', 'texted_count']);
+export const RUNTIME_VARIABLES = Object.freeze(['opener_hook', 'choice_pair', 'plan_window',
+  'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count']);
 
-/** What the first message must always say, compiled in, never supplied at call time. */
-export const DISCLOSURE_PHRASES = Object.freeze(['automated concierge', 'this call is recorded']);
+/**
+ * The recording note. The first message only asks who is calling, so the prompt must carry the
+ * rule that the very next turn says the call is being recorded, on every first call.
+ */
+export const RECORDING_NOTE = 'this call is being recorded';
 
 export const RULES = {
   em_dash: /[–—]/,
@@ -103,12 +108,12 @@ export function lintCompiled({ prompt, firstMessage, tools, agent, secrets = {},
 
   const n = sentences(firstMessage).length;
   if (n > 2) add('first_message', 'error', 'first_message', `${n} sentences; the opener allows two`);
-  // A first message assembled from runtime variables must still carry the disclosure itself.
-  if (/\{\{(greeting|opener_hook)\}\}/.test(firstMessage)) {
-    for (const phrase of DISCLOSURE_PHRASES) {
-      if (!firstMessage.toLowerCase().includes(phrase)) add('disclosure', 'error', 'first_message', `the compiled part no longer says "${phrase}"`);
-    }
-  }
+  // The first message says who is speaking, compiled, even when its hook comes from the webhook,
+  // and it asks a question, so the caller answers before the concierge says anything more.
+  const compiledPart = firstMessage.replace(/\{\{opener_hook\}\}/g, '');
+  if (!/\bconcierge\b/i.test(compiledPart)) add('disclosure', 'error', 'first_message', 'the compiled part no longer says it is the concierge');
+  if (!/\?$|\{\{opener_hook\}\}$/.test(firstMessage.trim())) add('disclosure', 'error', 'first_message', 'the first message must end on its question');
+  if (!prompt.includes(RECORDING_NOTE)) add('disclosure', 'error', 'prompt', `the prompt no longer tells the agent to say "${RECORDING_NOTE}"`);
 
   const everything = JSON.stringify({ agent, tools });
   for (const [field, note] of Object.entries(secrets)) {

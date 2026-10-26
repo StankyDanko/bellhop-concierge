@@ -45,7 +45,7 @@ test('a preview compiles the Miami rental with Marisol and stay_info, and refuse
   assert.equal(ok.json.meta.errors, 0);
   assert.equal(ok.json.meta.mode, 'rental');
   assert.ok(ok.json.tools.includes('stay_info'));
-  assert.match(ok.json.first_message, /questions about your stay/);
+  assert.match(ok.json.first_message, /^This is Marisol, your concierge at Casa Coralina, who am I speaking with\?$/);
   const bad = await post(app, '/api/properties/demo/compile', { config: miami(), persona: 'harper' });
   assert.equal(bad.status, 400);
   assert.ok(bad.json.errors.some((e) => e.startsWith('voice.persona_id: a rental uses a rental persona')));

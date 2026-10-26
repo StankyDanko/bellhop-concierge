@@ -54,10 +54,11 @@ test('road compiles with zero lint errors and the same hardening as Harper', () 
   }
 });
 
-test('road: the opener names Hollis, discloses, asks for the city and state, and stays two sentences', () => {
+test('road: the opener names Hollis and asks who is calling, and nothing else', () => {
   const first = compile(road(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, "Hi, this is Hollis, the automated concierge at Bellhop, this call is recorded, and any text I send goes only to the number you are calling from. Tell me what city and state you're in, and I can find dinner, drinks, things to do, and a show for your night.");
-  assert.equal(sentences(first).length, 2);
+  assert.equal(first, 'This is Hollis, your Bellhop concierge, who am I speaking with?');
+  assert.equal(sentences(first).length, 1);
+  assert.doesNotMatch(first, /city|state|recorded|text/i, 'no place demand and no legal block up front');
 });
 
 test('road: no place tool carries coordinates or a timezone; each takes the locality the model fills', () => {
@@ -149,8 +150,9 @@ test('road: no inn, no room card, no innkeeper, no owner notes in the prompt', (
   assert.doesNotMatch(p, /room card|check-in message|booking confirmation|Owner's notes|About the inn|innkeeper|near the inn|at the inn\b/i);
   assert.doesNotMatch(p, /Do not ask where they are staying/);
   for (const value of ['No check-in', 'the road line has no rooms', 'Anyone in the United States, at home']) assert.ok(!p.includes(value), `config text leaked: ${value}`);
-  assert.match(p, /Your first message asks for the city and state/);
-  assert.match(p, /it never counts toward the three questions in the stop rule/);
+  assert.match(p, /you learn it in the conversation, never as the first thing you ask/);
+  assert.match(p, /like where are you staying tonight\?/);
+  assert.match(p, /never counts toward the three questions in the stop rule/);
 });
 
 test('road: runtime variables always have placeholders, and they rebuild the opener byte for byte', () => {
@@ -164,7 +166,7 @@ test('road: runtime variables always have placeholders, and they rebuild the ope
   }
   const on = compile(road(), { ...OPTS, memoryWebhook: true });
   const a = on.agent.conversation_config.agent;
-  assert.match(a.first_message, /^\{\{greeting\}\} this is Hollis, .*automated concierge.*this call is recorded.*\{\{opener_hook\}\}$/);
+  assert.equal(a.first_message, 'This is Hollis, your Bellhop concierge, {{opener_hook}}');
   const rebuilt = a.first_message.replace(/\{\{(\w+)\}\}/g, (_, k) => String(a.dynamic_variables.dynamic_variable_placeholders[k]));
   assert.equal(rebuilt, off.agent.conversation_config.agent.first_message);
   assert.equal(on.agent.platform_settings.overrides.enable_conversation_initiation_client_data_from_webhook, true);
@@ -177,15 +179,16 @@ test('road: forget_guest is named in the prompt only when the memory tools are c
   assert.ok(!promptOf(off).includes('forget_guest'));
   assert.ok(!off.tools.some((t) => t.tool_config.name === 'forget_guest'));
   assert.match(promptOf(on), /call forget_guest at once/);
-  assert.match(promptOf(on), /7\. forget_guest\./);
+  assert.match(promptOf(on), /6\. transfer_to_agent\.[^\n]*\n7\. remember_guest\.[^\n]*\n8\. forget_guest\./);
   assert.ok(on.tools.some((t) => t.tool_config.name === 'forget_guest'));
   assert.deepEqual(on.lint.filter((f) => f.severity === 'error'), []);
 });
 
-test('the inn personas compile exactly as before the road line existed (no transfer, no locality, no placeholders)', () => {
+test('the inn personas carry no road line parts (no transfer, no locality) and only first-call placeholders', () => {
   for (const persona of ['harper', 'maybelle']) {
     const r = compile(demo(), { ...OPTS, persona });
-    assert.equal(r.agent.conversation_config.agent.dynamic_variables, undefined);
+    assert.deepEqual(r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders, defaultVars(persona));
+    assert.equal(r.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent, undefined);
     assert.doesNotMatch(JSON.stringify(r.tools), /locality/);
     assert.equal(r.meta.mode, 'inn');
   }

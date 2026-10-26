@@ -2,9 +2,11 @@
 //
 // On an inbound phone call the platform posts { caller_id, agent_id, called_number, call_sid,
 // conversation_id } while the line is still ringing, and starts the call with the dynamic
-// variables this answers. They pick the opener, the food choice, the bet and the plan window
-// for this call (server/conversation/choose.js), and, for a caller the concierge has heard from
-// in the last few days, what it remembers (server/lib/memory.js).
+// variables this answers. They pick the name question, the mood choice and the plan window for
+// this call (server/conversation/choose.js), and, for a caller the concierge has heard from in
+// the last few days, what it remembers (server/lib/memory.js): the first name it last heard on
+// this phone, which call this is for that person, whether they already heard that every call is
+// recorded, and one thing from the last call to ask about.
 //
 // A failed or slow answer can keep the call from connecting, so this handler never throws and
 // answers 200 with the default lines on anything unexpected: bad or missing auth, an unknown
@@ -15,7 +17,7 @@
 // outside server/api/ on purpose: the dashboard holds no handle to guest memory.
 
 import { secretMatches, SECRET_HEADER } from '../lib/auth.js';
-import { callerFrom, memoryLine, sessionFrom, stayLine } from '../lib/memory.js';
+import { callerFrom, cleanName, lastCallHook, memoryLine, sessionFrom, stayLine } from '../lib/memory.js';
 import { choose, defaultVars } from '../conversation/choose.js';
 
 export const INIT_PATH = '/hooks/conversation-init';
@@ -70,20 +72,26 @@ export function buildInit({ body, authorized, agents, memory, timezone, now, rng
   if (!hash) return { vars: choose({ persona, now, timezone: tz, rng }).vars, status: 'no_memory', returning: false };
 
   const row = memory.read(hash, agent.property_id);
+  const name = cleanName(row?.guest?.name);
   const last = row ? {
-    openerIds: row.variety?.opener ?? [], pairIds: row.variety?.pair ?? [], betIds: row.variety?.bet ?? [],
-    hasTastes: row.tastes.length > 0, lastCallDay: row.last_call_day,
+    openerIds: row.variety?.opener ?? [], pairIds: row.variety?.pair ?? [],
+    // A name is something to build on too: the next call can ask whether it is still that person.
+    hasTastes: row.tastes.length > 0 || Boolean(name), lastCallDay: row.last_call_day,
   } : {};
-  const picked = choose({ persona, now, timezone: tz, last, rng });
+  const picked = choose({ persona, now, timezone: tz, last, name, rng });
   const returning = picked.vars.caller_status !== 'new';
   const vars = { ...picked.vars };
   if (returning) {
     vars.memory_line = memoryLine(row.tastes);
     vars.stay_line = stayLine(row.party);
     vars.texted_count = row.texted.length;
+    vars.caller_name = name || 'none';
+    vars.call_number = (row.guest?.person_calls ?? 0) + 1;
+    vars.recording_noted = row.guest?.recording_noted === true ? 'yes' : 'no';
+    vars.last_call_hook = lastCallHook(row.guest?.last);
   }
   memory.startCall({ hash, sessionId: sessionFrom(body?.conversation_id), propertyId: agent.property_id, persona, timezone: tz,
-    variety: { opener: picked.ids.opener, pair: picked.ids.pair, bet: picked.ids.bet } });
+    variety: { opener: picked.ids.opener, pair: picked.ids.pair } });
   return { vars, status: 'ok', returning };
 }
 

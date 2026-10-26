@@ -24,15 +24,11 @@ const lines = (path) => body(path).split('\n').filter((l) => l.trim());
  * makes a change anywhere in a rewritten line fail until road.md is reviewed and the pin moved.
  */
 const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
-  ['You answer the phone for {{property_name}}.', 'the line has no inn: a concierge for wherever the caller is', '06db428661ee2ef6'],
+  ['You answer the phone for {{property_name}}.', 'the line has no inn: a concierge for wherever the caller is', 'f454d0d009c310fb'],
   ['This is a phone call. Everything you say', 'the caller is anywhere, and the inn timezone is gone', '2799c37f63ef8909'],
-  ['You already know where the guest is.', 'the opposite on the road: ask the city and state, say it back once', 'b4a2ff113b7becde'],
+  ['You already know where the guest is.', 'the opposite on the road: learn the city and state in the conversation', '2ce21cef0c994e00'],
   ['{{property}}', 'no inn to describe', '1484505eef256e4b'],
   ['If the first words carry urgency', 'no room problem; get the place first on the practical path', 'dfcfaca2cd926aac'],
-  ['1. The anchor.', 'the open question comes after the place', 'bff96df72eec28db'],
-  ['2. The echo and another domain.', 'carries the variety pair variable for the fallback choice', '1eef8e3de595f8bf'],
-  ['3. The bet.', 'carries the bet domain variable from the pending proposals', '77f35492c0b61aa5'],
-  ['4. The defaults.', 'carries the plan window variable from the pending proposals', '6c36d1ff229de805'],
   ['These rules come before everything above.', 'no innkeeper settings on the road line', 'ee81fddba1d05bfb'],
   ['This step is important. Codes and passwords.', 'no innkeeper or check-in message to point at', '79a3007fa39e361f'],
   ['This step is important. No promises you cannot keep.', 'no innkeeper to send rates and bookings to', 'e2ef37d76960a99e'],

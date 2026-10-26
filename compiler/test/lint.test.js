@@ -8,7 +8,12 @@ import { compile, TEMPLATE_PATH } from '../compile.js';
 import { demo } from './helpers.js';
 
 const CLEAN = 'Give me a few seconds. I am checking what is on near you.';
-const run = (over = {}) => lintCompiled({ prompt: CLEAN, firstMessage: 'Hi, this is Harper. One band you love?', tools: [], agent: {}, ...over });
+/** Every prompt the agent gets carries the recording rule; a case that drops it says so with recording: false. */
+const NOTE = ' Next turn, say this call is being recorded.';
+const run = ({ recording = true, ...over } = {}) => {
+  const o = { prompt: CLEAN, firstMessage: 'This is Harper, your concierge, who am I speaking with?', tools: [], agent: {}, ...over };
+  return lintCompiled({ ...o, prompt: recording ? o.prompt + NOTE : o.prompt });
+};
 const errors = (findings) => findings.filter((f) => f.severity === 'error').map((f) => f.rule);
 
 test('clean text passes', () => {
@@ -39,6 +44,14 @@ for (const [rule, over] of CASES) {
     assert.ok(errors(run(over)).includes(rule), JSON.stringify(run(over)));
   });
 }
+
+test('disclosure: the first message names the concierge and ends on its question, and the prompt keeps the recording note', () => {
+  assert.ok(errors(run({ recording: false })).includes('disclosure'), 'a prompt without the recording note');
+  assert.ok(errors(run({ firstMessage: 'This is Harper, who am I speaking with?' })).includes('disclosure'), 'no concierge');
+  assert.ok(errors(run({ firstMessage: 'This is Harper, your concierge. Enjoy your night.' })).includes('disclosure'), 'no question');
+  assert.deepEqual(errors(run({ firstMessage: 'This is Harper, your concierge, {{opener_hook}}' })), []);
+  assert.ok(errors(run({ firstMessage: 'This is Harper, {{opener_hook}}' })).includes('disclosure'), 'the compiled part must say concierge');
+});
 
 test('system variables are not unfilled slots', () => {
   assert.deepEqual(errors(run({ prompt: 'The time is {{system__time}}.' })), []);

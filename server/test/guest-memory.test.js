@@ -21,7 +21,7 @@ import { FIXED_NOW, MEMORY_SECRET, PROPERTY, SECRET, TEST_AGENTS, callInit, call
 const DAY = 86_400_000;
 const CALLER = '+15550100011';
 const OTHER = '+15550100012';
-const VARS = ['greeting', 'opener_hook', 'choice_pair', 'bet_domain', 'plan_window', 'caller_status', 'memory_line', 'stay_line', 'texted_count'];
+const VARS = ['opener_hook', 'choice_pair', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
 const SERVER = fileURLToPath(new URL('..', import.meta.url));
 
 /** A memory with a clock the test moves. */
@@ -30,7 +30,7 @@ function mem(start = FIXED_NOW) {
   const m = new GuestMemory({ path: ':memory:', secret: MEMORY_SECRET, now: () => new Date(t) });
   return { m, advance: (ms) => { t += ms; }, now: () => new Date(t) };
 }
-const variety = { opener: 'h-band', pair: 'p-spicy', bet: 'b-film' };
+const variety = { opener: 'h-ask-who', pair: 'p-spicy' };
 const start = (m, sessionId, { caller = CALLER, property = 'demo' } = {}) =>
   m.startCall({ hash: m.keyFor(caller), sessionId, propertyId: property, persona: 'harper', timezone: 'America/New_York', variety });
 /** One whole call: link, a resolved taste, an offered place, composed, committed. */
@@ -194,7 +194,7 @@ test('forget me deletes every row at every inn, blocks the write-back, and unlin
 
 // ---- the initiation webhook -----------------------------------------------------------------
 
-test('the webhook answers all nine variables, 200, no config override, on every path', async () => {
+test('the webhook answers all eleven variables, 200, no config override, on every path', async () => {
   const { app } = makeApp({ memory: true });
   const cases = [
     [{ caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-w-1' }, undefined],
@@ -227,7 +227,7 @@ test('bad auth, an unknown agent, or a withheld number reads and writes nothing'
   assert.deepEqual(parseAgents('{oops'), {});
 });
 
-test('empty memory and the default pick give today\'s first message, byte for byte', () => {
+test('empty memory and the default pick give the compiled first message, byte for byte', () => {
   const { m } = mem();
   const now = new Date('2026-10-21T22:00:00Z'); // a Wednesday evening in New York
   const out = buildInit({ body: { caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-d-1' }, authorized: true,
@@ -236,7 +236,7 @@ test('empty memory and the default pick give today\'s first message, byte for by
   assert.equal(out.returning, false);
   const persona = readFileSync(new URL('../../personas/harper.md', import.meta.url), 'utf8');
   const opener = persona.match(/^opener: (.*)$/m)[1];
-  assert.ok(opener.startsWith(`${out.vars.greeting} this is Harper`));
+  assert.ok(opener.startsWith('This is Harper, your concierge at'));
   assert.ok(opener.endsWith(` ${out.vars.opener_hook}`), 'the hook is the persona opener\'s last sentence');
   assert.deepEqual([out.vars.memory_line, out.vars.stay_line, out.vars.texted_count, out.vars.caller_status], ['none', 'none', 0, 'new']);
 });

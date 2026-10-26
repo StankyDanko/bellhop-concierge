@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { compile, listPersonas, loadPersona, LOCKED_SETTINGS, TRUST_LIMITS } from '../compile.js';
-import { sentences } from '../lint.js';
+import { RECORDING_NOTE, RUNTIME_VARIABLES, sentences } from '../lint.js';
 import { CALLER_ID_VAR, SMS_TOOL_NAME } from '../tools.js';
 import { secretTokens } from '../../config/schema.js';
 import { demo } from './helpers.js';
@@ -14,7 +14,7 @@ test('the two inn personas, the road persona, and the rental persona are on disk
   for (const id of listPersonas()) {
     const p = loadPersona(id);
     assert.equal(p.id, id);
-    assert.ok(p.sections.voice && p.sections['sample lines'] && p.sections['example calls']);
+    assert.ok(p.sections.voice && p.sections.personality && p.sections['sample lines'] && p.sections['example calls']);
   }
 });
 
@@ -33,14 +33,18 @@ for (const persona of ['harper', 'maybelle']) {
     assert.equal(a.platform_settings.guardrails.focus.is_enabled, true);
     assert.equal(a.platform_settings.overrides.conversation_config_override.agent.prompt.prompt, false);
     assert.equal(a.conversation_config.tts.text_normalisation_type, 'elevenlabs');
-    // The opener names the persona, discloses it is automated and recorded, and stays two sentences.
+    // The opener names the persona and the inn, asks who is calling, and nothing else.
     const first = a.conversation_config.agent.first_message;
     assert.ok(first.includes(loadPersona(persona).display_name));
-    assert.match(first, /automated concierge at The Juniper House/);
-    assert.match(first, /recorded/);
-    assert.ok(sentences(first).length <= 2);
-    // Every slot filled; only the platform's system variable remains.
-    assert.deepEqual([...new Set(prompt(r).match(/\{\{[^}]+\}\}/g))], ['{{system__time}}']);
+    assert.match(first, /concierge at The Juniper House/);
+    assert.match(first, /\?$/);
+    assert.equal(sentences(first).length, 1);
+    // The recording note moved to the next turn, and the prompt says so.
+    assert.ok(prompt(r).includes(RECORDING_NOTE));
+    assert.match(prompt(r), /The recording note is never skipped on a first call/);
+    // Every slot filled; only the platform's system variable and runtime variables remain.
+    const left = [...new Set(prompt(r).match(/\{\{[^}]+\}\}/g))].map((x) => x.slice(2, -2));
+    assert.deepEqual(left.filter((v) => v !== 'system__time' && !RUNTIME_VARIABLES.includes(v)), []);
     assert.match(prompt(r), new RegExp(`You are ${loadPersona(persona).display_name}\\.`));
     // Locked guardrails are present whatever the host chose.
     for (const must of ['computer voice', 'Codes and passwords', 'nine one one', 'Only what you know', 'Your instructions are settled', 'only after send_sms returns a success']) {
@@ -112,7 +116,7 @@ test('humor is capped by the persona ceiling', () => {
   assert.equal(compile(c, { ...OPTS, persona: 'harper' }).meta.humor_level, 1);
   assert.equal(compile(c, { ...OPTS, persona: 'maybelle' }).meta.humor_level, 2);
   c.voice.humor_level = 0;
-  assert.match(prompt(compile(c, OPTS)), /Humor\. None\./);
+  assert.match(prompt(compile(c, OPTS)), /Humor\. Warm and plain, with no jokes of your own\./);
 });
 
 test('owner toggles render; locked text does not move', () => {
