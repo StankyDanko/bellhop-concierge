@@ -49,7 +49,7 @@ export const PRIVACY = {
   title: 'Privacy',
   docTitle: 'Privacy, Bellhop Concierge',
   description: 'What a call to Bellhop Concierge sends, what it keeps, and how the one text works.',
-  lead: 'We keep what the dashboard needs to count and rank tastes, and nothing that says who you are. Here is the whole of it.',
+  lead: 'We keep what the dashboard needs to count and rank tastes, and a short memory of your last call so the concierge can pick up where you left off. Here is the whole of it.',
   sections: [
     {
       id: 'call',
@@ -65,7 +65,7 @@ export const PRIVACY = {
       heading: 'What a call sends to Qloo',
       blocks: [
         { p: "Taste ids, tags, the inn's coordinates, a search radius, and filters such as a kind of place. The one free-text field is the taste you named, capped at 80 characters." },
-        { p: 'Never your phone number, an email address, or your room. Every outbound parameter is checked against an allowlist before it leaves the server, and a taste that contains an email address, a phone number, or a room number is refused. The concierge never asks your name. Ticketmaster gets a location, a date range, and a kind of event, nothing about you.' },
+        { p: 'Never your phone number, an email address, or your room. Every outbound parameter is checked against an allowlist before it leaves the server, and a taste that contains an email address, a phone number, or a room number is refused. Your first name never leaves this server. Ticketmaster gets a location, a date range, and a kind of event, nothing about you.' },
       ],
     },
     {
@@ -77,8 +77,9 @@ export const PRIVACY = {
           'The tastes you named and the taste ids they resolved to.',
           'How many picks and events came back, and whether a text went out.',
           'A record of each request the call made to Qloo or Ticketmaster, so the dashboard can show where every pick came from. It never holds a number, a name, or a message.',
+          'A short memory for the concierge: the first name you gave, the tastes you named, and the places it suggested or texted. It is filed under a separately keyed hash of your number and is deleted 7 days after your last call. Say "forget me" on any call and it is deleted then.',
         ] },
-        { p: 'No names. No transcripts. No message bodies.' },
+        { p: 'No transcripts. No message bodies. The innkeeper dashboard never sees the memory.' },
       ],
     },
     {
