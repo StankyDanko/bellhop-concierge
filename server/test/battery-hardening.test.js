@@ -65,7 +65,7 @@ test('live tool calls are paced 2000 ms apart by default, mock calls are not', a
   assert.deepEqual(slept, [2000, 2000], 'no wait before the first call, one before each after it');
 });
 
-test("send_sms's own 429 (one text per call, the hourly limit) never stops a run; only Qloo's limit does", async () => {
+test("send_sms's own 429 (the per-call cap, the hourly limit) never stops a run; only Qloo's limit does", async () => {
   const smsRefused = { status: 429, json: { ok: false, sent: false, reason: 'rate_limited', error: { code: 'rate_limited', service: 'twilio' } }, ms: 1 };
   assert.equal(qlooLimited(smsRefused), false);
   assert.equal(qlooLimited(limited), true);

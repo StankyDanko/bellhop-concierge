@@ -45,7 +45,7 @@ export const SESSION_TOOL_NAME = 'log_session';
 export const SESSION_ID_BINDING = Object.freeze({ type: 'string', dynamic_variable: CONVERSATION_ID_VAR });
 /**
  * Add the session_id binding to a tool body (the same shape log_session has always used).
- * send_sms carries it too: the server allows one text per call by it. It is never required.
+ * send_sms carries it too: the server allows ten texts per call by it. It is never required.
  */
 const withSessionId = (_name, body) => ({ ...body, properties: { session_id: { ...SESSION_ID_BINDING }, ...body.properties } });
 

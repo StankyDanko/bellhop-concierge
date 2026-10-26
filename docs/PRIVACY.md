@@ -11,7 +11,7 @@ named here is what makes each line true.
 |---|---|---|---|
 | Qloo | entity ids, tag ids, the inn's coordinates, a radius, filters (type, price, rating, cuisine), and the one free-text field: the taste the guest named, capped at 80 characters | a name, a phone number, an email, a room number, anything about the caller | `server/lib/pii-guard.js`: an allowlist of parameter names and value shapes, checked before every request. A taste that looks like an email, a phone number, or a room number is refused, and a test proves a refused request never reaches the network |
 | Ticketmaster | the inn's coordinates, a radius, a time window, a kind of event | anything about the caller | `server/lib/ticketmaster.js` builds the only request it can send |
-| The text sender | the plan text and the number that called | any other number | `send_sms` binds the recipient to the caller's own number; the agent can't choose it. At most three texts to one number in an hour (`SENDS_PER_HOUR` in `server/tools/send-sms.js`) |
+| The text sender | the plan text and the number that called | any other number | `send_sms` binds the recipient to the caller's own number; the agent can't choose it. At most twelve texts to one number in an hour (`SENDS_PER_HOUR` in `server/tools/send-sms.js`) and ten in one call (`TEXTS_PER_CALL`) |
 
 ## What is kept
 

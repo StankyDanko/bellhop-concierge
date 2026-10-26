@@ -164,7 +164,7 @@ made, in the order sent. It is what the dashboard's "Qloo calls (n)" view shows.
 
 Every tool takes `session_id`, bound by the compiler to the platform's
 `system__conversation_id` (the same binding `log_session` uses); the model never fills it.
-`send_sms` uses it only to allow one text per call, kept in memory and never stored with the
+`send_sms` uses it only to count a call's texts (ten at most), kept in memory and never stored with the
 number. For the other tools, when it is present, the server files the tool's trace under it in the `session_traces` table, and `log_session`
 links the row by recording `trace_count`. An unfilled `{{system__conversation_id}}` stores
 nothing. A trace never holds a caller number, caller hash, name, or message body, and the
@@ -821,7 +821,7 @@ the model cannot choose the recipient.
 
 Answers `{ ok: true, sent: true, sid, status }` only after Twilio returned 2xx with a message sid.
 Any other outcome is a 502 with `sent: false` and a `say` line, so the agent never claims a text
-went out when it did not. At most three texts go to one number per hour; the fourth answers 429
+went out when it did not. At most twelve texts go to one number per hour, and at most ten in one call (counted by `session_id`, apart from the hourly count; the eleventh answers 429 with `say: "That is the most texts one call can send, so here is the rest by voice."`); the thirteenth in an hour answers 429
 with `reason: "rate_limited"`, `sent: false`, and `say: "The text could not be sent right now,
 so here is the top pick by name."`, and nothing reaches Twilio. The log records the
 message sid and Twilio's status, never the number or the body.
@@ -829,7 +829,7 @@ message sid and Twilio's status, never the number or the body.
 While texting is in test mode (`SMS_MOCK=1`), `send_sms` never answers `sent: true`. It answers
 `{ sent: false, status: "test_mode", test_mode: true, say }`, and the say line tells the guest
 texting is in test mode and the picks come again by voice. Every check a real send gets (E.164,
-480 characters, https links, one text per call, three per number per hour) still runs. For
+480 characters, https links, ten per call, twelve per number per hour) still runs. For
 returning-guest memory and the battery, a test-mode send counts as texted, so the demo behaves
 as it will once texts go out.
 

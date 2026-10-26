@@ -48,7 +48,7 @@ export const PRIVACY = {
   path: '/privacy',
   title: 'Privacy',
   docTitle: 'Privacy, Bellhop Concierge',
-  description: 'What a call to Bellhop Concierge sends, what it keeps, and how the one text works.',
+  description: 'What a call to Bellhop Concierge sends, what it keeps, and how the text works.',
   lead: 'We keep what the dashboard needs to count and rank tastes, and a short memory of your last call so the concierge can pick up where you left off. Here is the whole of it.',
   sections: [
     {
@@ -87,8 +87,8 @@ export const PRIVACY = {
       heading: 'The text message',
       blocks: [
         { ul: [
-          'The concierge offers to text you the plan. If you say yes, it sends one text, to the number you are calling from. It cannot text any other number.',
-          'One text per call, and at most three texts to one number in an hour.',
+          'The concierge offers to text you the plan. If you say yes, it sends a text, to the number you are calling from. It cannot text any other number.',
+          'A text when you ask for one, up to ten on a call, and at most twelve texts to one number in an hour.',
           'Reply STOP to any text and the carrier stops them. Message and data rates may apply.',
           'Texts are sent through Twilio. Your number is used only to deliver the text you asked for.',
         ] },
@@ -132,7 +132,7 @@ export const TERMS = {
         { ul: [
           'Program: Bellhop Concierge. The text is the plan you asked for on the call.',
           'The concierge offers the text. It goes out only if you say yes, and only to the number you are calling from.',
-          'Frequency: one text per call, and at most three to one number in an hour.',
+          'Frequency: a text when the guest asks for one, up to ten on a call, and at most twelve to one number in an hour.',
           'Reply STOP to any text to stop them. Message and data rates may apply.',
         ] },
         { key: SMS_SENTENCE },
@@ -191,7 +191,7 @@ export const SMS_OPT_IN = {
       heading: 'What the guest agrees to',
       blocks: [
         { ul: [
-          'One text per call at most, sent only after the guest says yes.',
+          'A text when the guest asks for one, up to ten on a call, each sent only after the guest says yes.',
           'Only to the number the guest is calling from. The concierge cannot text any other number, and it never asks for one.',
           'About 1 to 3 texts per month per guest.',
           'The text is the plan the guest asked for: the picks by name, and a reason where it fits. No marketing.',

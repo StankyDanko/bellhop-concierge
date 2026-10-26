@@ -116,16 +116,16 @@ test('live sender without credentials is disabled and fails closed', async () =>
   await assert.rejects(s.send(TO, BODY), { code: 'not_configured' });
 });
 
-test('at most three texts to one number per hour', async () => {
+test('at most twelve texts to one number per hour', async () => {
   let t = 0;
   const lim = createSendLimiter({ now: () => t });
-  assert.ok(lim.take(TO) && lim.take(TO) && lim.take(TO));
+  for (let i = 0; i < 12; i++) assert.ok(lim.take(TO), `text ${i + 1}`);
   assert.equal(lim.take(TO), false);
   assert.ok(lim.take('+15555550101'));
   t = 3600_001;
   assert.ok(lim.take(TO));
   const { app } = makeApp();
-  for (let i = 0; i < 3; i++) assert.equal((await callTool(app, 'send_sms', { to: TO, body: BODY })).status, 200);
+  for (let i = 0; i < 12; i++) assert.equal((await callTool(app, 'send_sms', { to: TO, body: BODY })).status, 200);
   const { status, json } = await callTool(app, 'send_sms', { to: TO, body: BODY });
   assert.equal(status, 429, 'a local limit is not an upstream failure');
   assert.equal(json.ok, false);

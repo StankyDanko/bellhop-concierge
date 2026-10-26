@@ -150,7 +150,7 @@ Where every number on this page comes from: [docs/MEASUREMENTS.md](docs/MEASUREM
 - **Keeps a caller's number.** The session log stores a keyed hash of it, never the number,
   never a name, never a transcript.
 - **Texts anyone but the caller.** The recipient is bound to the number that called, not
-  chosen by the model, and one number gets at most three texts an hour.
+  chosen by the model, and one number gets at most twelve texts an hour, and one call at most ten.
 - **Commits Qloo data.** The fixtures in `server/fixtures/` are hand-written fakes with
   fictional places. Real responses live only in a private, gitignored cache.
 

@@ -133,7 +133,7 @@ export async function playScenario(call, scenario, property, opts = {}) {
     rec.statuses.push(res.status);
     rec.trace.push(...(res.json?.trace ?? []));
     // A Qloo 429 comes back as a 502 with code rate_limited, service qloo, and no trace at all.
-    // send_sms's own refusals (one text per call, the hourly limit) also say rate_limited, with
+    // send_sms's own refusals (the per-call cap, the hourly limit) also say rate_limited, with
     // another service: those are the server's rules working, never a reason to stop the run.
     if (qlooLimited(res)) rec.rateLimited = true;
     if (chain) rec.tools.push({ tool, ms: res.ms, status: res.status });
