@@ -124,7 +124,7 @@ const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 /** Map an HTTP status to a stable error code the agent can reason about. */
 function errorFor(service, status, body) {
-  const detail = typeof body?.error === 'string' ? body.error : body?.message ?? '';
+  const detail = typeof body?.error === 'string' ? body.error : body?.message ?? body?.errors?.[0]?.message ?? '';
   const code = { 400: 'bad_request', 401: 'unauthorized', 403: 'forbidden', 404: 'not_found', 429: 'rate_limited' }[status]
     ?? (status >= 500 ? 'upstream_error' : 'http_error');
   return new UpstreamError(`${service} ${status} ${detail}`.trim(), { service, code, status, retryable: RETRYABLE_STATUS.has(status) });

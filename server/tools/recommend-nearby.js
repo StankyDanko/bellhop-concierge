@@ -3,10 +3,11 @@
 
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
-import { locationParams, placeInsights, placeTasteParams, shapePlace, signalParams } from './places.js';
+import { isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
 import { popularityCounterfactual } from './counterfactual.js';
 import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
+import { isActivityPlace } from '../lib/activity.js';
 import { signPick } from '../lib/pick-token.js';
 import { MAX_SIGNALS, MAX_TEXTED } from '../lib/memory.js';
 import { isOutdoorLeaning, RAIN_CLAUSE, RAIN_THRESHOLD_PCT, rainReorder } from '../lib/weather.js';
@@ -34,6 +35,8 @@ const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|spe
 // unfiltered, zero and two of nine were places to eat or drink; with the parent tag, nine of nine.
 // ---------------------------------------------------------------------------
 
+/** The widest radius a call may ask for: "look wider" raises radius_miles up to this. */
+export const MAX_RADIUS_MILES = 25;
 export const KINDS = Object.freeze(['dining', 'activity', 'any']);
 /** The restaurant genre parent: every cuisine tag sits under it, and bars and cafes carry it too. */
 export const DINING_TAG = 'urn:tag:genre:place:restaurant';
@@ -211,7 +214,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   const origin = latLng(body);
   const c = body?.constraints ?? {};
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
-  let radius = num(body?.radius_miles ?? 3, 'radius_miles', { min: 0.25, max: 25 });
+  let radius = num(body?.radius_miles ?? 3, 'radius_miles', { min: 0.25, max: MAX_RADIUS_MILES });
   const maxMinutes = optNum(c.max_minutes, 'constraints.max_minutes', { min: 3, max: 120 });
   if (maxMinutes !== undefined) radius = Math.min(radius, Math.max(0.5, maxMinutes * MILES_PER_MINUTE));
   const budget = optNum(c.budget, 'constraints.budget', { min: 1, max: 4 });
@@ -238,7 +241,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     ...shaped.params,
     ...locationParams(origin.lat, origin.lng, radius),
     sort_by: 'affinity',
-    take: String(Math.min(20, take * 3)), // headroom for the kids filter
+    // headroom for the kids filter, and for activity the tag check below (a small town's list is mostly lodging and shops)
+    take: String(kind === 'activity' ? 20 : Math.min(20, take * 3)),
   };
   if (budget !== undefined) firstParams['filter.price_level.max'] = String(Math.round(budget));
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
@@ -257,15 +261,28 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   }
 
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
+  // Things to do: only places whose own tags say entertainment, leisure, arts or outdoors (lib/activity.js).
+  const fitsKind = (e) => kind !== 'activity' || isActivityPlace(e);
+  const usable = (e) => kidSafe(e) && fitsKind(e);
   const notTexted = (e) => !texted.has(e.entity_id);
   // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
-  const first = await placeInsights(qloo, firstParams, shaped.cuisine, texted.size ? (e) => kidSafe(e) && notTexted(e) : kidSafe, Math.min(3, take));
+  let first;
+  try {
+    first = await placeInsights(qloo, firstParams, shaped.cuisine, texted.size ? (e) => usable(e) && notTexted(e) : usable, Math.min(3, take));
+  } catch (err) {
+    // A taste Qloo cannot use (see places.js isUnusableTaste) is an empty answer, never a 502.
+    if (!isUnusableTaste(err)) throw err;
+    return { status: 'empty', places: [], reason: 'taste_not_usable', say: UNUSABLE_TASTE_SAY,
+      applied: { kind, radius_miles: Math.round(radius * 10) / 10, when }, counterfactual: null, calls: [] };
+  }
   const { params, body: tasteBody } = first;
   const entities = texted.size ? first.entities.filter(notTexted) : first.entities;
 
   let filteredOut = 0;
+  let notActivity = 0;
   const candidates = entities.filter((e) => {
     if (!kidSafe(e)) { filteredOut += 1; return false; }
+    if (!fitsKind(e)) { notActivity += 1; return false; }
     return true;
   });
 
@@ -293,7 +310,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
         continue;
       }
       coverCalls.push(extra.call);
-      const best = extra.entities.find((e) => kidSafe(e) && notTexted(e) && !candidates.some((x) => x.entity_id === e.entity_id)
+      const best = extra.entities.find((e) => usable(e) && notTexted(e) && !candidates.some((x) => x.entity_id === e.entity_id)
         && tagIdsOf(e).some((t) => ids.includes(t)));
       if (best) { candidates.push(best); cuisineAdded += 1; }
     }
@@ -322,7 +339,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   } : undefined;
 
   // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----
-  const cf = await popularityCounterfactual(qloo, params, places, kidSafe,
+  const cf = await popularityCounterfactual(qloo, params, places, usable,
     { ranked: candidates, signalEffects: readSignalEffects(tasteBody, signalsIn.signals) });
   // ---- end counterfactual ----
 
@@ -366,6 +383,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     places: toolSecret ? places.map((p) => ({ ...p, pick_token: signPick(toolSecret, p) })) : places,
     applied: { kind, radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
+      ...(kind === 'activity' ? { filtered_not_activity: notActivity } : {}),
       // 'hard': every pick is one of the guest's cuisines; 'relaxed': fewer than three fit
       // nearby, so the ones that fit come first and the rest are the best matches overall
       // (`say` tells the agent); null: no cuisine was said or it matched too weakly to filter.
@@ -376,7 +394,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
       ...(memoryApplied ? { memory: memoryApplied } : {}) },
     companion: companionSummary,
     ...(weatherSummary ? { weather: weatherSummary } : {}),
-    hint: places.length ? undefined : 'Nothing matched. Try a wider radius or a higher budget.',
+    hint: places.length ? undefined : `Nothing matched within ${Math.round(radius * 10) / 10} miles. To look wider, call again with a larger radius_miles (at most ${MAX_RADIUS_MILES}) and without max_minutes, or a higher budget.`,
     counterfactual: cf.counterfactual,
     ...(memoryRedact ? { memory_redact: memoryRedact } : {}),
     calls: [...first.calls, ...coverCalls, ...(two?.calls ?? []), ...(cf.call ? [cf.call] : []), ...(forecast ? [forecast.call] : [])],

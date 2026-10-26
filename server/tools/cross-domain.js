@@ -7,7 +7,7 @@ import { buildWhy } from '../lib/why.js';
 import { InputError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
-import { locationParams, placeInsights, placeTasteParams, shapePlace, signalParams } from './places.js';
+import { isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
 
 export const TARGETS = /** @type {const} */ (['artist', 'movie', 'book', 'podcast', 'place', 'tv_show']);
 
@@ -34,7 +34,15 @@ export async function crossDomain(body, { qloo, toolSecret }) {
   }
 
   const inputIds = new Set(taste.entityIds);
-  const { entities, calls, cuisine_filter: cuisineFilter } = await placeInsights(qloo, params, shaped.cuisine, (e) => !inputIds.has(e.entity_id));
+  let found;
+  try {
+    found = await placeInsights(qloo, params, shaped.cuisine, (e) => !inputIds.has(e.entity_id));
+  } catch (err) {
+    // A taste Qloo cannot use (a channel or album entity, say) is an empty answer, never a 502.
+    if (isUnusableTaste(err)) return { status: 'empty', target, results: [], reason: 'taste_not_usable', say: UNUSABLE_TASTE_SAY, calls: [] };
+    throw err;
+  }
+  const { entities, calls, cuisine_filter: cuisineFilter } = found;
   // Never hand back an input as its own recommendation.
   const results = entities.filter((e) => !inputIds.has(e.entity_id)).slice(0, take).map((e) => {
     if (origin) return shapePlace(e, taste.signals, origin);

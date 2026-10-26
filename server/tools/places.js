@@ -2,6 +2,7 @@
 
 import { milesToMeters, toWktPoint } from '../lib/qloo.js';
 import { buildWhy } from '../lib/why.js';
+import { UpstreamError } from '../lib/errors.js';
 
 /** Great-circle distance in miles. */
 export function haversineMiles(a, b) {
@@ -17,6 +18,20 @@ export function haversineMiles(a, b) {
 export function locationParams(lat, lng, radiusMiles) {
   return { 'filter.location': toWktPoint(lat, lng), 'filter.location.radius': String(milesToMeters(radiusMiles)) };
 }
+
+/**
+ * Qloo answers 400 "All of the provided signal.interests.entities were invalid" when every entity
+ * in the signal is one it cannot use as a taste (an album, a YouTube channel resolved as an
+ * album, a person it holds no graph for). That is a request the guest's words cannot make, not
+ * a server fault, so a tool answers it as an honest empty instead of a 502.
+ * @param {unknown} err
+ */
+export function isUnusableTaste(err) {
+  return err instanceof UpstreamError && err.status === 400 && /signal\.interests|signal.*invalid/i.test(err.message);
+}
+
+/** What the agent says when the taste it was given cannot drive a recommendation. */
+export const UNUSABLE_TASTE_SAY = "I don't have a good read on that one, so tell me one more thing you like and I'll try again.";
 
 /** Interest signal params from resolved taste. */
 export function signalParams({ entityIds, tagIds }) {
