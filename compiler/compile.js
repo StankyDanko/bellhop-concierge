@@ -83,6 +83,14 @@ export const PRE_TOOL_SPEECH = Object.freeze({
   log_session: 'off',
 });
 
+/** Tools the guest waits on hear a soft typing sound while they run, so a wait never sounds dead. */
+export const TOOL_CALL_SOUND = Object.freeze(new Set([
+  ...Object.keys(PRE_TOOL_SPEECH).filter((name) => PRE_TOOL_SPEECH[name] === 'force'), SMS_TOOL_NAME,
+]));
+const withTiming = (t) => ({ ...t, tool_config: { ...t.tool_config,
+  ...(PRE_TOOL_SPEECH[t.tool_config.name] ? { pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } : {}),
+  ...(TOOL_CALL_SOUND.has(t.tool_config.name) ? { tool_call_sound: 'typing' } : {}) } });
+
 /**
  * Speech recognition boosts the names a caller says to reach someone: the persona, the place,
  * and on the road line the two demos. Background voices are filtered (vad in compile), so a
@@ -484,13 +492,11 @@ export function compile(config, opts = {}) {
   }).filter((t) => (c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME)
     // stay_info only for a config with a stay sheet; every config without one compiles as before.
     && (c.stay || t.tool_config.name !== STAY_TOOL_NAME))
-    .map((t) => (PRE_TOOL_SPEECH[t.tool_config.name] ? { ...t, tool_config: { ...t.tool_config, pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } } : t));
+    .map(withTiming);
   // The optional web search tool: only when the operator gave an endpoint and a secret name.
   if (opts.searchUrl || opts.searchSecretName) {
     if (!opts.searchUrl || !opts.searchSecretName) throw new Error('--search-url and --search-secret-name go together');
-    const search = searchToolConfig({ url: opts.searchUrl, secretName: opts.searchSecretName });
-    const speech = PRE_TOOL_SPEECH[search.tool_config.name];
-    tools.push(speech ? { ...search, tool_config: { ...search.tool_config, pre_tool_speech: speech } } : search);
+    tools.push(withTiming(searchToolConfig({ url: opts.searchUrl, secretName: opts.searchSecretName })));
   }
   const webSearch = tools.some((t) => t.tool_config.name === WEB_SEARCH_TOOL_NAME);
   const slots = {
@@ -579,7 +585,7 @@ export function compile(config, opts = {}) {
       },
       asr: { keywords: asrKeywords(persona, propertyName, roaming) },
       vad: { background_voice_detection: true },
-      turn: { soft_timeout_config: { ...SOFT_TIMEOUT, additional_soft_timeout_messages: [...SOFT_TIMEOUT.additional_soft_timeout_messages] } },
+      turn: { turn_eagerness: 'patient', soft_timeout_config: { ...SOFT_TIMEOUT, additional_soft_timeout_messages: [...SOFT_TIMEOUT.additional_soft_timeout_messages] } },
       tts: {
         model_id: LOCKED_SETTINGS.tts_model_id,
         voice_id: opts.voiceId ?? DEFAULTS.voiceId,

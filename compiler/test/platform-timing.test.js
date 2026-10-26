@@ -81,3 +81,14 @@ test('road: the demos are boosted for speech recognition', () => {
   const kw = builds.road().agent.conversation_config.asr.keywords;
   for (const n of ['Hollis', 'Harper', 'Marisol', 'The Juniper House', 'Casa Coralina']) assert.ok(kw.includes(n), n);
 });
+
+test('turns wait out a guest who pauses, and lookups and sends play a typing sound', () => {
+  for (const [name, build] of Object.entries(builds)) {
+    const out = build();
+    assert.equal(out.agent.conversation_config.turn.turn_eagerness, 'patient', name);
+    for (const t of out.tools) {
+      const typing = PRE_TOOL_SPEECH[t.tool_config.name] === 'force' || t.tool_config.name === 'send_sms';
+      assert.equal(t.tool_config.tool_call_sound, typing ? 'typing' : undefined, `${name} ${t.tool_config.name}`);
+    }
+  }
+});
