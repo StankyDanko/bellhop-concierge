@@ -17,6 +17,7 @@ export const ENDPOINTS = {
   tags: '/v2/tags',
   insights: '/v2/insights',
   compare: '/v2/analysis/compare',
+  entities: '/entities',
 };
 
 /** Short type names the tools use, mapped to Qloo entity URNs. */
@@ -36,6 +37,7 @@ const FIXTURE_FILES = {
   [ENDPOINTS.tags]: 'qloo.tags',
   [ENDPOINTS.insights]: 'qloo.insights',
   [ENDPOINTS.compare]: 'qloo.compare',
+  [ENDPOINTS.entities]: 'qloo.entities',
 };
 
 /** Mock only: a place insights request with no taste signal (the counterfactual) answers from its own file. */
@@ -250,6 +252,16 @@ export function createQlooClient({ config, cache, logger, transport }) {
         'filter.exclude.entities': entityId, take: String(take) };
       const { body, call } = await get(ENDPOINTS.insights, params, { ttlSeconds: SIMILAR_ARTISTS_TTL });
       return { entities: entitiesOf(body).map(normalizeEntity).filter((e) => e.entity_id !== entityId && e.name), call };
+    },
+
+    /**
+     * Entities by id, with their own tags and type. Used when a taste cannot drive a request by
+     * itself (a show too new for Qloo's graph) and the server falls back on the genres it carries.
+     * @param {{ ids: string[] }} q
+     */
+    async entities({ ids }) {
+      const { body, call } = await get(ENDPOINTS.entities, { entity_ids: ids.slice(0, 8).join(',') });
+      return { entities: entitiesOf(body).map(normalizeEntity), call };
     },
 
     /** Raw insights call for non-entity outputs (heatmap, demographics). */

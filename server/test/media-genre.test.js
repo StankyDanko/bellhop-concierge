@@ -107,7 +107,7 @@ test('cross_domain: a place tag alongside a genre never reaches Qloo', async () 
 
 test('cross_domain: only a place tag toward a film is an empty answer with a line to say, no call', async () => {
   const { qloo, sent } = fakeInsights();
-  const r = await crossDomain({ taste: [{ id: SHOP, name: 'Shop' }], target: 'movie' }, { qloo });
+  const r = await crossDomain({ taste: [{ id: SHOP, name: 'Shop' }], target: 'book' }, { qloo });
   assert.equal(r.status, 'empty');
   assert.equal(r.reason, 'no_media_signal');
   assert.equal(sent.length, 0);

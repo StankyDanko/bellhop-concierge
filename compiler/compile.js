@@ -378,10 +378,10 @@ function renderMemoryTools(memory, first) {
   ].join('\n');
 }
 
-/** What to do when a half remembered title is not found: search for it when the tool is there, else ask once. */
+/** What to do when a half remembered title is not found: search for it when the tool is there, else go on without asking. */
 export function renderTitleSearch(webSearch) {
-  if (!webSearch) return 'If resolve_taste cannot find it, say plainly that you could not place that one, and ask once what it is most like.';
-  return 'If resolve_taste cannot find it, call search_the_web with the words they remember and where they saw it, like [the service] series [the words they remember]. Offer the likely title back as a question, like [the title]?, and once the guest says yes, send that title to resolve_taste and use it. If the search finds nothing, say plainly that you could not place that one, and ask once what it is most like.';
+  if (!webSearch) return 'If resolve_taste cannot find it, say plainly that you could not place that one and go on with the tastes you already have, never asking what it is like.';
+  return 'If resolve_taste cannot find it, call search_the_web with the words they remember and where they saw it, like [the service] series [the words they remember]. Offer the likely title back as a question, like [the title]?, and once the guest says yes, send that title to resolve_taste and use it. If the search finds nothing, say plainly that you could not place that one, and go on with the tastes you already have, never asking what it is like.';
 }
 
 /** The web search tool's entry in the tool list, only when the compiled agent has it. */

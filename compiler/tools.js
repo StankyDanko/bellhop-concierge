@@ -90,7 +90,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
   const around = roaming ? 'around that city' : 'around the inn';
   const specs = {
     resolve_taste: {
-      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words. A mention it returns in unresolved was not found: never say it back as a taste you are using and never count it as a named thing. Say you could not find it and ask once what it is most like.",
+      description: "Turns what the guest named into taste ids. Call it first, with the guest's own words. A mention it returns in unresolved was not found: never say it back as a taste you are using and never count it as a named thing. Never ask the guest what it is, or what it is like: search the title if you can, or go on with the other tastes you have.",
       timeout: 15,
       body: {
         type: 'object',
@@ -137,7 +137,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     cross_domain: {
-      description: 'Picks in another category that fit the same taste, such as a film for a music fan, each with the reason it fits and a pick_token. Call it after resolve_taste. A genre the guest likes, such as horror, comes back as only that genre for a film, show, or book. To text one, copy its pick_token exactly; never make one up from an id.',
+      description: 'Picks in another category that fit the same taste, such as a film for a music fan, each with the reason it fits and a pick_token. Call it after resolve_taste. It always tries to come back with a pick, falling back on the genres of what the guest named, so never ask the guest for another taste to unlock one. Never repeats a title already offered on the call. A genre the guest likes, such as horror, comes back as only that genre for a film, show, or book. To text one, copy its pick_token exactly; never make one up from an id.',
       timeout: 15,
       body: {
         type: 'object',
@@ -146,6 +146,8 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
           taste: TASTE,
           target: s(`The category to pick from, one of ${TARGETS.join(', ')}`, { enum: [...TARGETS] }),
           take: n('How many to return, one to three. Use one.'),
+          lesser_known: b('Set true when the guest says indie, underrated, lesser known, hidden gem, or calls a pick too generic. Leave it out otherwise.'),
+          older_ok: b('Set true only when the guest asks for older films or shows, or a classic. Films and shows come from the last three years unless it is set.'),
           ...(roaming ? { locality: { ...LOCALITY, description: `Only for target place. ${LOCALITY.description}` } } : where),
         },
       },

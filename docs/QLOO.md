@@ -154,6 +154,18 @@ signed token.
 **Live:** matched; every result came back with an explainability driver on the key-day round
 trip.
 
+**Fresh and less generic (checked live 2026-10-25).** A film or show is asked with
+`filter.release_year.min` set to the current year minus three, so a guest is not handed what
+they have already seen; the agent sets `older_ok` to lift it. `lesser_known` adds
+`filter.popularity.max=0.8`: for Sixth Sense and Paranormal Activity the recent films came back
+at popularity 0.88 to 0.96 without it and 0.31 to 0.6 with it. `filter.exclude.entities` keeps a
+title already offered on the call from coming back. A show too new for Qloo's graph answers a
+bare `signal.interests.entities` with a 400 (all entities invalid), though it works once a
+filter such as the release year sits beside it. When it still fails, the server asks `/entities`
+for the show's own genre tags and asks again with the first as `filter.tags`, then toward the
+show's own type, then for the recent releases alone. It never turns the failure into a question
+for the guest.
+
 ## 8. The innkeeper's panels
 
 All of these are asked of the **fingerprint**: the ids every caller resolved, pooled per inn,

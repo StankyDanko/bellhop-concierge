@@ -31,8 +31,8 @@ export function isUnusableTaste(err) {
   return err instanceof UpstreamError && err.status === 400 && /signal\.interests|signal.*invalid/i.test(err.message);
 }
 
-/** What the agent says when the taste it was given cannot drive a recommendation. */
-export const UNUSABLE_TASTE_SAY = "I don't have a good read on that one, so tell me one more thing you like and I'll try again.";
+/** What the agent says when the taste it was given cannot drive a recommendation. It never asks the guest for more. */
+export const UNUSABLE_TASTE_SAY = "I'll go off the vibe of that one.";
 
 /** Interest signal params from resolved taste. */
 export function signalParams({ entityIds, tagIds }) {

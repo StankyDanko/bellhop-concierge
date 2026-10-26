@@ -30,7 +30,7 @@ const ENUM_OR_NUMERIC = new Set([
   'filter.location', 'filter.location.radius', 'filter.radius',
   'filter.price_level.min', 'filter.price_level.max',
   'filter.rating.min', 'filter.rating.max',
-  'filter.popularity.min', 'filter.popularity.max',
+  'filter.popularity.min', 'filter.popularity.max', 'filter.release_year.min', 'filter.release_year.max',
   'filter.subtype', 'feature.explainability', 'feature.typo_tolerance',
   'bias.trends', 'diversify.by', 'diversify.take',
   'signal.demographics.age', 'signal.demographics.gender',

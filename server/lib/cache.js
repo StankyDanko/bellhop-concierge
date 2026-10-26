@@ -20,6 +20,7 @@ const DAY = 24 * HOUR;
 export const TTL_SECONDS = {
   'qloo:/search': 30 * DAY,         // names -> ids barely move
   'qloo:/v2/tags': 30 * DAY,
+  'qloo:/entities': 30 * DAY,
   'qloo:/v2/insights': 1 * DAY,     // place recs: refresh daily (hours, closures)
   'qloo:/v2/analysis/compare': 7 * DAY,
   'ticketmaster:/events.json': 1 * HOUR,

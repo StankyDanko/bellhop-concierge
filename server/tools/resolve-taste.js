@@ -115,6 +115,8 @@ export const MEDIA_GENRES = Object.freeze({
   fantasy: 'fantasy', crime: 'crime', truecrime: 'true crime', documentary: 'documentary', documentaries: 'documentary', docuseries: 'documentary',
   anime: 'anime', animation: 'animation', animated: 'animation', cartoon: 'animation', cartoons: 'animation', western: 'western', westerns: 'western',
   action: 'action', adventure: 'adventure', war: 'war', noir: 'film noir', historical: 'history',
+  // A bare "fiction" is a genre of books and shows, never the album or band that carries the word.
+  fiction: 'fiction', nonfiction: 'documentary',
 });
 /** Words that say "something to watch or read" without naming a genre. */
 const MEDIA_KIND_WORDS = new Set(['show', 'shows', 'series', 'movie', 'movies', 'film', 'films', 'flick', 'flicks', 'tv', 'television', 'book', 'books', 'novel', 'novels', 'stuff', 'type', 'kind', 'of', 'a', 'the', 'some', 'good', 'and', 'or', 'like', 'genre', 'story', 'stories']);
@@ -127,7 +129,7 @@ const MEDIA_KIND_WORDS = new Set(['show', 'shows', 'series', 'movie', 'movies', 
  */
 export function mediaGenresOf(mention) {
   const said = String(mention).toLowerCase().replace(/sci[\s-]*fi\b|science[\s-]+fiction/g, 'scifi')
-    .replace(/true[\s-]+crime/g, 'truecrime').replace(/rom[\s-]*com\b/g, 'romance comedy');
+    .replace(/non[\s-]+fiction/g, 'nonfiction').replace(/true[\s-]+crime/g, 'truecrime').replace(/rom[\s-]*com\b/g, 'romance comedy');
   const words = tokens(said);
   if (!words.length) return [];
   const genres = [];
@@ -136,6 +138,17 @@ export function mediaGenresOf(mention) {
     else if (!MEDIA_KIND_WORDS.has(w)) return [];
   }
   return genres;
+}
+
+/**
+ * True when a mention is only kind words ("novel", "a good movie", "some books"): it names no
+ * title and no genre, so it never goes to /search, where it would come back as an album.
+ * @param {string} mention
+ */
+export function bareKindWords(mention) {
+  const words = tokens(mention);
+  const STOP = new Set(['of', 'a', 'the', 'some', 'good', 'and', 'or', 'like']);
+  return words.length > 0 && words.length <= 3 && words.every((w) => MEDIA_KIND_WORDS.has(w)) && words.some((w) => !STOP.has(w));
 }
 
 /**
@@ -443,6 +456,8 @@ export async function resolveTaste(body, { qloo }) {
     if (vibe) return resolveVibe(mention, vibe, who);
     const genres = mediaGenresOf(mention);
     if (genres.length) return resolveMediaGenres(mention, genres);
+    // "novel", "movie": a kind of thing, not a taste. Heard, with nothing to search for.
+    if (bareKindWords(mention)) return { items: [], say: null };
     const shape = placeShape(mention);
     const one = shape ? await resolvePlaceShaped(mention, shape) : await resolveNamed(mention);
     return one ? { items: [one], say: one.name } : null;
