@@ -76,34 +76,39 @@ the compiler falls back to a slug of the inn's name ("The Juniper House" becomes
 
 ## Example calls and the stop rule
 
-A worked example in the prompt outweighs a rule written next to it, so an example call that
-breaks the stop rule teaches the agent to break it. `compiler/test/examples.test.js` parses
+A worked example in the prompt outweighs a rule written next to it, and the model repeats an
+example's words on real calls, so the example calls show shapes, not lines. Names and tastes sit
+in square brackets (`[name]`, `[a dish]`, `[town]`), the prompt tells the agent to fill each one
+from the caller's own words and never to reuse an example's wording, and every persona's calls go
+in different directions: a quiet caller, a chatty one, someone lonely, someone who wants food
+fast, a movie for the room, a caller who banters back. `compiler/test/examples.test.js` parses
 every persona's `## Example calls (compiled)` section and fails the build if an example:
 
-- puts more than three concierge questions before the lookup line (the opener's taste question
-  counts as the first; for a road persona the opener asks for the city and state, and place
-  questions such as "Which state?" never count),
-- asks any question after the caller has given three named things (the plus-one's count),
-- ends on a question instead of the lookup line, or
-- asks the bet in a call where the caller names a companion (we, us, my wife, and so on),
-  because for a guest who is not alone the plus-one question takes the bet's slot.
+- puts more than three concierge questions before the lookup line (the first message only asks
+  for a name, so it never counts, and neither does asking again for a name or, for a road
+  persona, asking where the caller is),
+- asks any question after the caller has given three taste signals (the plus-one's count),
+- ends on a question instead of the lookup line,
+- makes a playful guess in a call where the caller names a companion (we, us, my wife, and so on),
+- leaves the recording note out of the concierge's first turns, or
+- repeats another example call of the same persona.
 
 The format it parses: examples are separated by a blank line, the first line is the title, and
 every other line is `Guest: "..."` or `<display_name>: "..."`. A concierge turn is a question
-when it contains a question mark. Named things cannot be read from the words reliably, so each
+when it contains a question mark. Signals cannot be read from the words reliably, so each
 persona carries a short `## Example call checks` section, which is never compiled into the
-prompt: one line per example, `- <title>: 1, 2, 3`, giving the running count of named things
+prompt: one line per example, `- <title>: 0, 1, 2`, giving the running count of taste signals
 after each guest turn. The test checks that this list names every example in order with one
 count per guest turn, so an edited example cannot go unchecked. At least one example must be a
-couple whose last guest turn answers the plus-one question and brings the count to three.
-The bet is recognized by its words (bet, warm, way off, hunch), and a test checks that each
-persona's own bet sample line matches, so a renamed bet cannot slip past.
+couple, where the concierge asks one easy question about the companion and the answer is a
+signal. The playful guess is recognized by its words (bet, warm, way off, hunch), and a test
+checks that each persona's own guess sample line matches, so a renamed guess cannot slip past.
 
 ## Locked vs toggleable
 
 | Locked: no config field reaches it | Owner toggle (config field) |
 |---|---|
-| Says it is an automated concierge in the opener and, when asked, a computer voice | Persona (`voice.persona_id`) |
+| Names itself as the concierge in the opener, says the call is being recorded in its next turn, and, when asked, says it is a computer voice | Persona (`voice.persona_id`) |
 | Opener discloses that the call is recorded | Humor 0 to 2 (`voice.humor_level`, capped by the persona) |
 | Never speaks or texts door, gate, lockbox, or wifi details; those stay in `sms_only` | Languages (`voice.languages`) |
 | No payments, card numbers, IDs, birth dates; never asks for name, room, or email | House rules and never-bend rules (`rules`) |

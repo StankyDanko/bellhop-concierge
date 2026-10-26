@@ -186,11 +186,16 @@ Errors are never reported as success:
 
 Off unless `GUEST_MEMORY_SECRET` is set and the agent is compiled with the webhook. The voice
 platform posts `{ caller_id, agent_id, called_number, call_sid, conversation_id }` while the line
-rings, and starts the call with the nine dynamic variables this answers (`greeting`,
-`opener_hook`, `choice_pair`, `bet_domain`, `plan_window`, `caller_status`, `memory_line`,
-`stay_line`, `texted_count`). It never answers anything but 200 with variables, except a body over
-8 KB: bad auth, an unknown agent, a withheld number, or an internal error all get the default lines,
-which are the lines a call hears today. The number, `called_number` and `call_sid` are never stored
+rings, and starts the call with the eleven dynamic variables this answers (`opener_hook`,
+`choice_pair`, `plan_window`, `caller_status`, `caller_name`, `call_number`, `recording_noted`,
+`last_call_hook`, `memory_line`, `stay_line`, `texted_count`). For a phone it remembers by name,
+`opener_hook` names that person and asks whether it is still them; `call_number` is that person's
+call count, `recording_noted` says whether they already heard that every call is recorded, and
+`last_call_hook` is one fact about the last call (what was texted, else suggested, else talked
+about) for the concierge to ask about. Memory lasts seven days from the last call, so each call
+extends it, never more than fourteen days after the last call. It never answers anything but 200
+with variables, except a body over 8 KB: bad auth, an unknown agent, a withheld number, or an
+internal error all get the default lines, which are exactly a first call's: no name, call one. The number, `called_number` and `call_sid` are never stored
 or logged. It never returns a config override.
 
 ### `forget_guest`
@@ -199,6 +204,15 @@ Body `{ session_id, caller_id }`, both bound by the platform. Deletes every memo
 caller at every inn, marks the call's link forgotten so nothing is written back, and sets
 `caller_hash` to NULL on the caller's past session rows. Answers `{ forgotten: true, say }` the same
 way whether or not anything was stored.
+
+### `remember_guest`
+
+Body `{ session_id, first_name?, same_guest? }`. `session_id` is bound by the platform; the model
+fills the first name a caller gave and, on a call that asked whether it is still the remembered
+person, `same_guest`. A name is kept only as one or two words of letters (`cleanName` in
+`server/lib/memory.js`). `same_guest: false` makes the call fresh: nothing remembered reaches the
+tools for the rest of it, and the call's commit replaces the old person's row with this call alone.
+Answers `{ status: "ok", noted: true }` whatever was stored, with nothing to say.
 
 ### `stay_info`
 
