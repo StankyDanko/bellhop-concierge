@@ -35,6 +35,7 @@
 
 import { composeItinerary as compose } from '../lib/sms.js';
 import { verifyPick } from '../lib/pick-token.js';
+import { InputError } from '../lib/errors.js';
 import { arr, oneOf, optNum } from '../lib/validate.js';
 import { httpsTarget } from '../lib/links.js';
 import { pageTitle } from '../lib/picks-page.js';
@@ -120,7 +121,11 @@ const cleanBlurb = (b) => {
 
 /** @param {any} body @param {{ toolSecret?: string, links?: import('../lib/links.js').LinkStore|null }} [ctx] */
 export async function composeItinerary(body, ctx = {}) {
-  const raw = arr(body?.picks, 'picks', { min: 1, max: 5 });
+  // A pick may arrive as its pick_token alone: name, blurb, link, time, and favors come from what
+  // the tool returned. A pick with no known token keeps the fields it was sent, and needs a name.
+  const asked = arr(body?.picks, 'picks', { min: 1, max: 5 });
+  const raw = asked.map((p) => (ctx.pickBook ? ctx.pickBook.fill(p) : p));
+  for (const p of raw) if (typeof p?.name !== 'string' || !p.name.trim()) throw new InputError('each pick needs its pick_token from a tool result, or a name');
   const { picks, favorsDropped, whenDropped, tokensDropped } = honorClaims(raw, ctx.toolSecret);
   const g = body?.guest ?? {};
   const guest = {

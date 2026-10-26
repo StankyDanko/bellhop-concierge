@@ -164,7 +164,7 @@ test('compose_itinerary: the header follows the events, never the request', asyn
   const tonight = (await callTool(app, 'events_nearby', { ...PROPERTY, when: 'tonight' })).json.events[0];
   const t = await callTool(app, 'compose_itinerary', { picks: [dinner, { name: tonight.name, when_label: tonight.when_label, pick_token: tonight.pick_token }], guest: { party_size: 2, when: 'tonight' } });
   assert.match(t.json.body, /^Bellhop Concierge: Tonight:\n/);
-  assert.match(t.json.body, /- Hollow Pines String Band, Tonight 8pm\n/);
+  assert.match(t.json.body, /- Hollow Pines String Band, Tonight 8pm(, The Lyric Annex)?\n/);
 });
 
 test('compose_itinerary: a forged when_label or a free-text detail never reaches the text', async () => {

@@ -157,7 +157,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     events_nearby: {
-      description: `Ticketed events ${near} tonight, this weekend, or in the next week. When it comes back empty it carries a hint with the wider when and radius_miles to try; when the guest says look wider, call it again with those, never with the same values. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.`,
+      description: `Ticketed events ${near} tonight, this weekend, or in the next week. When it comes back empty it carries a hint with the wider when and radius_miles to try; when the guest says look wider, call it again with those, never with the same values. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its pick_token to compose_itinerary.`,
       timeout: 12,
       body: {
         type: 'object',
@@ -190,20 +190,15 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
         properties: {
           picks: {
             type: 'array',
-            description: 'One to three picks in the order you would recommend them. Copy each one exactly as the tool returned it, including its pick_token. Never add or change a field.',
+            description: 'One to three picks in the order you would recommend them. A pick from recommend_nearby, cross_domain, or events_nearby is only its pick_token, copied exactly: the server adds the name, blurb, link, and time itself. A pick you found by a web lookup has no pick_token: give its name and kind.',
             items: {
               type: 'object',
               description: 'One pick.',
-              required: ['name'],
               properties: {
-                name: s('The name exactly as a tool returned it'),
-                blurb: s('The blurb field from the tool result, copied exactly, if there was one. Leave out otherwise.'),
-                url: s('The url field from the tool result, if there was one. It is turned into a short link in the text.'),
-                when_label: s('For an event, its when_label from events_nearby, copied exactly, for example Fri 8pm. Leave out for a place.'),
-                favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
-                pick_token: s('The pick_token field from the tool result, copied exactly'),
+                pick_token: s('The pick_token field from the tool result, copied exactly. Leave out for a pick found by a web lookup.'),
                 requested: b('True only if the guest asked for this event by name'),
-                kind: s('Only for a pick that has no url, such as one you found by looking it up: book, film, show, place, or other. The text then carries a link built from the name.', { enum: ['book', 'film', 'show', 'place', 'other'] }),
+                name: s('Only for a pick you found by a web lookup, which has no pick_token: its name, a few words.'),
+                kind: s('Only with name: book, film, show, place, or other. The text then carries a link built from the name.', { enum: ['book', 'film', 'show', 'place', 'other'] }),
               },
             },
           },

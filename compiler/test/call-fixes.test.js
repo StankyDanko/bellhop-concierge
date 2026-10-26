@@ -64,6 +64,8 @@ test('the events tool takes a radius and a week window; recommend_nearby says ho
   assert.equal(events.radius_miles.type, 'number');
   assert.match(tool(r, 'recommend_nearby').api_schema.request_body_schema.properties.radius_miles.description, /look wider/);
   const compose = tool(r, 'compose_itinerary').api_schema.request_body_schema.properties.picks.items.properties;
-  assert.ok(compose.blurb);
+  assert.ok(compose.pick_token);
   assert.equal(compose.why, undefined);
+  assert.equal(compose.blurb, undefined);
+  assert.equal(compose.url, undefined);
 });

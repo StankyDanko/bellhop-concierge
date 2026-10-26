@@ -24,6 +24,7 @@ import { rememberGuest } from './tools/remember-guest.js';
 import { stayInfo } from './tools/stay-info.js';
 import { stayLookup } from './lib/stay.js';
 import { observeTool, redactTrace } from './lib/memory.js';
+import { PickBook } from './lib/pick-book.js';
 import { conversationInit, INIT_BODY_MAX, INIT_PATH } from './hooks/conversation-init.js';
 import { mountDashboard } from './api/index.js';
 
@@ -84,7 +85,7 @@ export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qlo
   const app = new Hono();
   // Short links for the text live in the session database, beside the log, and expire after 30 days.
   const links = sessions.db ? new LinkStore({ db: sessions.db, secret, baseUrl: publicBaseUrl, now }) : null;
-  const ctx = { links, qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory,
+  const ctx = { links, qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory, pickBook: new PickBook(),
     stays: stays ?? stayLookup({ db: dashboard?.db ?? null }) };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
@@ -140,10 +141,14 @@ export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qlo
       } catch {
         return c.json({ ok: false, status: 'error', error: { code: 'invalid_json' } }, 400);
       }
+      // A pick sent as its pick_token alone is filled in from what the tool returned, here, so the
+      // memory layer sees the same names the text carries.
+      if (name === 'compose_itinerary' && Array.isArray(body?.picks)) body = { ...body, picks: body.picks.slice(0, 5).map((p) => ctx.pickBook.fill(p)) };
       try {
         const { result: { calls, memory_redact: memoryRedact, ...result }, trace } = await withTrace(name, () => runWithLocality(name, handler, body, ctx));
         // Remembered ids never reach the recorded trace (dashboard, fingerprint) or the response.
         redactTrace(trace, memoryRedact);
+        ctx.pickBook.observe(result);
         rememberCall(memory, name, body, result, logger);
         logger({ svc: 'tool', tool: name, status: result.status, ms: Date.now() - started });
         persistTrace(sessions, sessionIdFrom(body), name, trace, result.counterfactual, logger);

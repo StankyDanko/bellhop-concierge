@@ -38,5 +38,5 @@ test('tool schemas: companion inputs are optional and never required', () => {
   assert.equal(recommend.properties.companion_taste.type, 'array');
   assert.ok(!recommend.required.includes('companion_taste'));
   const compose = schemaOf(r, 'compose_itinerary');
-  assert.deepEqual(compose.properties.picks.items.properties.favors.enum, ['guest', 'companion', 'both']);
+  assert.equal(compose.properties.picks.items.properties.favors, undefined, 'favors comes from the server, not the model');
 });
