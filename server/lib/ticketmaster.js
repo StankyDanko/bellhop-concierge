@@ -35,8 +35,24 @@ export function normalizeAttractions(body) {
  * @property {string|null} local_time  the venue's clock time, "20:00:00", when one is set
  * @property {string|null} url        https only
  * @property {string|null} category   e.g. "Music"
+ * @property {string|null} description genre and subgenre, e.g. "rock, emo"
  * @property {'Ticketmaster'} source
  */
+
+/**
+ * What kind of show it is, from Ticketmaster's own genre and subgenre: "rock, emo". Ticketmaster's
+ * placeholder names (Undefined, Other, Miscellaneous) say nothing and are dropped; null when
+ * nothing is left.
+ * @param {any} e a raw event
+ */
+export function eventDescription(e) {
+  const c = e?.classifications?.find((x) => x?.primary) ?? e?.classifications?.[0];
+  const names = [c?.genre?.name, c?.subGenre?.name]
+    .filter((n) => typeof n === 'string' && n.trim() && !/^(undefined|other|miscellaneous|miscellaneous theatre)$/i.test(n.trim()))
+    .map((n) => n.trim().toLowerCase());
+  const uniq = names.filter((n, i) => names.indexOf(n) === i);
+  return uniq.length ? uniq.join(', ') : null;
+}
 
 /** @returns {EventItem[]} */
 export function normalizeEvents(body) {
@@ -59,6 +75,7 @@ export function normalizeEvents(body) {
       local_time: typeof start.localTime === 'string' ? start.localTime : null,
       url,
       category: e?.classifications?.[0]?.segment?.name ?? null,
+      description: eventDescription(e),
       source: /** @type {const} */ ('Ticketmaster'),
     };
   }).filter((e) => e.name);

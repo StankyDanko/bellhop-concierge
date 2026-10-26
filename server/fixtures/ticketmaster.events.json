@@ -19,7 +19,7 @@
       "response": { "_embedded": { "events": [
         { "id": "fx-evt-1", "name": "Hollow Pines String Band", "url": "https://example.com/events/hollow-pines",
           "dates": { "start": { "localDate": "2026-10-16", "localTime": "20:00:00", "dateTime": "2026-10-17T00:00:00Z" } },
-          "classifications": [ { "segment": { "name": "Music" } } ],
+          "classifications": [ { "segment": { "name": "Music" }, "genre": { "name": "Folk" }, "subGenre": { "name": "Bluegrass" } } ],
           "_embedded": { "venues": [ { "name": "The Lyric Annex" } ] } },
         { "id": "fx-evt-2", "name": "Late Night Improv", "url": "https://example.com/events/late-improv",
           "dates": { "start": { "localDate": "2026-10-16", "localTime": "21:30:00", "dateTime": "2026-10-17T01:30:00Z" } },

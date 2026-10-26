@@ -127,8 +127,8 @@ test('events_nearby over HTTP: say, when_label, tonight, and a pick_token on eve
   const { app } = makeApp();
   const { json } = await callTool(app, 'events_nearby', { ...PROPERTY, when: 'tonight' });
   assert.deepEqual(json.events.map((e) => [e.when_label, e.say]), [
-    ['Tonight 8pm', 'Tonight at eight, The Lyric Annex, Hollow Pines String Band.'],
-    ['Tonight 9:30pm', 'Tonight at nine thirty, Back Porch Theater, Late Night Improv.'],
+    ['Tonight 8pm', 'Tonight at eight, The Lyric Annex, Hollow Pines String Band, folk and bluegrass.'],
+    ['Tonight 9:30pm', 'Tonight at nine thirty, Back Porch Theater, Late Night Improv, comedy.'],
     ['Sat', 'Saturday, Square Cinema, Harbor Film Night: Westerns.'],
   ]);
   for (const e of json.events) {

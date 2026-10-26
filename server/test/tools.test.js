@@ -130,7 +130,7 @@ test('events_nearby: normalized Ticketmaster events in the right window', async 
   assert.equal(json.events[0].source, 'Ticketmaster');
   // FIXED_NOW is Friday 2pm in New York, so the Friday 8pm show is tonight.
   assert.equal(json.events[0].when_label, 'Tonight 8pm');
-  assert.equal(json.events[0].say, 'Tonight at eight, The Lyric Annex, Hollow Pines String Band.');
+  assert.equal(json.events[0].say, 'Tonight at eight, The Lyric Annex, Hollow Pines String Band, folk and bluegrass.');
   assert.equal(json.events[2].url, null, 'non-https event links are dropped');
   // Friday 2pm New York -> tonight ends 4am Saturday local (08:00Z), where Friday evening ends.
   assert.equal(json.window.end, '2026-10-17T08:00:00.000Z');

@@ -6,6 +6,8 @@
 //   say         one spoken-ready line that always opens with its own day word:
 //               "Tonight at eight, The Lyric Annex, Hollow Pines String Band." The agent never
 //               has to add a day, so it never has to guess one.
+// Each event also carries description, Ticketmaster's genre and subgenre ("rock, emo"), and the
+// say line ends with it, so an event is pitched as a kind of show and never as a bare name and venue.
 // Neither says anything about taste or fit: Ticketmaster does not, so neither does this tool.
 //
 // What "tonight" means, in the property's timezone, against the time of the call:
@@ -176,7 +178,9 @@ export function eventWhen(event, now, tz) {
 export const EVENTS_UNAVAILABLE_SAY = "I can't check tonight's events right now.";
 
 export function sayLine(event, sayWhen) {
-  const parts = [sayWhen, event.venue, event.name].filter((x) => typeof x === 'string' && x.trim());
+  // The kind of show closes the line ("rock, emo" is said "rock and emo"), so a pitch is never a bare name and venue.
+  const kind = typeof event.description === 'string' && event.description.trim() ? event.description.split(', ').join(' and ') : null;
+  const parts = [sayWhen, event.venue, event.name, kind].filter((x) => typeof x === 'string' && x.trim());
   return `${parts.join(', ').replace(/[.\s]+$/, '')}.`;
 }
 
