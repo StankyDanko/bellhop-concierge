@@ -125,6 +125,7 @@ test('placeBlurb: genre or cuisine, one feel word, and the neighborhood; null wh
   assert.equal(placeBlurb({ tags: [tag('urn:tag:genre:place:restaurant'), tag('urn:tag:cuisine:qloo:thai')] }), 'thai restaurant');
   assert.equal(placeBlurb({ tags: [tag('urn:tag:genre:place:restaurant:barbecue')] }), 'barbecue restaurant');
   assert.equal(placeBlurb({ genre: 'Cocktail bar', tags: [tag('urn:tag:ambience:qloo:romantic')] }), 'romantic cocktail bar');
+  assert.equal(placeBlurb({ genre: 'Live music venue', tags: [tag('urn:tag:ambience:qloo:lively')] }), 'live music venue', 'no feel word that repeats the kind');
   assert.equal(placeBlurb({ tags: [] }), null);
   assert.equal(placeBlurb({ genre: 'x'.repeat(80), tags: [] }), null);
   assert.equal(kindBlurb({ type: 'movie', year: 2014 }), 'film, 2014');

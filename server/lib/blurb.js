@@ -40,7 +40,7 @@ export function placeBlurb(e) {
   const feel = tags.map((t) => FEEL_TAG.exec(t.tag_id)?.[1]).find((leaf) => leaf && FEEL.has(leaf));
   const hood = e.neighborhood ? String(e.neighborhood).trim() : '';
   if (!kind && !hood) return null;
-  const head = kind ? `${feel && !kind.includes(words(feel)) ? `${words(feel)} ` : ''}${kind}` : '';
+  const head = kind ? `${feel && !kind.includes(words(feel).slice(0, 4)) ? `${words(feel)} ` : ''}${kind}` : '';
   const out = [head, hood].filter(Boolean).join(', ');
   return out.length <= BLURB_MAX ? out : (head.length <= BLURB_MAX ? head : null);
 }
