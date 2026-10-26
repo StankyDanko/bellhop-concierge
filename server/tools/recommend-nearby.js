@@ -3,7 +3,7 @@
 
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { latLng, num, oneOf, optNum, tasteSignals } from '../lib/validate.js';
-import { isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
+import { isUnusableTaste, locationParams, placeInsights, placeSafe, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
 import { popularityCounterfactual } from './counterfactual.js';
 import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
@@ -38,7 +38,17 @@ const ADULTS_ONLY = /\b(bar|pub|nightclub|night club|lounge|brewery|cocktail|spe
 
 /** The widest radius a call may ask for: "look wider" raises radius_miles up to this. */
 export const MAX_RADIUS_MILES = 25;
-export const KINDS = Object.freeze(['dining', 'activity', 'any']);
+export const KINDS = Object.freeze(['dining', 'drinks', 'activity', 'any']);
+/**
+ * drinks    a bar, a cocktail bar, a pub, a lounge: filter.tags carries the bar genres (either one
+ *           matches), so "a drink" or "speakeasy style" finds a bar, never a steakhouse or a theater.
+ *           Measured live 2026-10-26 in Buckhead, Atlanta: bar plus cocktail_bar gave six bars of
+ *           six; adding the speakeasy ambience tag as a signal put Himitsu, a speakeasy, in the top five.
+ */
+export const DRINKS_TAGS = Object.freeze(['urn:tag:genre:place:restaurant:bar', 'urn:tag:genre:place:restaurant:cocktail_bar']);
+/** A place Qloo files under a bar-like genre. */
+const BAR_GENRE = /^urn:tag:genre:place:restaurant:(bar|cocktail_bar|pub|lounge|wine_bar|sports_bar|live_music_bar|brewpub|beer_bar|speakeasy|irish_pub|dive_bar|rooftop_bar|hotel_bar)$/;
+export const isDrinksPlace = (e) => (e.tags ?? []).some((t) => BAR_GENRE.test(t.tag_id));
 /** The restaurant genre parent: every cuisine tag sits under it, and bars and cafes carry it too. */
 export const DINING_TAG = 'urn:tag:genre:place:restaurant';
 
@@ -57,6 +67,7 @@ const withTag = (list, tag) => {
 export function scopeParams(params, kind) {
   if (params['filter.type'] !== ENTITY_TYPES.place || params[PER_PERSON_FILTER]) return params;
   if (kind === 'dining' && !params['filter.tags']) return { ...params, 'filter.tags': DINING_TAG };
+  if (kind === 'drinks') return { ...params, 'filter.tags': DRINKS_TAGS.join(',') };
   if (kind === 'activity') return { ...params, 'filter.exclude.tags': withTag(params['filter.exclude.tags'], DINING_TAG) };
   return params;
 }
@@ -209,8 +220,8 @@ function addPriorSignals(params, own, remembered) {
 export async function recommendNearby(body, { qloo: client, toolSecret, memory, weather = null, timezone, now = () => new Date() }) {
   const kind = body?.kind === undefined || body?.kind === null ? 'any' : oneOf(body.kind, 'kind', [...KINDS]);
   const qloo = scopedClient(client, kind);
-  const taste = tasteSignals(body?.taste);
-  const companion = companionSignals(body?.companion_taste);
+  const taste = placeSafe(tasteSignals(body?.taste));
+  const companion = placeSafe(companionSignals(body?.companion_taste));
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
   const origin = latLng(body);
   const c = body?.constraints ?? {};
@@ -232,7 +243,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   // A stated cuisine is a hard filter; every other taste is a signal (see places.js).
   const shaped = placeTasteParams(signalsIn);
   // Things to do are not restaurants: a cuisine rides as a signal only.
-  if (kind === 'activity' && shaped.cuisine.length) {
+  if ((kind === 'activity' || kind === 'drinks') && shaped.cuisine.length) {
     delete shaped.params['filter.tags'];
     shaped.cuisine = [];
   }
@@ -243,7 +254,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     ...locationParams(origin.lat, origin.lng, radius),
     sort_by: 'affinity',
     // headroom for the kids filter, and for activity and dining the tag check below (a small town's list is mostly lodging and shops)
-    take: String(kind === 'activity' || kind === 'dining' ? 20 : Math.min(20, take * 3)),
+    take: String(kind === 'activity' || kind === 'dining' || kind === 'drinks' ? 20 : Math.min(20, take * 3)),
   };
   if (budget !== undefined) firstParams['filter.price_level.max'] = String(Math.round(budget));
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
@@ -265,7 +276,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
   // Things to do: only places whose own tags say entertainment, leisure, arts or outdoors (lib/activity.js).
   // Somewhere to eat: only places whose own tags say they serve food (lib/dining.js).
-  const fitsKind = (e) => (kind === 'activity' ? isActivityPlace(e) : kind === 'dining' ? isDiningPlace(e, { treats: wantsTreat }) : true);
+  const fitsKind = (e) => (kind === 'activity' ? isActivityPlace(e) : kind === 'dining' ? isDiningPlace(e, { treats: wantsTreat }) : kind === 'drinks' ? isDrinksPlace(e) : true);
   const usable = (e) => kidSafe(e) && fitsKind(e);
   const notTexted = (e) => !texted.has(e.entity_id);
   // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
@@ -387,7 +398,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     applied: { kind, radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
       ...(kind === 'activity' ? { filtered_not_activity: notActivity } : {}),
-      ...(kind === 'dining' ? { filtered_not_dining: notActivity } : {}),
+      ...(kind === 'dining' || kind === 'drinks' ? { filtered_not_dining: notActivity } : {}),
       // 'hard': every pick is one of the guest's cuisines; 'relaxed': fewer than three fit
       // nearby, so the ones that fit come first and the rest are the best matches overall
       // (`say` tells the agent); null: no cuisine was said or it matched too weakly to filter.

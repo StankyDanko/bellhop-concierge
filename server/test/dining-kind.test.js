@@ -28,8 +28,8 @@ function recording(answer = () => [place(1), place(2), place(3)]) {
 
 const placeAsks = (sent) => sent.filter((r) => r.endpoint === '/v2/insights' && r.params['filter.type'] === 'urn:entity:place');
 
-test('kind is dining, activity, or any', () => {
-  assert.deepEqual(KINDS, ['dining', 'activity', 'any']);
+test('kind is dining, drinks, activity, or any', () => {
+  assert.deepEqual(KINDS, ['dining', 'drinks', 'activity', 'any']);
   assert.equal(DINING_TAG, 'urn:tag:genre:place:restaurant');
 });
 
@@ -99,4 +99,28 @@ test('scopeParams leaves non-place asks and the per-person shortlist scoring alo
   const shortlist = { 'filter.type': 'urn:entity:place', 'filter.results.entities': 'fx-place-1,fx-place-2' };
   assert.deepEqual(scopeParams(shortlist, 'activity'), shortlist);
   assert.equal(scopeParams({ 'filter.type': 'urn:entity:place', 'filter.exclude.tags': DINING_TAG }, 'activity')['filter.exclude.tags'], DINING_TAG, 'never doubled');
+});
+
+const BAR = 'urn:tag:genre:place:restaurant:bar';
+const MEDIA = { id: 'urn:tag:genre:media:psychological_thriller', name: 'Psychological thriller' };
+
+test('drinks: every place ask is filtered to the bar genres, and only bars come back', async () => {
+  const { sent, transport } = recording();
+  const { app } = makeApp({ qlooTransport: transport });
+  const { status, json } = await callTool(app, 'recommend_nearby', { taste: [ARTIST], ...PROPERTY, kind: 'drinks' });
+  assert.equal(status, 200);
+  assert.equal(json.applied.kind, 'drinks');
+  for (const a of placeAsks(sent)) assert.match(a.params['filter.tags'], new RegExp(`^${BAR},`));
+});
+
+test('a film or show genre is never sent to a place search, with or without other tastes', async () => {
+  for (const taste of [[MEDIA], [MEDIA, ARTIST]]) {
+    const { sent, transport } = recording();
+    const { app } = makeApp({ qlooTransport: transport });
+    const { status } = await callTool(app, 'recommend_nearby', { taste, ...PROPERTY, kind: 'drinks' });
+    assert.equal(status, 200);
+    for (const a of placeAsks(sent)) {
+      assert.ok(!JSON.stringify(a.params).includes('genre:media'), JSON.stringify(a.params));
+    }
+  }
 });

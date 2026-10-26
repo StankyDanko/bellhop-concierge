@@ -9,7 +9,7 @@ import { signPick } from '../lib/pick-token.js';
 import { kindBlurb, KIND_WORDS as KIND_NAMES } from '../lib/blurb.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
 import { sessionIdFrom } from '../lib/sessions.js';
-import { isMediaGenreTag, isPlaceTag, isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
+import { isMediaGenreTag, isPlaceTag, isUnusableTaste, locationParams, placeInsights, placeSafe, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
 
 export const TARGETS = /** @type {const} */ (['artist', 'movie', 'book', 'podcast', 'place', 'tv_show']);
 
@@ -150,7 +150,7 @@ export async function crossDomain(body, { qloo, toolSecret, now }) {
   // Toward places, a stated cuisine is a hard filter like in recommend_nearby; toward films,
   // books, or music every taste stays a signal (a restaurant tag would filter them all away).
   const media = target === 'place' ? null : mediaTaste(taste0, target);
-  const taste = media ? media.taste : taste0;
+  const taste = media ? media.taste : target === 'place' ? placeSafe(taste0) : taste0;
   // Only place tastes were passed for a film or show: nothing here says what to watch, so the pick
   // comes from the mood alone (the recent releases), never from a question.
   const moodOnly = Boolean(media && !taste.signals.length && !media.genres.length && RECENT_TARGETS.has(target));

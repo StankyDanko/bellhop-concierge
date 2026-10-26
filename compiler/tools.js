@@ -114,7 +114,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     recommend_nearby: {
-      description: `Places ${near} ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met. Set kind to dining when the guest wants somewhere to eat or drink, which is the usual case, activity for things to do, and any only when they want both.`,
+      description: `Places ${near} ranked for this guest, each with the reason it fits and a pick_token. Call it after resolve_taste. Each place lists its own cuisine and feel words in tags; it returns no hours or parking, so never state them or guess them from a name. When it returns a say line, use it before the picks: it tells you the cuisine could not be met. Set kind to dining when the guest wants somewhere to eat, which is the usual case, drinks when they want a drink or a bar, activity for things to do, and any only when they want both.`,
       timeout: 15,
       body: {
         type: 'object',
@@ -122,7 +122,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
         properties: {
           taste: TASTE,
           companion_taste: { ...TASTE, description: 'Optional. The companion_resolved items exactly as resolve_taste returned them, one to eight. Only when the guest has a plus-one.' },
-          kind: s('What the guest asked for: dining for restaurants, bars, and cafes, activity for things to do, any for both. Use dining when they ask where to eat or drink.', { enum: ['dining', 'activity', 'any'] }),
+          kind: s('What the guest asked for: dining for restaurants and cafes, drinks for a bar, a cocktail bar, a pub, or just a drink, activity for things to do, any for both. Use dining when they ask where to eat, and drinks when they ask for a drink or a bar.', { enum: ['dining', 'drinks', 'activity', 'any'] }),
           ...where,
           radius_miles: n('How far to look, in miles. Default three, at most twenty five. Use one for walking. When the guest says look wider or nothing came back, call again with a larger radius_miles (eight, then fifteen, then twenty five) and leave max_minutes out.'),
           take: n('How many places to return, one to five. Use three.'),

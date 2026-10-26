@@ -58,6 +58,20 @@ export function signalParams({ entityIds, tagIds }) {
 /** A film, show, or book genre tag (urn:tag:genre:media:horror): what "a horror show" resolves to. */
 export const isMediaGenreTag = (id) => /^urn:tag:genre:media:[^:]+/.test(String(id));
 
+/**
+ * A film, show, or book genre is a taste for a screen, never for a place: sent to a place search
+ * it pulled a Shakespeare theater for a guest who asked for a drink and likes thrillers. The
+ * server drops those tags from every place call, whatever the model sent. A place call with
+ * nothing left goes on with no taste signal and the kind alone.
+ */
+export function placeSafe(t) {
+  if (!t) return t;
+  const keep = t.signals.filter((s) => !isMediaGenreTag(s.id));
+  if (keep.length === t.signals.length) return t;
+  return { ...t, signals: keep, noFilterIds: t.noFilterIds.filter((id) => !isMediaGenreTag(id)), entityIds: t.entityIds.filter((id) => !isMediaGenreTag(id)),
+    tagIds: t.tagIds.filter((id) => !isMediaGenreTag(id)) };
+}
+
 /** A tag that only means something for places: a restaurant genre, a room's feel, a shop category. */
 export const isPlaceTag = (id) => /:place(?::|$)|^urn:tag:(?:ambience|noise_level|amenity|price_level|offerings|crowd)\b/.test(String(id));
 
