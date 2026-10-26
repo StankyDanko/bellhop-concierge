@@ -59,7 +59,7 @@ export const SOFT_TIMEOUT = Object.freeze({
   additional_soft_timeout_messages: WAIT_FILLERS.slice(1),
   use_llm_generated_message: false,
   randomize_fillers: true,
-  max_soft_timeouts_per_generation: 2,
+  max_soft_timeouts_per_generation: 3, // the platform stores 3 when sent 2
   disable_until_first_user_message: true,
 });
 
