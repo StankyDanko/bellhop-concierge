@@ -160,6 +160,8 @@ export function shapePlace(e, signals, origin) {
     url: website ?? `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`,
     // A few words about the place from its own data, for the text. Never the guest's tastes.
     blurb: placeBlurb(e),
+    // Qloo's own sentence on what the place is, when it has one; null otherwise. Never invented.
+    description: e.summary ?? null,
     affinity: e.affinity,
     why: why.why,
     why_trace: { basis: why.basis, drivers },

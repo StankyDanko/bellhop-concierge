@@ -203,6 +203,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
                 favors: s('The favors field from recommend_nearby, only if that place had one. Leave out otherwise.', { enum: ['guest', 'companion', 'both'] }),
                 pick_token: s('The pick_token field from the tool result, copied exactly'),
                 requested: b('True only if the guest asked for this event by name'),
+                kind: s('Only for a pick that has no url, such as one you found by looking it up: book, film, show, place, or other. The text then carries a link built from the name.', { enum: ['book', 'film', 'show', 'place', 'other'] }),
               },
             },
           },

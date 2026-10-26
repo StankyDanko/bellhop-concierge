@@ -388,7 +388,7 @@ export function renderTitleSearch(webSearch) {
 /** The web search tool's entry in the tool list, only when the compiled agent has it. */
 export function renderSearchTool(webSearch) {
   if (!webSearch) return '';
-  return 'search_the_web. Use it for a half remembered title that resolve_taste could not find, and for a plain fact the guest asks about that the other tools do not cover. Say only the title or the fact it found, in a few words, never a site name or a web address. Never recommend a place or an event from it: every pick comes from the other tools.';
+  return 'search_the_web. Use it for a half remembered title that resolve_taste could not find, for a plain fact the guest asks about that the other tools do not cover, such as when a place opens, and for ratings or reviews when the guest asks, never saying you do not have them. It is also the way to find nonfiction and documentary books, and any kind of place or thing the other tools do not carry, like a plant nursery: search for it, then name one or two real results, each with its kind and what it is in a few words from the search, and never pass them off as a match to the guest\'s taste. Say only the title or the fact it found, in a few words, never a site name or a web address. Never recommend a place or an event from it unless the other tools have nothing for that kind.';
 }
 
 function renderSending(c) {

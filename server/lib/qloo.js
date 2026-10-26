@@ -110,6 +110,7 @@ function entitiesOf(body) {
  * @property {number|null} year
  * @property {string|null} genre         the place's primary genre name ("Cocktail bar"), from properties.primary_genre
  * @property {string|null} neighborhood  its neighborhood name when Qloo has one ("Midtown")
+ * @property {string|null} summary       one plain sentence on what it is, from properties.short_description or description
  */
 
 /** A short name from a string or an object with a name; null for anything else (the akas lists are never read). */
@@ -117,6 +118,26 @@ function nameOf(v) {
   const s = typeof v === 'string' ? v : typeof v?.name === 'string' ? v.name : '';
   const t = s.trim();
   return t && t.length <= 60 ? t : null;
+}
+
+export const SUMMARY_MAX = 200;
+
+/**
+ * One plain sentence on what an entity is: Qloo's own short_description, else the first
+ * sentence of its description. Never written here, only trimmed: tags and markup stripped,
+ * one sentence, and null when Qloo has nothing usable or the sentence is too long to say.
+ * @param {any} p an entity's properties
+ * @returns {string|null}
+ */
+export function summaryOf(p) {
+  const clean = (v) => (typeof v === 'string' ? v.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '');
+  const short = clean(p?.short_description);
+  const long = clean(p?.description);
+  const first = long ? (/^(.+?[.!?])(?:\s|$)/.exec(long)?.[1] ?? long) : '';
+  for (const s of [short, first]) {
+    if (s.length >= 20 && s.length <= SUMMARY_MAX) return s;
+  }
+  return null;
 }
 
 /** @returns {QlooEntity} */
@@ -146,6 +167,7 @@ export function normalizeEntity(e) {
     year: num(p.release_year ?? p.publication_year),
     genre: nameOf(p.primary_genre),
     neighborhood: nameOf(p.neighborhood) ?? nameOf(p.locality?.neighborhood),
+    summary: summaryOf(p),
   };
 }
 

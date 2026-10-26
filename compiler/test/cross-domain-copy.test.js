@@ -12,10 +12,10 @@ const prompt = (r) => r.agent.conversation_config.agent.prompt.prompt;
 const tool = (r, name) => r.tools.find((t) => t.tool_config.name === name).tool_config;
 
 for (const persona of ['harper', 'maybelle']) {
-  test(`${persona}: a cross-domain pick is described only by its why and texted with its token`, () => {
+  test(`${persona}: a cross-domain pick is pitched only from its description and texted with its token`, () => {
     const r = compile(demo(), { ...OPTS, persona });
     assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
-    assert.match(prompt(r), /4\. cross_domain\.[^\n]*Describe a cross-domain pick only with the why the tool returned\. Never say what it is like, who made it, or what it resembles\./);
+    assert.match(prompt(r), /4\. cross_domain\.[^\n]*Pitch a cross-domain pick with what the tool returned: its name, its kind, and its premise in a few words of your own, taken only from its description field/);
     assert.match(tool(r, 'cross_domain').description, /copy its pick_token exactly; never make one up from an id\./);
   });
 

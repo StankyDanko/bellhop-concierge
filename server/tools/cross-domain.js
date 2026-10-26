@@ -6,7 +6,7 @@ import { ENTITY_TYPES } from '../lib/qloo.js';
 import { buildWhy } from '../lib/why.js';
 import { InputError, UpstreamError } from '../lib/errors.js';
 import { signPick } from '../lib/pick-token.js';
-import { kindBlurb } from '../lib/blurb.js';
+import { kindBlurb, KIND_WORDS as KIND_NAMES } from '../lib/blurb.js';
 import { latLng, num, oneOf, tasteSignals } from '../lib/validate.js';
 import { sessionIdFrom } from '../lib/sessions.js';
 import { isMediaGenreTag, isPlaceTag, isUnusableTaste, locationParams, placeInsights, placeTasteParams, shapePlace, signalParams, UNUSABLE_TASTE_SAY } from './places.js';
@@ -234,6 +234,7 @@ export async function crossDomain(body, { qloo, toolSecret, now }) {
     const why = found.fallback ? fallbackWhy(found, taste0) : buildWhy(e, whySignals);
     const url = e.website?.startsWith('https://') ? e.website : titleSearchUrl(e);
     return { name: e.name, entity_id: e.entity_id, type: e.type, year: e.year, affinity: e.affinity, url, blurb: kindBlurb(e),
+      kind: e.type === 'artist' ? 'musician or band' : KIND_NAMES[e.type] ?? null, description: e.summary ?? null,
       why: why.why, why_trace: { basis: why.basis, drivers: why.drivers }, source: 'Qloo' };
   });
 

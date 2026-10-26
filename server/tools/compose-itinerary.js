@@ -96,6 +96,22 @@ const hasLaterEvent = (picks) => picks.some((p) => typeof p.when_label === 'stri
 /** A blurb that explains a ranking or repeats a taste instead of describing the place. */
 const REASON_LIKE = /\b(fans? of|tagged|love it|loves it|you like|your taste|because you|matches? your)\b/i;
 
+/**
+ * A link for a pick the agent found by web search and passed with no address: a book searches
+ * Goodreads, a film or show IMDb, a place Google Maps, anything else the web. Built here from
+ * the name, never typed by the agent. A pick that came with a link of its own keeps it.
+ * @param {{ name?: string, url?: unknown, kind?: unknown }} p
+ */
+export function withSearchLink(p) {
+  if (typeof p.url === 'string' && p.url.trim()) return p;
+  const q = encodeURIComponent(String(p.name ?? '').slice(0, 80));
+  const url = p.kind === 'book' ? `https://www.goodreads.com/search?q=${q}`
+    : p.kind === 'film' || p.kind === 'show' ? `https://www.imdb.com/find/?q=${q}&s=tt`
+    : p.kind === 'place' ? `https://www.google.com/maps/search/?api=1&query=${q}`
+    : `https://www.google.com/search?q=${q}`;
+  return { ...p, url };
+}
+
 /** @param {unknown} b @returns {string} */
 const cleanBlurb = (b) => {
   const t = typeof b === 'string' ? b.trim() : '';
@@ -117,7 +133,7 @@ export async function composeItinerary(body, ctx = {}) {
   }
   /** @type {string[]} */
   const refused = [];
-  const plain = picks.map(({ when_label: _w, why: _why, ...p }) => ({ ...p, blurb: cleanBlurb(p.blurb) }));
+  const plain = picks.map(({ when_label: _w, why: _why, kind, ...p }) => withSearchLink({ ...p, kind, blurb: cleanBlurb(p.blurb) })).map(({ kind: _k, ...p }) => p);
   if (!ctx.links) {
     // No link store: each pick carries its own https link in the text.
     const composed = compose({ picks: plain, guest, intro });

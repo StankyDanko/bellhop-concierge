@@ -45,7 +45,7 @@ export function placeBlurb(e) {
   return out.length <= BLURB_MAX ? out : (head.length <= BLURB_MAX ? head : null);
 }
 
-const KIND_WORDS = { movie: 'film', tv_show: 'TV show', podcast: 'podcast', book: 'book', artist: 'music', place: 'place' };
+export const KIND_WORDS = { movie: 'film', tv_show: 'TV show', podcast: 'podcast', book: 'book', artist: 'music', place: 'place' };
 
 /**
  * A non-place pick: "film, 2014", "podcast".
