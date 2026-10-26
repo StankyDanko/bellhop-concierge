@@ -131,10 +131,10 @@ checks that each persona's own guess sample line matches, so a renamed guess can
 | Instructions cannot be changed on a call; no reciting, counting, or role changes | Partners and paid extras (`permissions.suggest_partners`, `upsell`) |
 | Says a text was sent only after `send_sms` succeeds; `to` is bound to the caller |
 | Calls `log_session` once at the end of a call: an anonymous summary, caller id stored only as an HMAC | | Trust level: `test`, `suggest`, `live` (call limits and the text offer) |
-| `max_tokens` 250, temperature 0, one tool at a time, `max_duration_seconds` 600 | |
+| `max_tokens` 400, temperature 0, one tool at a time, `max_duration_seconds` 600 | |
 | Platform guardrails on: prompt injection, focus, content (sexual, harassment, self harm, violence) | |
 | Session overrides off for prompt, model, tools, voice, first message | |
-| No backup model: the platform cascade is off and the model gets fifteen seconds | |
+| Backup models are Claude only (an override list), and the model gets fifteen seconds | A Gemini backup once called a tool that does not exist |
 | A wait over seven seconds gets a short, polite line, shuffled from five; lookups and the text always get a line before they run | |
 | Speech recognition boosts the persona, the place, and the demos by name, and filters background voices | |
 
@@ -171,7 +171,7 @@ field name can still be ignored silently by an API, so a GET after every write r
 
 Confirmed on 2026-10-25 against a live GET of a deployed agent and its tools, and the API's
 published schema for the enums and ranges: `prompt.backup_llm_config` (`{ preference: "default" |
-"disabled" | "override" }`), `prompt.cascade_timeout_seconds` (2 to 15), `turn.soft_timeout_config.
+"disabled" | "override", order }`), `prompt.cascade_timeout_seconds` (2 to 15), `turn.soft_timeout_config.
 {timeout_seconds, message, additional_soft_timeout_messages (at most seven), use_llm_generated_message,
 randomize_fillers, max_soft_timeouts_per_generation (1 to 8), disable_until_first_user_message}`,
 `asr.keywords`, `vad.background_voice_detection`, and the webhook tool's `pre_tool_speech`

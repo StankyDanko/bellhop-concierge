@@ -22,9 +22,10 @@ const builds = {
 };
 
 for (const [name, make] of Object.entries(builds)) {
-  test(`${name}: the backup model is off and the model gets the longest wait`, () => {
+  test(`${name}: the backup is Claude only and the model gets the longest wait`, () => {
     const pr = make().agent.conversation_config.agent.prompt;
-    assert.deepEqual(pr.backup_llm_config, { preference: 'disabled' });
+    assert.equal(pr.backup_llm_config.preference, 'override');
+    assert.ok(pr.backup_llm_config.order.length > 0 && pr.backup_llm_config.order.every((m) => /^claude-/.test(m)), 'only Claude models');
     assert.equal(pr.cascade_timeout_seconds, 15);
     assert.deepEqual({ backup_llm_config: pr.backup_llm_config, cascade_timeout_seconds: pr.cascade_timeout_seconds }, { ...LLM_CASCADE });
   });

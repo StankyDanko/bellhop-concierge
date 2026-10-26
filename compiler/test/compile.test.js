@@ -24,7 +24,7 @@ for (const persona of ['harper', 'maybelle']) {
     assert.deepEqual(r.lint.filter((f) => f.severity === 'error'), []);
     const a = r.agent;
     const p = a.conversation_config.agent.prompt;
-    assert.equal(p.max_tokens, 250);
+    assert.equal(p.max_tokens, 400);
     assert.equal(p.temperature, 0);
     assert.equal(p.enable_parallel_tool_calls, false);
     assert.equal(a.conversation_config.conversation.max_duration_seconds, 600);
@@ -142,7 +142,7 @@ test('trust level sets call limits and the text offer', () => {
     if (level === 'suggest') assert.match(prompt(r), /only if the guest asks for it/);
     else assert.match(prompt(r), /offer to text the picks you hold/);
   }
-  assert.equal(LOCKED_SETTINGS.max_tokens, 250);
+  assert.equal(LOCKED_SETTINGS.max_tokens, 400);
 });
 
 test('host text is cleaned for the voice before it is slotted in', () => {

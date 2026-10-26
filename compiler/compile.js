@@ -22,21 +22,24 @@ export const PERSONAS_DIR = `${ROOT}personas`;
 
 /** Platform settings every compiled agent carries. Not host-configurable. */
 export const LOCKED_SETTINGS = Object.freeze({
-  max_tokens: 250,
+  max_tokens: 400,
   temperature: 0,
   max_duration_seconds: 600,
   tts_model_id: 'eleven_flash_v2',
 });
 
 /**
- * The language model has no fallback. With the platform's backup cascade on, a slow answer
- * from the chosen model handed the call to a different model that called a tool which does
- * not exist, about twenty five times, while the guest waited in silence. So the backup is
- * off, and the chosen model gets the longest wait the platform allows (fifteen seconds).
- * Field names and the range are the platform's own (agent.prompt in the agent API schema).
+ * The backup model is Claude only. With the platform's default cascade on, a slow answer from
+ * the chosen model handed the call to a Gemini model that called a tool which does not exist,
+ * about twenty five times, while the guest waited in silence. An override lists the models to
+ * try, in order, and names only Claude models, which follow the tool contract. A turn the
+ * chosen model fails (the platform ended a call when it hit max_tokens mid tool call) then
+ * goes to the next one. The chosen model gets the longest wait the platform allows (fifteen
+ * seconds). Field names, the enum, and the range are the platform's own (agent.prompt in the
+ * agent API schema: BackupLLMOverride { preference: "override", order: LLM[] }).
  */
 export const LLM_CASCADE = Object.freeze({
-  backup_llm_config: Object.freeze({ preference: 'disabled' }),
+  backup_llm_config: Object.freeze({ preference: 'override', order: Object.freeze(['claude-sonnet-4-6', 'claude-haiku-4-5']) }),
   cascade_timeout_seconds: 15,
 });
 
