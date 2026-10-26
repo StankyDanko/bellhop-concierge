@@ -9,7 +9,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { assertValidConfig } from '../config/schema.js';
 import { RUNTIME_VARIABLES, lintCompiled } from './lint.js';
-import { SMS_TOOL_NAME, STAY_TOOL_NAME, serverToolConfigs } from './tools.js';
+import { SMS_TOOL_NAME, STAY_TOOL_NAME, searchToolConfig, serverToolConfigs } from './tools.js';
 import { defaultVars } from '../server/conversation/choose.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -454,6 +454,8 @@ export function runtimeOpener(opener, personaId) {
  * @param {string} [opts.templatePath]
  * @param {string} [opts.personasDir]
  * @param {boolean} [opts.memoryWebhook]
+ * @param {string} [opts.searchUrl]        an https search endpoint taking POST { query }: compiles the optional search_the_web tool (off by default)
+ * @param {string} [opts.searchSecretName] the name of the workspace secret that endpoint expects in its header; deploy swaps the name for the secret's id
  * @param {string} [opts.innDemoAgentId] road line only: the agent id the inn demo transfer goes to
  * @param {string} [opts.rentalDemoAgentId] road line only: the agent id the Miami rental demo transfer goes to
  * @param {string} [opts.roadAgentId] road line only: the road agent's own id, when known, so no transfer points back at it
@@ -483,6 +485,13 @@ export function compile(config, opts = {}) {
     // stay_info only for a config with a stay sheet; every config without one compiles as before.
     && (c.stay || t.tool_config.name !== STAY_TOOL_NAME))
     .map((t) => (PRE_TOOL_SPEECH[t.tool_config.name] ? { ...t, tool_config: { ...t.tool_config, pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } } : t));
+  // The optional web search tool: only when the operator gave an endpoint and a secret name.
+  if (opts.searchUrl || opts.searchSecretName) {
+    if (!opts.searchUrl || !opts.searchSecretName) throw new Error('--search-url and --search-secret-name go together');
+    const search = searchToolConfig({ url: opts.searchUrl, secretName: opts.searchSecretName });
+    const speech = PRE_TOOL_SPEECH[search.tool_config.name];
+    tools.push(speech ? { ...search, tool_config: { ...search.tool_config, pre_tool_speech: speech } } : search);
+  }
   const webSearch = tools.some((t) => t.tool_config.name === WEB_SEARCH_TOOL_NAME);
   const slots = {
     ...inner,

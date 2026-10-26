@@ -23,8 +23,20 @@ npm run compile -- config/examples/demo-inn.json                       # JSON to
 npm run compile -- config/examples/demo-inn.json --persona maybelle --out agent.json
 npm run compile -- config/examples/demo-inn.json \
   --tool-base-url https://tools.your-inn.example --tool-secret-id <workspace secret id>
+npm run compile -- config/examples/demo-inn.json \
+  --search-url https://search.your-host.example/voice/search --search-secret-name <workspace secret name>
 npm run schema                                                           # regenerate config/schema.json
 ```
+
+### The optional web search tool
+
+Off by default. With `--search-url` and `--search-secret-name` (they go together) the agent also
+gets `search_the_web`, a webhook tool that posts `{ "query": "..." }` to an endpoint you already
+run and sends that endpoint's shared secret in the `x-agent-search-secret` header. The tool is for
+a title the guest half remembers ("the show where something bad happens to a family") and for a
+plain fact outside the other tools. This server does not proxy search and this repo names no
+endpoint. The compiled header holds `<workspace secret id named NAME>`: your deploy step looks the
+workspace secret up by that name and writes its id in, the way it does for the tool secret.
 
 Exit code 0 means compiled with no lint errors, 1 means lint errors (the output is still
 written so you can read it), 2 means the config was invalid.

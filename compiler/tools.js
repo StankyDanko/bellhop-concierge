@@ -331,3 +331,54 @@ export function serverToolConfigs({ property, propertyId = 'property', persona =
     },
   }));
 }
+
+// ---- the optional web search tool ----------------------------------------------------------
+//
+// Not a tool of this server. A phone agent that needs a web lookup (a half remembered title, a
+// fact outside the other tools) calls an existing search endpoint that its operator already runs,
+// with a workspace secret in a header. This repo names no endpoint and holds no secret: the
+// operator passes the URL and the NAME of the workspace secret at compile time (bin/compile.js
+// --search-url, --search-secret-name), and the deploy step swaps the name for the secret's id
+// (see searchSecretPlaceholder). Without --search-url the tool is not compiled at all.
+
+export const SEARCH_TOOL_NAME = 'search_the_web';
+/** The header the search endpoint reads its shared secret from. */
+export const SEARCH_SECRET_HEADER = 'x-agent-search-secret';
+/** Matches a compiled search secret placeholder and captures the workspace secret's name. */
+export const SEARCH_SECRET_PLACEHOLDER = /^<workspace secret id named (.+)>$/;
+/** The placeholder a compiled search tool carries until deploy swaps in the secret's id. @param {string} name */
+export const searchSecretPlaceholder = (name) => `<workspace secret id named ${name}>`;
+
+/**
+ * The search_the_web webhook tool.
+ * @param {object} p
+ * @param {string} p.url         the endpoint, https, taking POST { query }
+ * @param {string} p.secretName  the name of the ElevenLabs workspace secret the endpoint expects in SEARCH_SECRET_HEADER
+ * @returns {{ tool_config: object }}
+ */
+export function searchToolConfig({ url, secretName }) {
+  if (!/^https:\/\/[^\s<>]+$/.test(String(url ?? ''))) throw new Error('--search-url must be an https address');
+  if (!/^[A-Za-z0-9_.-]{1,64}$/.test(String(secretName ?? ''))) throw new Error('--search-secret-name must be the name of a workspace secret (letters, digits, dot, dash, underscore)');
+  return {
+    tool_config: {
+      type: 'webhook',
+      name: SEARCH_TOOL_NAME,
+      description: 'Looks something up on the web. Use it when the guest half remembers a title and cannot name it, such as the show where something bad happens to a family, a movie, a book, or a song, and for a plain fact outside your other tools, such as when a place opens. Search with what they remember, worded like a search engine query. Say what you found in one short sentence, then ask the guest if that is the one before you use it as a taste. Never say a web address aloud. Never put the guest\'s name, number, or address in the query. If it fails, say you could not look it up right now and ask what it is most like.',
+      response_timeout_secs: 10,
+      tool_error_handling_mode: 'summarized',
+      api_schema: {
+        url,
+        method: 'POST',
+        content_type: 'application/json',
+        request_headers: { [SEARCH_SECRET_HEADER]: { secret_id: searchSecretPlaceholder(secretName) } },
+        request_body_schema: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: s('What to search for, worded like a search engine query, for example the Netflix show about a family where something bad happens. Add a place name for a local question. At most one hundred and fifty characters.'),
+          },
+        },
+      },
+    },
+  };
+}
