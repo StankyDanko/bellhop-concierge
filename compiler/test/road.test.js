@@ -165,7 +165,7 @@ test('road: runtime variables always have placeholders, and they rebuild the ope
   const off = compile(road(), OPTS);
   const ph = off.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders;
   assert.deepEqual(Object.keys(ph).sort(), [...RUNTIME_VARIABLES].sort());
-  assert.deepEqual(ph, defaultVars('road'));
+  assert.deepEqual(ph, { ...defaultVars('road'), guest_name: 'none', guest_recorded: 'no' });
   for (const v of promptOf(off).match(/\{\{(\w+)\}\}/g) ?? []) {
     const k = v.slice(2, -2);
     assert.ok(k.startsWith('system__') || k in ph, `${v} has no placeholder`);
@@ -193,7 +193,7 @@ test('road: forget_guest is named in the prompt only when the memory tools are c
 test('the inn personas carry no road line parts (no transfer, no locality) and only first-call placeholders', () => {
   for (const persona of ['harper', 'maybelle']) {
     const r = compile(demo(), { ...OPTS, persona });
-    assert.deepEqual(r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders, defaultVars(persona));
+    assert.deepEqual(r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders, { ...defaultVars(persona), guest_name: 'none', guest_recorded: 'no' });
     assert.equal(r.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent, undefined);
     assert.doesNotMatch(JSON.stringify(r.tools), /locality/);
     assert.equal(r.meta.mode, 'inn');

@@ -357,6 +357,7 @@ function renderReturning(memory) {
   if (!memory) return '';
   return [
     'This step is important. A returning guest. This phone has called before when caller_status, which is {{caller_status}}, is not new. The name you last heard on it is {{caller_name}}, this is call number {{call_number}} for that person, and whether they already heard that every call is recorded is {{recording_noted}}.',
+    '- A call handed to you comes before all of this. It was handed to you when the agent this call began with, {{system__agent_id}}, is not you, {{system__current_agent_id}}, and the first name the guest gave on this same call, to the other concierge, is {{guest_name}}, which is not none. Your first message already greeted them by name. They already gave their name and heard whether this call is recorded: that is {{guest_recorded}}. Never ask their name again, never say anything about recording, never call remember_guest again, and never call this a first call or say you have no history with them, because the call has gone on the whole time, only the voice changed. The guest asked for you, so go straight to what they need, starting from the stated need in their next words. If guest_name is none, ask the name as your first message does. Everything else below is for a call that began with you.',
     '- A new caller, or a name of none: open as a first call, with the full recording note. When the guest gives a first name, call remember_guest once with first_name, silently. If a guest with no name on file says you have talked before, welcome them back.',
     '- A name on file: your first message already asked whether you are talking to that person. If they say yes, call remember_guest with same_guest true, silently. If recording_noted is no, the recording note comes next, before any question and before the one thing from last time, every time, whatever caller_status is and even on a same-day call: one brief reminder that the call is recorded and that every call from now on is recorded too, so you will stop mentioning it, like quick reminder, this call is recorded, and so is every call after it, so that is the last time I will say it. If remember_guest hands back a line to say, that is the reminder, in your own words. Only then go into the conversation like a friend picking up where you left off: if there is one thing from last time below, that is your first question. Otherwise a few words, like good to hear you, what\'s tonight? If recording_noted is yes, say nothing about recording.',
     '- Someone else on that phone: say no problem in a few words, ask their first name if they did not give it, and call remember_guest with same_guest false and their first_name. From then on they are a new guest: the full first call recording note, and nothing below, no earlier tastes, no last call, and never the other name again.',
@@ -535,7 +536,10 @@ export function compile(config, opts = {}) {
   // A prompt that reads a runtime variable needs its placeholder on every call, webhook or not,
   // so a call without the webhook hears today's defaults instead of a raw {{name}}.
   const usesRuntime = RUNTIME_VARIABLES.some((v) => prompt.includes(`{{${v}}}`));
-  const placeholders = opened ? opened.placeholders : usesRuntime ? defaultVars(persona.id) : null;
+  // guest_name and guest_recorded are set mid-call by remember_guest, never by the init webhook.
+  const handoffDefaults = { guest_name: 'none', guest_recorded: 'no' };
+  const basePlaceholders = opened ? opened.placeholders : usesRuntime ? defaultVars(persona.id) : null;
+  const placeholders = basePlaceholders ? { ...basePlaceholders, ...handoffDefaults } : null;
 
   /** Road line only: the two transfers, to the inn demo and to the Miami rental demo. */
   const transferTools = roaming ? {

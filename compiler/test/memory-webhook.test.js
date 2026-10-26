@@ -98,6 +98,22 @@ test('runtime variables pass fillSlots and lint; anything else still fails', () 
   const run = (firstMessage) => lintCompiled({ prompt: 'Say this call is being recorded.', firstMessage, tools: [], agent: {} }).filter((f) => f.severity === 'error').map((f) => f.rule);
   assert.deepEqual(run('This is Harper, your concierge, {{opener_hook}}'), []);
   assert.deepEqual(run('This is Harper, {{opener_hook}}'), ['disclosure']);
-  assert.deepEqual(run('Hi {{guest_name}}, your concierge here?'), ['unfilled_slot']);
+  assert.deepEqual(run('Hi {{visitor_name}}, your concierge here?'), ['unfilled_slot']);
   assert.throws(() => runtimeOpener('Hello there, this is Harper. Something else entirely.', 'harper'), /default hook/);
+});
+
+test('a call handed to another concierge: remember_guest hands the name over, the receiver does not re-ask', async () => {
+  const r = compile(demo(), { ...OPTS, memoryWebhook: true });
+  const tool = r.tools.find((t) => t.tool_config.name === 'remember_guest').tool_config;
+  assert.deepEqual(tool.assignments.map((a) => [a.dynamic_variable, a.value_path]),
+    [['guest_name', 'guest_name'], ['guest_recorded', 'guest_recorded'], ['opener_hook', 'handoff_hook']]);
+  const ph = r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders;
+  assert.deepEqual([ph.guest_name, ph.guest_recorded], ['none', 'no']);
+  assert.match(promptOf(r), /A call handed to you comes before all of this/);
+  const { app } = makeApp({ memory: true });
+  const named = await callTool(app, 'remember_guest', { session_id: 'conv-hand-1', first_name: 'dana' });
+  assert.deepEqual([named.json.guest_name, named.json.guest_recorded], ['Dana', 'yes']);
+  assert.match(named.json.handoff_hook, /^good to have you, Dana\./);
+  const nameless = await callTool(app, 'remember_guest', { session_id: 'conv-hand-2' });
+  assert.deepEqual([nameless.json.guest_name, nameless.json.handoff_hook], ['none', 'who am I talking to?']);
 });

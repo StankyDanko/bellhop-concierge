@@ -49,6 +49,10 @@ export const SESSION_ID_BINDING = Object.freeze({ type: 'string', dynamic_variab
  */
 const withSessionId = (_name, body) => ({ ...body, properties: { session_id: { ...SESSION_ID_BINDING }, ...body.properties } });
 
+/** Answer field to call variable, for remember_guest. */
+export const HANDOFF_ASSIGNMENTS = Object.freeze([['guest_name', 'guest_name'], ['guest_recorded', 'guest_recorded'], ['opener_hook', 'handoff_hook']]
+  .map(([dynamic_variable, value_path]) => Object.freeze({ source: 'response', dynamic_variable, value_path, sanitize: false })));
+
 const s = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const n = (description) => ({ type: 'number', description });
 const b = (description) => ({ type: 'boolean', description });
@@ -272,8 +276,11 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     remember_guest: {
-      description: 'Notes who is on the phone, so the next call from this number can greet them by name. Call it once near the start, silently: with first_name when a caller gives a first name, with same_guest true when they say they are the person you remembered, or with same_guest false and their first_name when they are someone else. It returns nothing to say.',
+      description: 'Notes who is on the phone, so the next call from this number can greet them by name. Call it once near the start, silently: with first_name when a caller gives a first name, with same_guest true when they say they are the person you remembered, or with same_guest false and their first_name when they are someone else. It returns nothing to say, and its other fields are for the platform, never for the guest.',
       timeout: 8,
+      // The platform copies these answer fields into call variables, which a transfer to another
+      // concierge keeps: the receiving agent greets the guest by name and skips the recording note.
+      assignments: HANDOFF_ASSIGNMENTS,
       body: {
         type: 'object',
         required: [],
@@ -322,6 +329,7 @@ export function serverToolConfigs({ property, propertyId = 'property', persona =
       name,
       description: specs[name].description,
       response_timeout_secs: specs[name].timeout,
+      ...(specs[name].assignments ? { assignments: specs[name].assignments.map((a) => ({ ...a })) } : {}),
       tool_error_handling_mode: 'summarized',
       api_schema: {
         url: `${baseUrl.replace(/\/+$/, '')}${toolPath(name)}`,
