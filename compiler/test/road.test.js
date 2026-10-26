@@ -68,8 +68,14 @@ test('road: no place tool carries coordinates or a timezone; each takes the loca
     const body = tools[name].api_schema.request_body_schema;
     assert.equal(body.properties.lat, undefined, `${name}.lat`);
     assert.equal(body.properties.lng, undefined, `${name}.lng`);
-    assert.deepEqual(body.properties.locality, { ...LOCALITY }, `${name}.locality`);
-    assert.ok(body.required.includes('locality'), `${name} requires locality`);
+    if (name === 'cross_domain') {
+      // Only a place target needs a locality; a film, show, or book needs none, so it is optional.
+      assert.deepEqual(body.properties.locality, { ...LOCALITY, description: `Only for target place. ${LOCALITY.description}` }, 'cross_domain.locality');
+      assert.ok(!body.required.includes('locality'), 'cross_domain does not require locality');
+    } else {
+      assert.deepEqual(body.properties.locality, { ...LOCALITY }, `${name}.locality`);
+      assert.ok(body.required.includes('locality'), `${name} requires locality`);
+    }
     assert.ok(!body.required.includes('lat') && !body.required.includes('lng'), name);
     assert.doesNotMatch(tools[name].description, /\binn\b/, `${name} description still says inn`);
   }

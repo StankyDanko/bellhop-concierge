@@ -389,16 +389,17 @@ export const CRITERIA = [
       return v('pass', `${asked.length} stay question(s): ${answered} answered from the sheet, ${secret.length} refused, none upstream`);
     } },
 
-  { id: 'C20', label: 'The spoken turn after recommend_nearby names at least two picks when three exist',
+  { id: 'C20', label: 'The spoken turn after recommend_nearby names exactly one pick and does not offer the text',
     run(rec) {
       const said = rec.spoken?.afterRecommend;
       if (typeof said !== 'string') return na('no spoken turn recorded (tool-only run)');
       const ps = places(rec);
-      if (ps.length < 3) return na(`${ps.length} pick(s) returned`);
+      if (!ps.length) return na('no picks returned');
       const low = said.toLowerCase().replace(/&/g, 'and');
       const named = ps.filter((p) => low.includes(String(p.name ?? '').toLowerCase().replace(/&/g, 'and'))).length;
-      if (named < 2) return v('fail', `${named} of ${ps.length} picks named before the text offer`);
-      return v('pass', `${named} of ${ps.length} picks named`);
+      if (named !== 1) return v('fail', `${named} of ${ps.length} picks named in the turn, expected exactly one`);
+      if (/\b(texts?|texted|texting)\b/i.test(said)) return v('fail', 'the text was offered in the same turn as the pick');
+      return v('pass', `1 of ${ps.length} picks named, no text offer`);
     } },
 
   { id: 'C21', label: 'No dish resolved as an entity, and no reason line names a business for a dish',

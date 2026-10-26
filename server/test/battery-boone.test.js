@@ -1,5 +1,5 @@
 // C20 and C21, from a real call that gave no band (Boone, 2026-10-23): the agent read one pick
-// of three before offering the text, and two dish words came back as businesses that the reason
+// of three before offering the text (C20 now expects one pick a turn and no offer in it), and two dish words came back as businesses that the reason
 // line then called fan favorites. Every value here is a made-up fx- id or a fictional place.
 
 import { test } from 'node:test';
@@ -19,15 +19,22 @@ const rec = (over = {}) => ({
 });
 const verdict = (id, r) => evaluate(r)[id];
 
-test('C20: one pick read of three fails; two or three named passes; a tool-only run is not applicable', () => {
+test('C20: exactly one pick named and no text offer passes; two picks or an offer fails; a tool-only run is not applicable', () => {
   assert.equal(verdict('C20', rec()).verdict, 'na');
-  const one = verdict('C20', rec({ spoken: { afterRecommend: 'First pick, Fx Noodle House. A spot for spaghetti. I can text you these three?' } }));
-  assert.equal(one.verdict, 'fail');
-  assert.equal(one.reason, '1 of 3 picks named before the text offer');
-  assert.equal(verdict('C20', rec({ spoken: { afterRecommend: 'Fx Noodle House for spaghetti, and Fx Pie and Co for the cheesecake. Want these texted?' } })).verdict, 'pass');
-  const short = rec({ spoken: { afterRecommend: 'Fx Noodle House.' } });
-  short.recommend.json.places = three.slice(0, 1);
-  assert.equal(verdict('C20', short).verdict, 'na');
+  const one = verdict('C20', rec({ spoken: { afterRecommend: 'First pick, Fx Noodle House. A spot for spaghetti.' } }));
+  assert.equal(one.verdict, 'pass');
+  assert.equal(one.reason, '1 of 3 picks named, no text offer');
+  const two = verdict('C20', rec({ spoken: { afterRecommend: 'Fx Noodle House for spaghetti, and Fx Pie and Co for the cheesecake.' } }));
+  assert.equal(two.verdict, 'fail');
+  assert.equal(two.reason, '2 of 3 picks named in the turn, expected exactly one');
+  assert.equal(verdict('C20', rec({ spoken: { afterRecommend: 'Fx Noodle House is a spot for spaghetti.' } })).verdict, 'pass');
+  const offered = verdict('C20', rec({ spoken: { afterRecommend: 'Fx Noodle House for spaghetti. Want me to text you that?' } }));
+  assert.equal(offered.verdict, 'fail');
+  assert.match(offered.reason, /text was offered/);
+  assert.equal(verdict('C20', rec({ spoken: { afterRecommend: 'Nothing named.' } })).verdict, 'fail');
+  const none = rec({ spoken: { afterRecommend: 'Hmm.' } });
+  none.recommend.json.places = [];
+  assert.equal(verdict('C20', none).verdict, 'na');
 });
 
 test('C21: a dish resolved as an entity, sent to /search, or named as a fan favorite fails', () => {

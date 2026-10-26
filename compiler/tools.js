@@ -141,12 +141,12 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       timeout: 15,
       body: {
         type: 'object',
-        required: ['taste', 'target', ...(roaming ? whereKeys : [])],
+        required: ['taste', 'target'],
         properties: {
           taste: TASTE,
           target: s(`The category to pick from, one of ${TARGETS.join(', ')}`, { enum: [...TARGETS] }),
           take: n('How many to return, one to three. Use one.'),
-          ...where,
+          ...(roaming ? { locality: { ...LOCALITY, description: `Only for target place. ${LOCALITY.description}` } } : where),
         },
       },
     },
