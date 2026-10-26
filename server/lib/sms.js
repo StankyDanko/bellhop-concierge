@@ -1,7 +1,7 @@
 // compose_itinerary: turn picks into ONE text message the guest can act on.
 //
-// A pick is its name, a few words about the place, and a link: "O-Ku - rooftop sushi, West
-// Midtown https://concierge.southernsky.cloud/go/AbCdEfGh". The few words (blurb) come from the
+// A pick is its name, a few words about the place, and (with no picks page) a link: "O-Ku - rooftop
+// sushi, West Midtown https://concierge.southernsky.cloud/go/AbCdEfGh". The few words (blurb) come from the
 // place's own data (lib/blurb.js). The text never says why a pick was ranked, never names the
 // guest's tastes, never says "fans of" or "tagged": the guest told us those, and does not need
 // them read back. The link is a short one on our own domain (lib/links.js).
@@ -17,6 +17,12 @@
 //     the guest does not know. The tag is never dropped: it is not a step in TRUNCATION_ORDER,
 //     and the name trim and hard cut below leave room for it
 //
+// With a picks page (pageUrl given, which the tool does whenever the server has a link store) the
+// text is tidier: each pick is "- Name, a few words" and the text ends with ONE short link,
+// "Tap for links: https://.../p/<token>", where the page makes each name a link. The page link,
+// like the tag and the footer, is never dropped. Bullets are a hyphen because a round bullet is
+// not in GSM-7 and would turn the text into 70-character UCS-2 segments.
+//
 // When the full message is too long, content is removed in a fixed, documented
 // order (TRUNCATION_ORDER) and the response lists which steps were applied.
 
@@ -26,6 +32,8 @@ export const MAX_CHARS = 480;
 /** The first words of every text: who it is from. Never dropped, see the header comment. */
 export const SENDER_TAG = 'Bellhop Concierge:';
 export const FOOTER = 'via Qloo + Ticketmaster. Reply STOP to opt out.';
+/** Leads the picks page link in a text that has one. */
+export const PAGE_LEAD = 'Tap for links:';
 
 /**
  * The order content gives way when the message is over budget. Each step runs only while the
@@ -112,11 +120,13 @@ function trimWords(text, max) {
  */
 
 /**
- * @param {{ picks: Pick[], guest?: { party_size?: number, when?: 'tonight'|'weekend' }, intro?: string }} input
+ * @param {{ picks: Pick[], guest?: { party_size?: number, when?: 'tonight'|'weekend' }, intro?: string, pageUrl?: string }} input
+ *   pageUrl: the picks page link; when given, picks carry no links of their own and the text ends with it
  * @returns {{ body: string, char_count: number, segments: number, encoding: 'GSM-7',
- *             picks_included: number, truncation: string[], rejected_links: string[] }}
+ *             picks_included: number, included: number[], truncation: string[], rejected_links: string[] }}
+ *   included: the positions in `picks` that made it into the text, in order
  */
-export function composeItinerary({ picks, guest = {}, intro }) {
+export function composeItinerary({ picks, guest = {}, intro, pageUrl }) {
   if (!Array.isArray(picks) || picks.length === 0) throw new InputError('picks must be a non-empty array');
   if (picks.length > 5) throw new InputError('at most 5 picks fit in one text');
 
@@ -125,9 +135,10 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   let items = picks.map((p, i) => {
     const name = toGsm(p?.name ?? '');
     if (!name) throw new InputError(`picks[${i}].name is required`);
-    const url = p.url ? httpsOnly(p.url) : null;
-    if (p.url && !url) rejected.push(String(p.url).slice(0, 80));
-    return { name, blurb: toGsm(p.blurb ?? ''), detail: toGsm(p.detail ?? ''), url, both: p.favors === 'both', requested: p.requested === true };
+    // With a picks page the page store checks each target; the text carries none of them.
+    const url = p.url && !pageUrl ? httpsOnly(p.url) : null;
+    if (p.url && !pageUrl && !url) rejected.push(String(p.url).slice(0, 80));
+    return { at: i, name, blurb: toGsm(p.blurb ?? ''), detail: toGsm(p.detail ?? ''), url, both: p.favors === 'both', requested: p.requested === true };
   });
 
   const when = guest.when === 'weekend' ? 'This weekend' : 'Tonight';
@@ -135,6 +146,10 @@ export function composeItinerary({ picks, guest = {}, intro }) {
   let header = toGsm(intro ?? `${when}:`);
 
   const render = () => {
+    if (pageUrl) {
+      const lines = items.map((it) => `- ${[`${it.name}${it.both ? BOTH_MARKER : ''}`, it.detail, it.blurb].filter(Boolean).join(', ')}`);
+      return [[SENDER_TAG, header].filter(Boolean).join(' '), ...lines, `${PAGE_LEAD} ${pageUrl}`, FOOTER].join('\n');
+    }
     const lines = items.map((it, i) => {
       let line = `${items.length > 1 ? `${i + 1}. ` : ''}${it.name}`;
       if (it.both) line += BOTH_MARKER;
@@ -185,11 +200,11 @@ export function composeItinerary({ picks, guest = {}, intro }) {
     const overflow = body.length - MAX_CHARS;
     items = [{ ...it, name: trimWords(it.name, Math.max(8, it.name.length - overflow)) }];
   });
-  step('drop_link', () => { items = items.map((it) => ({ ...it, url: null })); });
+  if (!pageUrl) step('drop_link', () => { items = items.map((it) => ({ ...it, url: null })); });
 
   if (body.length > MAX_CHARS) {
     // Only reachable with a pathological name; the footer alone is far under budget.
-    items = [{ ...items[0], name: items[0].name.slice(0, MAX_CHARS - FOOTER.length - SENDER_TAG.length - 2) }];
+    items = [{ ...items[0], name: items[0].name.slice(0, MAX_CHARS - FOOTER.length - SENDER_TAG.length - (pageUrl ? pageUrl.length + PAGE_LEAD.length + 6 : 2)) }];
     applied.push('hard_cut_name');
     body = render();
   }
@@ -200,6 +215,7 @@ export function composeItinerary({ picks, guest = {}, intro }) {
     segments: segmentCount(body),
     encoding: 'GSM-7',
     picks_included: items.length,
+    included: items.map((it) => it.at),
     truncation: applied,
     rejected_links: rejected,
   };

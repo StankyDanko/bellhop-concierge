@@ -1,4 +1,4 @@
-// The text's links: each one is a short link on our own domain that redirects to the place's
+// Short links (/go/<token>): each one is a short link on our own domain that redirects to the place's
 // website, or to a maps search when Qloo has no website. Tokens are stored for 30 days, only
 // https targets are kept, and an unknown or expired token is a 404.
 //
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
 import { LinkStore, LINK_TTL_DAYS, httpsTarget } from '../lib/links.js';
 import { placeBlurb, kindBlurb } from '../lib/blurb.js';
-import { callTool, makeApp, PROPERTY } from './helpers.js';
+import { callTool, makeApp, PROPERTY, SECRET } from './helpers.js';
 
 const BASE = 'https://concierge.southernsky.cloud';
 const T0 = new Date('2026-10-16T18:00:00Z');
@@ -57,32 +57,34 @@ test('a repeat shorten pushes the expiry out', () => {
   assert.equal(links.resolve(url.split('/').at(-1)), 'https://example.com/a');
 });
 
-test('GET /go/<token> answers 302 to the stored target, 404 for an unknown token', async () => {
-  const { app } = makeApp();
-  const place = (await callTool(app, 'recommend_nearby', { taste: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }], ...PROPERTY, take: 1 })).json.places[0];
-  const { json } = await callTool(app, 'compose_itinerary', { picks: [{ name: place.name, blurb: place.blurb, url: place.url, pick_token: place.pick_token }] });
-  const short = json.body.match(/https:\/\/concierge\.southernsky\.cloud(\/go\/[A-Za-z0-9_-]{8})/)[1];
+test('GET /go/<token> (links in texts sent before the picks page) answers 302 to the stored target, 404 for an unknown token', async () => {
+  const { app, sessions } = makeApp();
+  const links = new LinkStore({ db: sessions.db, secret: SECRET, baseUrl: BASE });
+  const short = new URL(links.shorten('https://example.com/lemongrass')).pathname;
   const res = await app.request(short);
   assert.equal(res.status, 302);
-  assert.equal(res.headers.get('location'), place.url);
-  const gone = await app.request('/go/AAAAAAAA');
-  assert.equal(gone.status, 404);
+  assert.equal(res.headers.get('location'), 'https://example.com/lemongrass');
+  assert.equal((await app.request('/go/AAAAAAAA')).status, 404);
   assert.equal((await app.request('/go/not-a-token')).status, 404);
   assert.equal((await app.request('/go/')).status, 404);
 });
 
-test('compose_itinerary: a Qloo website or a maps search both become short links; http is refused', async () => {
+test('compose_itinerary: the text carries one page link and no per-pick links; the page holds the targets', async () => {
   const { app } = makeApp();
   const { json } = await callTool(app, 'compose_itinerary', { picks: [
     { name: 'Fx Cafe', blurb: 'cafe, Old Town', url: 'https://example.com/fx-cafe' },
     { name: 'Fx Diner', blurb: 'diner', url: 'https://www.google.com/maps/search/?api=1&query=Fx%20Diner%209%20Sample%20Sq' },
     { name: 'Fx Plain', url: 'http://example.com/plain' },
   ] });
-  assert.equal(json.links_shortened, 2);
   assert.equal(json.rejected_links.length, 1);
   assert.doesNotMatch(json.body, /example\.com|google\.com/);
-  assert.equal((json.body.match(/\/go\/[A-Za-z0-9_-]{8}/g) ?? []).length, 2);
-  assert.match(json.body, /3\. Fx Plain\n/);
+  assert.equal((json.body.match(/https:\/\//g) ?? []).length, 1, json.body);
+  assert.match(json.body, /\n- Fx Plain\nTap for links: /);
+  const page = await app.request(new URL(json.page_url).pathname);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /<a href="https:\/\/example\.com\/fx-cafe"[^>]*>Fx Cafe<\/a>/);
+  assert.doesNotMatch(html, /http:\/\/example\.com\/plain/, 'an http target is never stored');
 });
 
 test('compose_itinerary: a blurb that reads like a reason is dropped, a real one stays', async () => {
@@ -93,7 +95,7 @@ test('compose_itinerary: a blurb that reads like a reason is dropped, a real one
     { name: 'Fx Room', blurb: 'listening room, Old Town' },
   ] });
   assert.doesNotMatch(json.body, /fans of|tagged|Bigfoot/i);
-  assert.match(json.body, /3\. Fx Room - listening room, Old Town\n/);
+  assert.match(json.body, /\n- Fx Room, listening room, Old Town\n/);
 });
 
 test('recommend_nearby gives each place a blurb from its own data and a link; the blurb never names a taste', async () => {
@@ -114,7 +116,7 @@ test('cross_domain gives a film a kind blurb and a link', async () => {
   const { json } = await callTool(app, 'cross_domain', { taste: [{ id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' }], target: 'movie', take: 2 });
   for (const r of json.results) {
     assert.match(r.blurb, /^film(, \d{4})?$/);
-    assert.match(r.url, /^https:\/\/www\.google\.com\/search\?q=/);
+    assert.match(r.url, /^https:\/\/www\.imdb\.com\/find\/\?q=.+&s=tt$/);
   }
 });
 
@@ -133,10 +135,10 @@ test('placeBlurb: genre or cuisine, one feel word, and the neighborhood; null wh
   assert.equal(kindBlurb({ type: 'weird' }), null);
 });
 
-test('the sample body from the redesign: a name, a few words, a link, no taste', async () => {
+test('the sample body: a name, a few words, one page link, no taste', async () => {
   const { app } = makeApp();
   const { json } = await callTool(app, 'compose_itinerary', { picks: [
     { name: 'O-Ku', blurb: 'rooftop sushi, West Midtown', url: 'https://example.com/o-ku' },
   ], guest: { when: 'tonight' } });
-  assert.match(json.body, /^Bellhop Concierge: Tonight:\nO-Ku - rooftop sushi, West Midtown https:\/\/concierge\.southernsky\.cloud\/go\/[A-Za-z0-9_-]{8}\nvia Qloo \+ Ticketmaster\. Reply STOP to opt out\.$/);
+  assert.match(json.body, /^Bellhop Concierge: Tonight:\n- O-Ku, rooftop sushi, West Midtown\nTap for links: https:\/\/concierge\.southernsky\.cloud\/p\/[A-Za-z0-9_-]{12}\nvia Qloo \+ Ticketmaster\. Reply STOP to opt out\.$/);
 });

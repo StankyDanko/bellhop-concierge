@@ -23,8 +23,12 @@
 // not used here: the text never repeats the guest's tastes back (lib/sms.js). A blurb that reads
 // like a reason ("Fans of ...", "tagged ...") is dropped, never texted.
 //
-// Each pick's link becomes a short one on our own domain (lib/links.js) when the server has a
-// link store. A link that is not an acceptable https address is dropped and reported.
+// With a link store the text lists each pick as "- Name, a few words" and ends with ONE short link
+// to a picks page (lib/picks-page.js), where each name is the link to its website, a map, a search
+// for the title, or its ticket page. The page keeps only the picks that made it into the text:
+// name, blurb, time, and an https target. A target that is not an acceptable https address is
+// dropped and reported, and that pick's name on the page searches the web instead. With no link
+// store (no session database) the text carries each pick's own link as before.
 //
 // The header follows the events, never the request: "Tonight" only when every event in the
 // plan is tonight. A plan with a Friday show says "Your plan" and lets each line carry its day.
@@ -32,6 +36,8 @@
 import { composeItinerary as compose } from '../lib/sms.js';
 import { verifyPick } from '../lib/pick-token.js';
 import { arr, oneOf, optNum } from '../lib/validate.js';
+import { httpsTarget } from '../lib/links.js';
+import { pageTitle } from '../lib/picks-page.js';
 
 /**
  * Which of a pick's claims its token was issued for. A token covers one exact set of claims,
@@ -109,18 +115,25 @@ export async function composeItinerary(body, ctx = {}) {
   if (intro === undefined && guest.when !== 'weekend' && hasLaterEvent(picks)) {
     intro = 'Your plan:';
   }
-  let linksShortened = 0;
   /** @type {string[]} */
   const refused = [];
-  const plain = picks.map(({ when_label: _w, why: _why, ...p }) => {
-    const short = ctx.links && p.url ? ctx.links.shorten(p.url) : null;
-    if (short) linksShortened += 1;
-    else if (ctx.links && p.url) refused.push(String(p.url).slice(0, 80));
-    // A link the store refused (not https, too long) is dropped, not sent raw; with no store the link goes as given.
-    return { ...p, blurb: cleanBlurb(p.blurb), ...(ctx.links ? { url: short ?? undefined } : {}) };
+  const plain = picks.map(({ when_label: _w, why: _why, ...p }) => ({ ...p, blurb: cleanBlurb(p.blurb) }));
+  if (!ctx.links) {
+    // No link store: each pick carries its own https link in the text.
+    const composed = compose({ picks: plain, guest, intro });
+    return { status: 'ok', ...composed, links_shortened: 0, favors_dropped: favorsDropped, when_dropped: whenDropped,
+      tokens_dropped: tokensDropped, calls: [] };
+  }
+  const pageToken = ctx.links.newPageToken([intro ?? '', guest.when ?? '', plain.map((p) => [p.name, p.blurb, p.detail, p.url, p.favors])]);
+  const composed = compose({ picks: plain, guest, intro, pageUrl: ctx.links.pageUrl(pageToken) });
+  const shown = composed.included.map((i) => plain[i]);
+  for (const p of shown) if (p.url && !httpsTarget(p.url)) refused.push(String(p.url).slice(0, 80));
+  const saved = ctx.links.savePage(pageToken, {
+    title: pageTitle(guest.when, hasLaterEvent(picks)),
+    picks: shown.map((p) => ({ name: p.name, blurb: p.blurb, detail: p.detail, url: p.url })),
   });
-  const composed = compose({ picks: plain, guest, intro });
   composed.rejected_links.push(...refused);
-  return { status: 'ok', ...composed, links_shortened: linksShortened, favors_dropped: favorsDropped, when_dropped: whenDropped,
-    tokens_dropped: tokensDropped, calls: [] };
+  const { included: _included, ...out } = composed;
+  return { status: 'ok', ...out, page_url: saved ? ctx.links.pageUrl(pageToken) : null, links_shortened: 0, favors_dropped: favorsDropped,
+    when_dropped: whenDropped, tokens_dropped: tokensDropped, calls: [] };
 }

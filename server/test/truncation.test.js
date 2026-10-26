@@ -160,7 +160,7 @@ test('requested is kept only on an event whose pick_token verifies', () => {
   assert.deepEqual(picks.map((p) => p.requested === true), [false, true, false, false]);
 });
 
-test('over HTTP: four picks with a requested event, every pick fits, each with a short link', async () => {
+test('over HTTP: four picks with a requested event, every pick fits, one page link', async () => {
   const { app } = makeApp();
   const thai = { id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' };
   const sturgill = { id: 'fx-artist-sturgill-simpson', name: 'Sturgill Simpson' };
@@ -175,7 +175,8 @@ test('over HTTP: four picks with a requested event, every pick fits, each with a
   const { status, json } = await callTool(app, 'compose_itinerary', { picks, guest: { party_size: 2, when: 'weekend' } });
   assert.equal(status, 200);
   assert.ok(json.char_count <= MAX_CHARS);
-  assert.ok(json.body.includes(`${show.name} ${show.when_label}`), json.body);
-  assert.equal(json.picks_included, 4, 'short links and blurbs leave room for all four');
-  assert.equal((json.body.match(/https:\/\/concierge\.southernsky\.cloud\/go\/[A-Za-z0-9_-]{8}/g) ?? []).length, picks.filter((p) => p.url).length, json.body);
+  assert.ok(json.body.includes(`- ${show.name}, ${show.when_label}`), json.body);
+  assert.equal(json.picks_included, 4, 'one page link and blurbs leave room for all four');
+  assert.equal((json.body.match(/https:\/\//g) ?? []).length, 1, 'one link in the whole text');
+  assert.match(json.body, /\nTap for links: https:\/\/concierge\.southernsky\.cloud\/p\/[A-Za-z0-9_-]{12}\n/);
 });

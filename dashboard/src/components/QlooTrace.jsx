@@ -241,7 +241,7 @@ export function stationsOf(trace, { said = [], plusOne = [], textChars } = {}) {
       caption: `${plural(results(events), 'event')} came back.` },
     { id: 'text', label: 'One text, at most 480 characters', rows: [], keep: true,
       // 480: MAX_CHARS in server/lib/sms.js (grep -n "MAX_CHARS = 480" server/lib/sms.js)
-      caption: typeof textChars === 'number' ? `This one: ${textChars} characters.` : 'Each pick with a few words and a short link.' },
+      caption: typeof textChars === 'number' ? `This one: ${textChars} characters.` : 'Each pick with a few words and one link to a page of links.' },
   ];
   return all.filter((s) => s.keep || s.rows.length > 0).map((s) => ({
     ...s,

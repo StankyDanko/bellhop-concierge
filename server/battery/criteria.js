@@ -34,7 +34,7 @@
 //                       yes to the text
 
 import { assertNoPii } from '../lib/pii-guard.js';
-import { FOOTER, MAX_CHARS, toGsm } from '../lib/sms.js';
+import { FOOTER, MAX_CHARS, toGsm, PAGE_LEAD } from '../lib/sms.js';
 import { occasionOf, placeShape, vibeOf } from '../tools/resolve-taste.js';
 import { RAIN_CLAUSE } from '../lib/weather.js';
 import { REFUSED_TOPICS } from '../tools/stay-info.js';
@@ -229,7 +229,9 @@ export const CRITERIA = [
       if (lines.some((l) => toGsm(l) !== l)) return v('fail', 'characters outside GSM-7');
       if (lines.at(-1) !== FOOTER) return v('fail', 'footer missing');
       const names = submitted.map((n) => toGsm(n));
-      const pickLines = lines.slice(0, -1).filter((l) => !(l.endsWith(':') && !names.some((n) => l.includes(n))));
+      // The picks page link ("Tap for links: <url>") is the one line that is no pick, and it must be the page the tool made.
+      if (json.page_url && !lines.includes(`${PAGE_LEAD} ${json.page_url}`)) return v('fail', 'picks page link missing');
+      const pickLines = lines.slice(0, -1).filter((l) => !l.startsWith(`${PAGE_LEAD} `) && !(l.endsWith(':') && !names.some((n) => l.includes(n))));
       const orphans = pickLines.filter((l) => !names.some((n) => l.includes(n))).length;
       const dropped = (json.tokens_dropped ?? 0) + (json.favors_dropped ?? 0) + (json.when_dropped ?? 0);
       if (orphans) return v('fail', `${orphans} line(s) match no submitted pick`);

@@ -6,7 +6,8 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { requireSecret } from './lib/auth.js';
 import { sessionIdFrom } from './lib/sessions.js';
-import { LinkStore, TOKEN_PATTERN } from './lib/links.js';
+import { LinkStore, PAGE_TOKEN_PATTERN, TOKEN_PATTERN } from './lib/links.js';
+import { renderPicksPage } from './lib/picks-page.js';
 import { withTrace } from './lib/upstream.js';
 import { runWithLocality } from './lib/locality.js';
 import { InputError, PiiViolation, RateLimited, UpstreamError } from './lib/errors.js';
@@ -111,6 +112,20 @@ export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qlo
     const url = links && TOKEN_PATTERN.test(token) ? links.resolve(token) : null;
     if (!url) return c.text('This link has expired.', 404, { 'Cache-Control': 'no-store' });
     return c.redirect(url, 302);
+  });
+
+  // The picks page a text's one short link opens: public by design (the guest taps it). Static
+  // HTML with the picks and nothing else; 404 for a token never issued or past its 30 days.
+  app.get('/p/:token', (c) => {
+    const token = c.req.param('token');
+    const page = links && PAGE_TOKEN_PATTERN.test(token) ? links.page(token) : null;
+    if (!page) return c.text('This page has expired.', 404, { 'Cache-Control': 'no-store' });
+    return c.html(renderPicksPage(page), 200, {
+      'Cache-Control': 'private, max-age=300',
+      'X-Robots-Tag': 'noindex, nofollow',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    });
   });
 
   app.use('/tools/*', requireSecret(secret));

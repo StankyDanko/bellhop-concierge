@@ -73,7 +73,7 @@ test('picks without favors are untouched and favors_dropped is zero', async () =
   const { app } = makeApp();
   const { json } = await callTool(app, 'compose_itinerary', { picks: [{ name: 'Place A', blurb: 'cocktail bar, Midtown' }] });
   assert.equal(json.favors_dropped, 0);
-  assert.match(json.body, /Place A - cocktail bar, Midtown/);
+  assert.match(json.body, /- Place A, cocktail bar, Midtown\n/);
 });
 
 // Round six: a solo guest's three real tokens, one pick carrying a forged favors "guest",

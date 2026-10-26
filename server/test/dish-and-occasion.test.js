@@ -70,7 +70,7 @@ test('plainWhy says a "fans of <dish>" reason plainly, and the text carries no r
   ] });
   // The text is names, a few words about the place, and links: no reason is ever printed.
   assert.doesNotMatch(json.body, /Fans of|a spot for|love it/i);
-  assert.match(json.body, /1\. Fx Noodle House\n2\. Fx Music Hall\n/);
+  assert.match(json.body, /- Fx Noodle House\n- Fx Music Hall\nTap for links: https:\/\/\S+\/p\/[A-Za-z0-9_-]{12}\n/);
 });
 
 test('dish tastes for two: no reason names a dish as a band, and favors come from tag signals only', async () => {

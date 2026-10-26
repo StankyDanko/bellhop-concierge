@@ -104,7 +104,7 @@ Live, a 401 or 403 from Qloo also falls back to the cached answer.
 | `GEOCODE_TIMEOUT_MS` | `2000` | one lookup per city, cached 30 days |
 | `DEFAULT_TIMEZONE` | `America/New_York` | property timezone for "tonight" and "this weekend" |
 | `SMS_MOCK` | | `1` = `send_sms` returns a fake sid and sends nothing |
-| `PUBLIC_BASE_URL` | `https://concierge.southernsky.cloud` | the origin of the short links in a text (`/go/<token>`); https, no path |
+| `PUBLIC_BASE_URL` | `https://concierge.southernsky.cloud` | the origin of the links in a text (`/p/<token>`, the picks page); https, no path |
 | `TWILIO_ACCOUNT_SID` | | account the texts are sent from |
 | `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | | revocable API key pair (preferred) |
 | `TWILIO_AUTH_TOKEN` | | used only when no key pair is set |
@@ -719,19 +719,28 @@ Builds the text message. Pure function: no upstream calls, fully deterministic.
 
 Rules:
 
-- A pick is its **name, a few words about the place, and a link**: `O-Ku - rooftop sushi, West Midtown https://concierge.southernsky.cloud/go/AbCdEfGh`. The few words are the `blurb` the
+- A pick is its **name and a few words about it**, one line each: `- O-Ku, rooftop sushi, West Midtown`. The text ends with **one** short link, `Tap for links: https://concierge.southernsky.cloud/p/<token>`, to the picks page (below). The few words are the `blurb` the
   tool returned, built from the place's own Qloo data (primary genre or cuisine, one feel word,
   neighborhood). The text never carries the guest's tastes, never "fans of", never "tagged":
   a pick's `why` is for the agent's voice and is ignored here, and a blurb that reads like a
   reason is dropped.
 - At most **480 characters**, including the fixed footer
   `via Qloo + Ticketmaster. Reply STOP to opt out.`
-- **https links only.** Other links are dropped from the text and listed in `rejected_links`.
-- **Short links.** Each link becomes `https://concierge.southernsky.cloud/go/<token>` (the host
-  is `PUBLIC_BASE_URL`). The token and its https target are stored in the session database for
-  30 days. `GET /go/<token>` answers `302` to the target, which is the place's own website when
-  Qloo returns one and otherwise a Google Maps search for its name and address. An unknown or
-  expired token answers `404`. An event keeps its Ticketmaster page as the target.
+- **https links only.** A pick's `url` that is not an acceptable https address (too long, or
+  not https) is dropped from the page and listed in `rejected_links`; that pick's name then
+  searches the web for itself.
+- **The picks page.** `GET /p/<token>` (the host is `PUBLIC_BASE_URL`) is one static HTML page,
+  no script, mobile first, that titles the night (`Tonight`, `This weekend`, or `Your plan`) and
+  shows one card per pick that made it into the text: the **name is the link** (a place's own
+  website or a maps search, a film or show to an IMDb title search with its year, a book to a
+  Goodreads search, an event to its Ticketmaster page), with the time and the few words under
+  it. The token is a keyed hash of the picks, so the same picks always land on the same page.
+  The page and its token are stored in the session database for 30 days and hold only the
+  picks (name, few words, time, https target): no number, no name, no session. An unknown,
+  malformed, or expired token answers `404`. The response carries `page_url`. With no session
+  database there is no page, and each pick carries its own https link in the text as before.
+- **Old short links.** `GET /go/<token>` still answers `302` for links in texts sent before the
+  picks page existed. Nothing new is written there.
 - **GSM-7 only.** Smart quotes, dashes, and ellipses become ASCII, accents are stripped, and
   emoji are removed, so the message is billed in 160/153-character segments instead of
   70/67. At 480 characters the message is at most 4 segments.
@@ -740,15 +749,17 @@ Rules:
   1. `drop_header`
   2. `drop_last_blurb`: lower picks' blurbs, lowest-ranked first, each one whole, never the top
      pick's
-  3. `drop_last_link`: lower picks' links, lowest-ranked first, each one whole, never the
-     top pick's (a link is never shortened, so every composed body passes `send_sms`)
+  3. `drop_last_link`: only in a text with no picks page: lower picks' links, lowest-ranked
+     first, each one whole, never the top pick's (a link is never shortened, so every composed
+     body passes `send_sms`)
   4. `drop_marker`: the ` (both)` markers
   5. `drop_last_pick`: whole picks, lowest-ranked first, skipping an event flagged
      `requested`, which goes last; at least one pick stays
   6. `drop_blurb`: the remaining pick's whole blurb
   7. `drop_detail`
   8. `trim_name`
-  9. `drop_link`: last, because a shortened link is a broken link
+  9. `drop_link`: last, because a shortened link is a broken link. Not a step when the text
+     has a picks page: the page link, like the sender tag and the footer, is never dropped
 
   Each step runs only while the text is still over 480, so every pick the guest heard stays
   as long as its words and links can make room.
@@ -767,8 +778,9 @@ Rules:
 
 // response
 { "ok": true, "tool": "compose_itinerary", "status": "ok",
-  "body": "Bellhop Concierge: Tonight:\n1. Lemongrass Lantern - thai restaurant, Old Town https://concierge.southernsky.cloud/go/fvLJZF1a\n2. Hollow Pines String Band Tonight 8pm - The Lyric Annex https://concierge.southernsky.cloud/go/vb_npvHn\nvia Qloo + Ticketmaster. Reply STOP to opt out.",
-  "char_count": 279, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
+  "body": "Bellhop Concierge: Tonight:\n- Lemongrass Lantern, thai restaurant, Old Town\n- Hollow Pines String Band, Tonight 8pm, The Lyric Annex\nTap for links: https://concierge.southernsky.cloud/p/O-hVeJiKIu1s\nvia Qloo + Ticketmaster. Reply STOP to opt out.",
+  "page_url": "https://concierge.southernsky.cloud/p/O-hVeJiKIu1s",
+  "char_count": 238, "segments": 2, "encoding": "GSM-7", "picks_included": 2,
   "truncation": [], "rejected_links": [], "favors_dropped": 0, "when_dropped": 0, "tokens_dropped": 0, "meta": { "upstream": [] } }
 ```
 

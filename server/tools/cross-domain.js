@@ -12,6 +12,18 @@ import { isMediaGenreTag, isPlaceTag, isUnusableTaste, locationParams, placeInsi
 
 export const TARGETS = /** @type {const} */ (['artist', 'movie', 'book', 'podcast', 'place', 'tv_show']);
 
+/**
+ * Where a title's name goes on the picks page when Qloo has no site for it: IMDb's title search
+ * for a film or show (name and year), Goodreads' search for a book, else a web search.
+ * @param {{ name: string, type?: string, year?: number|null }} e
+ */
+export function titleSearchUrl(e) {
+  const q = encodeURIComponent([e.name, e.year].filter(Boolean).join(' '));
+  if (e.type === 'movie' || e.type === 'tv_show') return `https://www.imdb.com/find/?q=${q}&s=tt`;
+  if (e.type === 'book') return `https://www.goodreads.com/search?q=${q}`;
+  return `https://www.google.com/search?q=${encodeURIComponent([e.name, kindBlurb({ type: e.type }) ?? ''].join(' ').trim())}`;
+}
+
 /** Targets a media genre tag (urn:tag:genre:media:horror) can filter. */
 const GENRE_FILTERED = new Set(['movie', 'book', 'tv_show']);
 
@@ -98,9 +110,7 @@ export async function crossDomain(body, { qloo, toolSecret }) {
   const results = entities.filter((e) => !inputIds.has(e.entity_id)).slice(0, take).map((e) => {
     if (origin) return shapePlace(e, taste.signals, origin);
     const why = buildWhy(e, whySignals);
-    // A link the text can carry: the title's own site when Qloo has one, else a web search for it.
-    const url = e.website?.startsWith('https://') ? e.website
-      : `https://www.google.com/search?q=${encodeURIComponent([e.name, kindBlurb({ type: e.type }) ?? ''].join(' ').trim())}`;
+    const url = e.website?.startsWith('https://') ? e.website : titleSearchUrl(e);
     return { name: e.name, entity_id: e.entity_id, type: e.type, year: e.year, affinity: e.affinity, url, blurb: kindBlurb(e),
       why: why.why, why_trace: { basis: why.basis, drivers: why.drivers }, source: 'Qloo' };
   });
