@@ -24,7 +24,7 @@ const AGENTS = {
   hollis: (o) => compile(cfg('road-line'), { ...OPTS, ...o }),
   marisol: (o) => compile(cfg('miami-rental'), { ...OPTS, ...o }),
 };
-const QUIZ = /loving lately|a band, a dish, a show|what city and state you're in|city and state, so/i;
+const QUIZ = /loving lately|in your feed|your reading lately|been into lately|a band, a dish, a show|what city and state you're in|city and state, so/i;
 
 /** Every file under a directory, recursively. */
 const walk = (dir) => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [join(dir, f)]));
