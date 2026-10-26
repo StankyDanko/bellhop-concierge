@@ -148,6 +148,7 @@ export function choose({ persona = FALLBACK_PERSONA, status, name = '', now = ne
       call_number: 1,
       recording_noted: 'no',
       last_call_hook: 'none',
+      last_place: 'none',
       memory_line: 'none',
       stay_line: 'none',
       texted_count: 0,

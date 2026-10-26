@@ -28,7 +28,7 @@ import { secretTokens } from '../config/schema.js';
  * without the webhook (a browser test, a webhook that is switched off) sounds exactly as before.
  */
 export const RUNTIME_VARIABLES = Object.freeze(['opener_hook', 'choice_pair', 'night_question', 'plan_window',
-  'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count']);
+  'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'last_place', 'memory_line', 'stay_line', 'texted_count']);
 
 /**
  * The recording note. The first message only asks who is calling, so the prompt must carry the

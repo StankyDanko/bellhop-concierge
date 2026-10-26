@@ -25,18 +25,18 @@ test('a name, a confirmation, and a callback land in the row; the next confirmed
   start('conv-g-1');
   m.noteGuest('conv-g-1', { firstName: 'dana' });
   m.noteResolved('conv-g-1', [{ id: 'fx-artist-one', mention: 'Sturgill Simpson' }]);
-  m.noteOffered('conv-g-1', [{ entity_id: 'fx-place-one', name: 'Fx Oyster Bar' }, { entity_id: 'fx-place-two', name: 'Fx Noodle House' }]);
+  m.noteOffered('conv-g-1', [{ entity_id: 'fx-place-one', name: 'Fx Oyster Bar' }, { entity_id: 'fx-place-two', name: 'Fx Noodle House' }], undefined, 'place');
   m.commit('conv-g-1');
   let row = m.read(hash, 'demo');
   assert.deepEqual([row.guest.name, row.guest.person_calls, row.guest.recording_noted], ['Dana', 1, undefined]);
-  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar and Fx Noodle House');
+  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar, a place to go');
   advance(DAY);
   start('conv-g-2');
   m.noteGuest('conv-g-2', { sameGuest: true });
   m.commit('conv-g-2');
   row = m.read(hash, 'demo');
   assert.deepEqual([row.guest.name, row.guest.person_calls, row.guest.recording_noted], ['Dana', 2, true]);
-  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar and Fx Noodle House', 'a call that left nothing keeps the callback before it');
+  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar, a place to go', 'a call that left nothing keeps the callback before it');
 });
 
 test('someone else on a remembered phone: nothing remembered reaches the tools, and the row starts over as theirs', () => {
@@ -90,9 +90,15 @@ test('a name is a few letters a guest said, never an instruction', () => {
 });
 
 test('the callback names one kind of thing from the last call, short, or none', () => {
-  assert.equal(lastCallHook({ texted: ['Fx Oyster Bar', 'Fx Noodle House'], offered: ['Fx Other'] }), 'you texted them Fx Oyster Bar and Fx Noodle House');
+  // One item, never a list, and its kind when known so the callback uses the right verb.
+  assert.equal(lastCallHook({ texted: ['Fx Oyster Bar', 'Fx Noodle House'], offered: ['Fx Other'] }), 'you texted them Fx Oyster Bar');
+  assert.equal(lastCallHook({ texted: ['Fx Film One', 'Fx Film Two'], kind: 'movie' }), 'you texted them Fx Film One, a film to watch');
+  assert.equal(lastCallHook({ texted: ['Fx Tale'], kind: 'book' }), 'you texted them Fx Tale, a book to read');
+  assert.equal(lastCallHook({ texted: ['Fx Serial'], kind: 'tv_show' }), 'you texted them Fx Serial, a show to watch');
+  assert.equal(lastCallHook({ texted: ['Fx Oyster Bar'], kind: 'place' }), 'you texted them Fx Oyster Bar, a place to go');
+  assert.equal(lastCallHook({ texted: ['Fx Oyster Bar'], kind: 'nonsense' }), 'you texted them Fx Oyster Bar', 'an unknown kind is dropped, not guessed');
   assert.equal(lastCallHook({ offered: ['Fx Oyster Bar'] }), 'you suggested Fx Oyster Bar');
-  assert.equal(lastCallHook({ tastes: ['tacos', 'Sturgill Simpson'] }), 'they talked about tacos and Sturgill Simpson');
+  assert.equal(lastCallHook({ tastes: ['tacos', 'Sturgill Simpson'] }), 'they talked about tacos');
   assert.equal(lastCallHook({}), 'none');
   assert.equal(lastCallHook(undefined), 'none');
   assert.ok(lastCallHook({ texted: ['A'.repeat(40), 'B'.repeat(40), 'C'.repeat(40)] }).length <= 110);
@@ -106,7 +112,9 @@ async function call(app, sid, { name, same, mentions = ['Sturgill Simpson'], tex
   if (name !== undefined || same !== undefined) {
     const r = await callTool(app, 'remember_guest', { session_id: sid, ...(name ? { first_name: name } : {}), ...(same !== undefined ? { same_guest: same } : {}) });
     assert.equal(r.status, 200);
-    assert.deepEqual([r.json.status, r.json.say], ['ok', undefined], 'remember_guest has nothing to say and reveals nothing');
+    assert.equal(r.json.status, 'ok');
+    // Only a confirmed return caller who has not heard the note yet is handed the recording line (tools/remember-guest.js).
+    assert.ok(r.json.say === undefined || same === true, 'a name or a "not me" never reveals anything');
   }
   const res = await callTool(app, 'resolve_taste', { session_id: sid, mentions });
   const taste = res.json.resolved.map((r) => ({ id: r.id, name: r.name }));

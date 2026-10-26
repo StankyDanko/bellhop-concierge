@@ -100,8 +100,8 @@ test('empty memory and default variables give the compiled first message, byte f
     const v = defaultVars(name);
     assert.ok(opener(name).endsWith(` ${v.opener_hook}`), `${name} first message ends with its default hook`);
     assert.match(v.opener_hook, /^who\b.*\?$/, `${name}: the first message asks who is calling`);
-    assert.deepEqual([v.caller_status, v.caller_name, v.call_number, v.recording_noted, v.last_call_hook, v.memory_line, v.stay_line, v.texted_count],
-      ['new', 'none', 1, 'no', 'none', 'none', 'none', 0]);
+    assert.deepEqual([v.caller_status, v.caller_name, v.call_number, v.recording_noted, v.last_call_hook, v.last_place, v.memory_line, v.stay_line, v.texted_count],
+      ['new', 'none', 1, 'no', 'none', 'none', 'none', 'none', 0]);
     assert.equal(v.plan_window, 'tonight');
     assert.equal(v.greeting, undefined);
     assert.equal(v.bet_domain, undefined);

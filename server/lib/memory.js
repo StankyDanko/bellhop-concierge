@@ -165,25 +165,52 @@ export function cleanName(s) {
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+/** Longest remembered place, in characters. */
+export const PLACE_MAX = 48;
+/**
+ * The town a guest was in, as the geocoder named it ("Macon, Georgia"): letters, digits, spaces
+ * and a few marks only, so nothing shaped like an instruction or a street address is kept.
+ * Empty string when nothing is left.
+ * @param {unknown} s
+ */
+export function cleanPlace(s) {
+  if (typeof s !== 'string') return '';
+  const t = s.normalize('NFKC').replace(/[^\p{L}\p{N}',.\- ]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return t.length && t.length <= PLACE_MAX && /\p{L}/u.test(t) ? t : '';
+}
+
 const andList = (items) => (items.length <= 2 ? items.join(' and ') : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`);
 
+/** What each kind of pick is, and what a guest does with it, for the callback line. */
+const KIND_PHRASE = Object.freeze({
+  movie: 'a film to watch', tv_show: 'a show to watch', book: 'a book to read', place: 'a place to go',
+  artist: 'an artist to listen to', podcast: 'a podcast to listen to', event: 'an event to catch',
+});
+/** Kinds of pick kept with a remembered name; anything else is dropped rather than guessed. */
+export const PICK_KINDS = Object.freeze(Object.keys(KIND_PHRASE));
+const kindOf = (k) => (typeof k === 'string' && Object.hasOwn(KIND_PHRASE, k) ? k : null);
+
 /**
- * One thing from the last call for the concierge to ask or riff about, written as a fact about
- * that call, never as a line to read out: what was texted, else what was suggested, else what
- * the guest talked about. 'none' when the last call left nothing.
- * @param {{ texted?: string[], offered?: string[], tastes?: string[] }} [last]
+ * ONE thing from the last call for the concierge to ask about, written as a fact about that
+ * call, never as a line to read out: the first thing texted, else the first thing suggested,
+ * else the first thing the guest talked about. A pick carries its kind and what a guest does
+ * with it ("a film to watch", "a place to go"), so the callback can use the right verb: three
+ * films are never asked about as if they were places. 'none' when the last call left nothing.
+ * @param {{ texted?: string[], offered?: string[], tastes?: string[], kind?: string|null }} [last]
  */
 export function lastCallHook(last = {}) {
-  const fit = (lead, items) => {
-    const words = (items ?? []).map(cleanWords).filter(Boolean).slice(0, LAST_KEEP);
-    while (words.length) {
-      const line = `${lead} ${andList(words)}`;
-      if (line.length <= HOOK_MAX) return line;
-      words.pop();
+  const fit = (lead, name, kind) => {
+    const words = cleanWords(name);
+    if (!words) return '';
+    const phrase = kind ? KIND_PHRASE[kind] : null;
+    for (const line of [phrase ? `${lead} ${words}, ${phrase}` : '', `${lead} ${words}`]) {
+      if (line && line.length <= HOOK_MAX) return line;
     }
     return '';
   };
-  return fit('you texted them', last.texted) || fit('you suggested', last.offered) || fit('they talked about', last.tastes) || 'none';
+  const kind = kindOf(last?.kind);
+  return fit('you texted them', last?.texted?.[0], kind) || fit('you suggested', last?.offered?.[0], last?.texted?.[0] ? null : kind)
+    || fit('they talked about', last?.tastes?.[0], null) || 'none';
 }
 
 const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
@@ -260,9 +287,13 @@ function guestPart(g = {}) {
   if (name) out.name = name;
   if (Number.isInteger(g.person_calls) && g.person_calls > 0) out.person_calls = g.person_calls;
   if (g.recording_noted === true) out.recording_noted = true;
+  const place = cleanPlace(g.place);
+  if (place) out.place = place;
   if (g.last && typeof g.last === 'object') {
     const keep = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string').map((x) => x.slice(0, 120)).slice(0, LAST_KEEP) : []);
     out.last = { texted: keep(g.last.texted), offered: keep(g.last.offered), tastes: keep(g.last.tastes) };
+    const kind = kindOf(g.last.kind);
+    if (kind) out.last.kind = kind;
   }
   return out;
 }
@@ -397,15 +428,15 @@ export class GuestMemory {
   }
 
   /** recommend_nearby / cross_domain: what this call was offered, by name, so a texted pick maps back to an id. */
-  noteOffered(sessionId, items, party) {
+  noteOffered(sessionId, items, party, defaultKind = null) {
     const add = (items ?? []).filter((p) => p && typeof p.entity_id === 'string' && typeof p.name === 'string')
-      .map((p) => ({ id: p.entity_id, name: p.name.slice(0, 120) }));
+      .map((p) => ({ id: p.entity_id, name: p.name.slice(0, 120), ...(kindOf(p.type ?? defaultKind) ? { kind: kindOf(p.type ?? defaultKind) } : {}) }));
     if (!add.length && !party) return false;
     return this.updateScratch(sessionId, (s) => {
       const offered = [...(s.offered ?? []).filter((o) => !add.some((x) => x.id === o.id)), ...add].slice(-40);
       const next = { ...s, offered };
       // The top of the latest answer, in rank order: what the guest most likely heard.
-      if (add.length) next.last_offered = add.slice(0, LAST_KEEP).map((o) => o.name);
+      if (add.length) { next.last_offered = add.slice(0, LAST_KEEP).map((o) => o.name); next.last_offered_kind = add[0].kind ?? null; }
       if (party) {
         const p = { ...(s.party ?? {}) };
         if (Number.isInteger(party.party_size)) p.party_size = party.party_size;
@@ -459,6 +490,26 @@ export class GuestMemory {
       marked = true;
     }
     return marked;
+  }
+
+  /**
+   * The town this call looked in, as the geocoder named it. Only a place a tool actually
+   * searched is kept, never a word the model chose: the tools answer with the geocoder's label.
+   */
+  notePlace(sessionId, label) {
+    const place = cleanPlace(label);
+    if (!place) return false;
+    return this.updateScratch(sessionId, (s) => ({ ...s, place }));
+  }
+
+  /**
+   * Whether the person on this call already heard that every call is recorded. False when there
+   * is no live link or no row: the safe answer is to say the note.
+   */
+  recordingNoted(sessionId) {
+    const l = this.link(sessionId);
+    if (!l || l.scratch.forgotten) return false;
+    return this.read(l.caller_hash, l.property_id)?.guest?.recording_noted === true;
   }
 
   /**
@@ -530,12 +581,18 @@ export class GuestMemory {
     else if (s.fresh) delete guest.name;
     // The guest confirmed who they are, so they heard this call's reminder that every call is recorded.
     if (s.confirmed) guest.recording_noted = true;
-    const nameOf = (id) => (s.offered ?? []).find((o) => o.id === id)?.name;
+    // The town the guest was in: the last one this call searched, else the one remembered.
+    if (s.place) guest.place = s.place;
+    else if (s.fresh) delete guest.place;
+    const byId = (id) => (s.offered ?? []).find((o) => o.id === id);
     const last = {
-      texted: (s.texted_ids ?? []).map(nameOf).filter(Boolean).slice(0, LAST_KEEP),
+      texted: (s.texted_ids ?? []).map((id) => byId(id)?.name).filter(Boolean).slice(0, LAST_KEEP),
       offered: (s.last_offered ?? []).slice(0, LAST_KEEP),
       tastes: (s.resolved ?? []).filter((r) => r.who === 'guest').map((r) => r.words).slice(-LAST_KEEP),
     };
+    // The kind of the one item the callback will name: the first thing texted, else the first suggested.
+    const kind = last.texted.length ? (s.texted_ids ?? []).map((id) => byId(id)).find(Boolean)?.kind : s.last_offered_kind;
+    if (kindOf(kind)) last.kind = kind;
     // A call that left nothing (a hang-up) keeps the callback from the call before it.
     if (last.texted.length || last.offered.length || last.tastes.length || s.fresh) guest.last = last;
     this.writeRow({ ...base, tastes, texted, party, guest });
@@ -639,13 +696,15 @@ export class GuestMemory {
 export function observeTool(memory, tool, body, result) {
   if (!memory || !result) return;
   const sid = body?.session_id;
+  // The geocoder's name for the town a place tool searched (lib/locality.js), never the model's words.
+  if (typeof result.locality === 'string') memory.notePlace(sid, result.locality);
   switch (tool) {
     case 'resolve_taste':
       memory.noteResolved(sid, [...(result.resolved ?? []), ...(result.companion_resolved ?? []).map((r) => ({ ...r, who: 'companion' }))]);
       break;
     case 'recommend_nearby': {
       const a = result.applied ?? {};
-      memory.noteOffered(sid, result.places, { party_size: Number.isInteger(a.party_size) ? a.party_size : undefined, kids: a.kids === true });
+      memory.noteOffered(sid, result.places, { party_size: Number.isInteger(a.party_size) ? a.party_size : undefined, kids: a.kids === true }, 'place');
       break;
     }
     case 'cross_domain':

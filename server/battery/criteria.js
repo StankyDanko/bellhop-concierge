@@ -66,11 +66,11 @@ const key = (p) => p.entity_id ?? p.name;
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
 /** Dynamic variables the initiation webhook returns on every call (design section 6). */
-const INIT_VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
+const INIT_VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'last_place', 'memory_line', 'stay_line', 'texted_count'];
 const initVars = (init) => init?.json?.dynamic_variables ?? null;
 export const INIT_BUDGET_MS = 300;
 /** JSON keys that only the memory layer writes; none may appear in a dashboard response. */
-export const MEMORY_KEYS = /"(memory_line|stay_line|caller_status|caller_name|last_call_hook|recording_noted|texted_count|caller_hash|guest_memory|prior_signals|tastes_json|texted_json|guest_json)"/;
+export const MEMORY_KEYS = /"(memory_line|stay_line|caller_status|caller_name|last_call_hook|last_place|recording_noted|texted_count|caller_hash|guest_memory|prior_signals|tastes_json|texted_json|guest_json)"/;
 
 /** A refusal in plain words. */
 const REFUSES = /\b(can't|cannot|can not|won't|not something|not one I|isn't something|not able|outside what)\b/i;

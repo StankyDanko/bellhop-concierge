@@ -73,7 +73,7 @@ const WHEN = s('tonight or weekend. Use tonight unless the guest said the weeken
 const EVENTS_WHEN = s('tonight, weekend, or week (the next seven days). Use tonight unless the guest said the weekend. When the guest says look wider, call again with the wider when and radius_miles the empty answer suggested.', { enum: [...EVENT_WINDOWS] });
 
 /** The road line's place input: what the guest said, never a street or a hotel. */
-export const LOCALITY = Object.freeze(s('The city and state the guest is in, in the words you said back, for example Asheville, North Carolina. Only a city and a state, never a street, a hotel, or an address. At most eighty characters.'));
+export const LOCALITY = Object.freeze(s('The city and state the guest is in, in the words you said back, for example Asheville, North Carolina. Only a city and a state, never a street, a hotel, or an address. Only a town the guest said on this call or confirmed, never one you chose or guessed. At most eighty characters.'));
 
 /**
  * @param {{ lat?: number, lng?: number, timezone: string }} property

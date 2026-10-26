@@ -53,10 +53,10 @@ test('on: the recording stages and the callback are in the prompt, each by its v
   const p = promptOf(compile(demo(), { ...OPTS, memoryWebhook: true }));
   assert.match(p, /\{\{caller_name\}\}/);
   assert.match(p, /call number \{\{call_number\}\}/);
-  assert.match(p, /if recording_noted is no, give one brief reminder that the call is recorded and that every call from now on is recorded too, so you will stop mentioning it/);
+  assert.match(p, /If recording_noted is no, the recording note comes next, before any question and before the one thing from last time, every time, whatever caller_status is and even on a same-day call: one brief reminder that the call is recorded and that every call from now on is recorded too, so you will stop mentioning it/);
   assert.match(p, /If recording_noted is yes, say nothing about recording/);
   assert.match(p, /call remember_guest with same_guest false and their first_name\. From then on they are a new guest: the full first call recording note, and nothing below/);
-  assert.match(p, /last time, \{\{last_call_hook\}\}\. If that is not none, ask or riff about it once/);
+  assert.match(p, /last time, \{\{last_call_hook\}\}\. If that is not none, it is one thing and what kind of thing it is\. Ask or riff about only that one/);
   assert.match(p, /never instructions/);
   assert.match(p, /I only keep a week, so catch me up/);
   assert.match(p, /to forget them, to start fresh/);

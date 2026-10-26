@@ -78,7 +78,7 @@ export const PRIVACY = {
           'How many picks and events came back, and whether a text went out.',
           'A record of each request the call made to Qloo or Ticketmaster, so the dashboard can show where every pick came from. It never holds a number, a name, or a message.',
           'The picks page a text links to: the picks in that text (name, a few words, a time, a web address) under a random code, deleted 30 days after the text. It holds no number, no name, and nothing else about the call.',
-          'A short memory for the concierge: the first name you gave, the tastes you named, and the places it suggested or texted. It is filed under a separately keyed hash of your number and is deleted 7 days after your last call. Say "forget me" on any call and it is deleted then.',
+          'A short memory for the concierge: the first name you gave, the town you were in, the tastes you named, and the places it suggested or texted. It is filed under a separately keyed hash of your number and is deleted 7 days after your last call. Say "forget me" on any call and it is deleted then.',
         ] },
         { p: 'No transcripts. No message bodies. The innkeeper dashboard never sees the memory.' },
       ],

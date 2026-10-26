@@ -186,13 +186,15 @@ Errors are never reported as success:
 
 Off unless `GUEST_MEMORY_SECRET` is set and the agent is compiled with the webhook. The voice
 platform posts `{ caller_id, agent_id, called_number, call_sid, conversation_id }` while the line
-rings, and starts the call with the twelve dynamic variables this answers (`opener_hook`,
+rings, and starts the call with the thirteen dynamic variables this answers (`opener_hook`,
 `choice_pair`, `night_question`, `plan_window`, `caller_status`, `caller_name`, `call_number`, `recording_noted`,
-`last_call_hook`, `memory_line`, `stay_line`, `texted_count`). For a phone it remembers by name,
+`last_call_hook`, `last_place`, `memory_line`, `stay_line`, `texted_count`). For a phone it remembers by name,
 `opener_hook` names that person and asks whether it is still them; `call_number` is that person's
 call count, `recording_noted` says whether they already heard that every call is recorded, and
-`last_call_hook` is one fact about the last call (what was texted, else suggested, else talked
-about) for the concierge to ask about. Memory lasts seven days from the last call, so each call
+`last_call_hook` is one fact about one thing from the last call (the first thing texted, else
+suggested, else talked about) with its kind ("a film to watch", "a place to go") so the
+concierge asks with the right verb; `last_place` is the town the guest was in, to confirm
+lightly and never assume. Memory lasts seven days from the last call, so each call
 extends it, never more than fourteen days after the last call. It never answers anything but 200
 with variables, except a body over 8 KB: bad auth, an unknown agent, a withheld number, or an
 internal error all get the default lines, which are exactly a first call's: no name, call one. The number, `called_number` and `call_sid` are never stored

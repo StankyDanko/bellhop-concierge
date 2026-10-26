@@ -21,7 +21,7 @@ import { FIXED_NOW, MEMORY_SECRET, PROPERTY, SECRET, TEST_AGENTS, callInit, call
 const DAY = 86_400_000;
 const CALLER = '+15550100011';
 const OTHER = '+15550100012';
-const VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
+const VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'last_place', 'memory_line', 'stay_line', 'texted_count'];
 const SERVER = fileURLToPath(new URL('..', import.meta.url));
 
 /** A memory with a clock the test moves. */
@@ -194,7 +194,7 @@ test('forget me deletes every row at every inn, blocks the write-back, and unlin
 
 // ---- the initiation webhook -----------------------------------------------------------------
 
-test('the webhook answers all eleven variables, 200, no config override, on every path', async () => {
+test('the webhook answers all thirteen variables, 200, no config override, on every path', async () => {
   const { app } = makeApp({ memory: true });
   const cases = [
     [{ caller_id: CALLER, agent_id: 'battery', conversation_id: 'conv-w-1' }, undefined],

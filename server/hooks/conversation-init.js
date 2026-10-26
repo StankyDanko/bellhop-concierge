@@ -6,7 +6,7 @@
 // this call (server/conversation/choose.js), and, for a caller the concierge has heard from in
 // the last few days, what it remembers (server/lib/memory.js): the first name it last heard on
 // this phone, which call this is for that person, whether they already heard that every call is
-// recorded, and one thing from the last call to ask about.
+// recorded, one thing from the last call to ask about, and the town they were in.
 //
 // A failed or slow answer can keep the call from connecting, so this handler never throws and
 // answers 200 with the default lines on anything unexpected: bad or missing auth, an unknown
@@ -17,7 +17,7 @@
 // outside server/api/ on purpose: the dashboard holds no handle to guest memory.
 
 import { secretMatches, SECRET_HEADER } from '../lib/auth.js';
-import { callerFrom, cleanName, lastCallHook, memoryLine, sessionFrom, stayLine } from '../lib/memory.js';
+import { callerFrom, cleanName, cleanPlace, lastCallHook, memoryLine, sessionFrom, stayLine } from '../lib/memory.js';
 import { choose, defaultVars } from '../conversation/choose.js';
 
 export const INIT_PATH = '/hooks/conversation-init';
@@ -89,6 +89,8 @@ export function buildInit({ body, authorized, agents, memory, timezone, now, rng
     vars.call_number = (row.guest?.person_calls ?? 0) + 1;
     vars.recording_noted = row.guest?.recording_noted === true ? 'yes' : 'no';
     vars.last_call_hook = lastCallHook(row.guest?.last);
+    // The town the guest was in last time, to confirm lightly ("still in Macon?"), never to assume.
+    vars.last_place = cleanPlace(row.guest?.place) || 'none';
   }
   memory.startCall({ hash, sessionId: sessionFrom(body?.conversation_id), propertyId: agent.property_id, persona, timezone: tz,
     variety: { opener: picked.ids.opener, pair: picked.ids.pair } });
