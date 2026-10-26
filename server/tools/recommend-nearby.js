@@ -260,7 +260,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
 
   const recall = memory ? memory.recallFor(body?.session_id) : null;
-  const texted = new Set(recall ? recall.texted.slice(-MAX_TEXTED) : []);
+  // Texted places and places offered on earlier calls both stay out (cross-call variety).
+  const texted = new Set(recall ? [...recall.texted.slice(-MAX_TEXTED), ...(recall.offered ?? [])] : []);
   let memoryApplied = null;
   let memoryRedact = null;
   if (recall) {

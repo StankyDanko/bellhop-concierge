@@ -295,7 +295,8 @@ test('a returning caller: texted places excluded, prior tastes carried, none of 
   const taste2 = r2.json.resolved.map((r) => ({ id: r.id, name: r.name }));
   const rec2 = await callTool(app, 'recommend_nearby', { session_id: 'conv-r-2', taste: taste2, ...PROPERTY, take: 3 });
   assert.equal(rec2.status, 200);
-  assert.deepEqual(rec2.json.applied.memory, { prior_signals: taste1.length, excluded: 2 });
+  // Three: the two texted places and the one place call one offered but did not text.
+  assert.deepEqual(rec2.json.applied.memory, { prior_signals: taste1.length, excluded: 3 });
   assert.ok(rec2.json.places.every((p) => !texted.includes(p.entity_id)), 'no texted place picked again');
   assert.ok(!('memory_redact' in rec2.json), 'the redaction note never leaves the server');
 

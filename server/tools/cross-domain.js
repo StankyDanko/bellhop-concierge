@@ -142,7 +142,7 @@ async function fallbackPicks({ qloo, taste, target, take, base, namedGenres = []
  * @param {any} body
  * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, now?: () => Date }} ctx
  */
-export async function crossDomain(body, { qloo, toolSecret, now }) {
+export async function crossDomain(body, { qloo, toolSecret, now, memory = null }) {
   const taste0 = tasteSignals(body?.taste);
   const target = oneOf(body?.target, 'target', TARGETS);
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
@@ -173,7 +173,9 @@ export async function crossDomain(body, { qloo, toolSecret, now }) {
   const olderOk = truthy(body?.older_ok);
   if (RECENT_TARGETS.has(target) && !olderOk) params['filter.release_year.min'] = String((now?.() ?? new Date()).getFullYear() - RECENT_YEARS);
   if (lesserKnown && target !== 'place') params['filter.popularity.max'] = String(LESSER_KNOWN_MAX);
-  const offered = [...offeredFor(qloo, sid)].slice(-20);
+  // This call's offers plus what earlier calls offered or texted this guest (memory), so a title is not a rut.
+  const recall = memory && sid ? memory.recallFor(sid) : null;
+  const offered = [...new Set([...(recall ? [...recall.texted, ...(recall.offered ?? [])] : []), ...offeredFor(qloo, sid)])].slice(-30);
   if (offered.length && target !== 'place') params['filter.exclude.entities'] = offered.join(',');
 
   let origin = null;
@@ -229,7 +231,11 @@ export async function crossDomain(body, { qloo, toolSecret, now }) {
   if (moodOnly && found.entities.length) found = { ...found, fallback: 'recent_by_vibe', fallbackGenres: [] };
   const { entities, calls, cuisine_filter: cuisineFilter } = found;
   // Never hand back an input as its own recommendation.
-  const results = entities.filter((e) => !inputIds.has(e.entity_id)).slice(0, take).map((e) => {
+  // Titles an earlier call offered stay out even if Qloo did not honor the exclusion; if that would leave nothing, they are better than silence.
+  const earlier = new Set(recall ? [...recall.texted, ...(recall.offered ?? [])] : []);
+  const fresh = entities.filter((e) => !inputIds.has(e.entity_id) && !earlier.has(e.entity_id));
+  const pool = target === 'place' || !fresh.length ? entities.filter((e) => !inputIds.has(e.entity_id)) : fresh;
+  const results = pool.slice(0, take).map((e) => {
     if (origin) return shapePlace(e, taste.signals, origin);
     const why = found.fallback ? fallbackWhy(found, taste0) : buildWhy(e, whySignals);
     const url = e.website?.startsWith('https://') ? e.website : titleSearchUrl(e);

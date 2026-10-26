@@ -39,6 +39,8 @@ export const MAX_TASTES = 12;
 export const MAX_COMPANION = 4;
 /** Also the cap on ids sent in filter.exclude.entities. */
 export const MAX_TEXTED = 15;
+/** Ids offered on earlier calls that stay excluded from a returning guest's next picks. */
+export const MAX_OFFERED_IDS = 30;
 export const WORDS_MAX = 40;
 export const MEMORY_LINE_MAX = 120;
 /** All JSON columns of one row together; a bigger write drops the oldest entries first. */
@@ -287,6 +289,10 @@ function guestPart(g = {}) {
   if (name) out.name = name;
   if (Number.isInteger(g.person_calls) && g.person_calls > 0) out.person_calls = g.person_calls;
   if (g.recording_noted === true) out.recording_noted = true;
+  if (Array.isArray(g.offered_ids)) {
+    const ids = g.offered_ids.filter((x) => typeof x === 'string' && x.length <= 80).slice(-MAX_OFFERED_IDS);
+    if (ids.length) out.offered_ids = ids;
+  }
   const place = cleanPlace(g.place);
   if (place) out.place = place;
   if (g.last && typeof g.last === 'object') {
@@ -596,6 +602,10 @@ export class GuestMemory {
     else if (s.fresh) delete guest.name;
     // The guest confirmed who they are, so they heard this call's reminder that every call is recorded.
     if (s.confirmed) guest.recording_noted = true;
+    // Everything this call offered stays out of the next calls' picks (a title said on three calls is a rut).
+    const priorOffered = s.fresh ? [] : (Array.isArray(guest.offered_ids) ? guest.offered_ids : []);
+    const offeredIds = [...priorOffered.filter((id) => !(s.offered ?? []).some((o) => o.id === id)), ...(s.offered ?? []).map((o) => o.id)];
+    if (offeredIds.length) guest.offered_ids = offeredIds.slice(-MAX_OFFERED_IDS);
     // The town the guest was in: the last one this call searched, else the one remembered.
     if (s.place) guest.place = s.place;
     else if (s.fresh) delete guest.place;
@@ -619,7 +629,7 @@ export class GuestMemory {
    * What recommend_nearby folds in for this call: texted ids to exclude and remembered taste
    * ids to carry as signals. Null when the call has no live link (no webhook, withheld number,
    * forgotten), which leaves the tool exactly as it was.
-   * @returns {{ texted: string[], guest: { entityIds: string[], tagIds: string[] }, companion: { entityIds: string[], tagIds: string[] } } | null}
+   * @returns {{ texted: string[], offered: string[], guest: { entityIds: string[], tagIds: string[] }, companion: { entityIds: string[], tagIds: string[] } } | null}
    */
   recallFor(sessionId) {
     const l = this.link(sessionId);
@@ -630,7 +640,9 @@ export class GuestMemory {
       const ids = [...new Set((row?.tastes ?? []).filter((t) => t.who === who).map((t) => t.id))];
       return { entityIds: ids.filter((id) => !isTag(id)), tagIds: ids.filter(isTag) };
     };
-    return { texted: [...new Set((row?.texted ?? []).map((t) => t.id))].slice(-MAX_TEXTED), guest: split('guest'), companion: split('companion') };
+    return { texted: [...new Set((row?.texted ?? []).map((t) => t.id))].slice(-MAX_TEXTED),
+      // Earlier calls only: the row is also written as this call goes, and this call's own offers are its own business.
+      offered: (row?.guest?.offered_ids ?? []).filter((id) => !(l.scratch.offered ?? []).some((o) => o.id === id)).slice(-MAX_OFFERED_IDS), guest: split('guest'), companion: split('companion') };
   }
 
   // ---- forget me -----------------------------------------------------------
