@@ -14,7 +14,7 @@ import { DINING_TAG, KINDS, scopeParams } from '../tools/recommend-nearby.js';
 const ARTIST = { id: 'fx-artist-porch-band', name: 'Porch Band' };
 const FX_THAI = 'urn:tag:genre:place:restaurant:fx_thai';
 const THAI = { id: FX_THAI, name: 'Thai food' };
-const place = (n, tags = []) => ({ entity_id: `fx-place-${n}`, name: `Fx ${n}`, tags, query: { affinity: 0.9 - n / 100 } });
+const place = (n, tags = [{ tag_id: 'urn:tag:category:place:restaurant', name: 'restaurant' }]) => ({ entity_id: `fx-place-${n}`, name: `Fx ${n}`, tags, query: { affinity: 0.9 - n / 100 } });
 
 /** A transport that records every insights request and answers with `answer(params)`. */
 function recording(answer = () => [place(1), place(2), place(3)]) {

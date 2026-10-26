@@ -8,6 +8,7 @@ import { popularityCounterfactual } from './counterfactual.js';
 import { favorsByRank, FAVORS_LINES, readSignalEffects } from '../lib/why.js';
 import { UpstreamError } from '../lib/errors.js';
 import { isActivityPlace } from '../lib/activity.js';
+import { isDiningPlace } from '../lib/dining.js';
 import { signPick } from '../lib/pick-token.js';
 import { MAX_SIGNALS, MAX_TEXTED } from '../lib/memory.js';
 import { isOutdoorLeaning, RAIN_CLAUSE, RAIN_THRESHOLD_PCT, rainReorder } from '../lib/weather.js';
@@ -241,8 +242,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     ...shaped.params,
     ...locationParams(origin.lat, origin.lng, radius),
     sort_by: 'affinity',
-    // headroom for the kids filter, and for activity the tag check below (a small town's list is mostly lodging and shops)
-    take: String(kind === 'activity' ? 20 : Math.min(20, take * 3)),
+    // headroom for the kids filter, and for activity and dining the tag check below (a small town's list is mostly lodging and shops)
+    take: String(kind === 'activity' || kind === 'dining' ? 20 : Math.min(20, take * 3)),
   };
   if (budget !== undefined) firstParams['filter.price_level.max'] = String(Math.round(budget));
   if (minRating !== undefined) firstParams['filter.rating.min'] = String(minRating);
@@ -262,7 +263,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
 
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
   // Things to do: only places whose own tags say entertainment, leisure, arts or outdoors (lib/activity.js).
-  const fitsKind = (e) => kind !== 'activity' || isActivityPlace(e);
+  // Somewhere to eat: only places whose own tags say they serve food (lib/dining.js).
+  const fitsKind = (e) => (kind === 'activity' ? isActivityPlace(e) : kind === 'dining' ? isDiningPlace(e) : true);
   const usable = (e) => kidSafe(e) && fitsKind(e);
   const notTexted = (e) => !texted.has(e.entity_id);
   // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
@@ -384,6 +386,7 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     applied: { kind, radius_miles: Math.round(radius * 10) / 10, budget: budget ?? null, min_rating: minRating ?? null, when,
       party_size: partySize ?? null, kids, filtered_for_kids: filteredOut,
       ...(kind === 'activity' ? { filtered_not_activity: notActivity } : {}),
+      ...(kind === 'dining' ? { filtered_not_dining: notActivity } : {}),
       // 'hard': every pick is one of the guest's cuisines; 'relaxed': fewer than three fit
       // nearby, so the ones that fit come first and the rest are the best matches overall
       // (`say` tells the agent); null: no cuisine was said or it matched too weakly to filter.
