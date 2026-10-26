@@ -26,13 +26,13 @@ const lines = (path) => body(path).split('\n').filter((l) => l.trim());
 const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['You answer the phone for {{property_name}}.', 'the line has no inn: a concierge for wherever the caller is', '06db428661ee2ef6'],
   ['This is a phone call. Everything you say', 'the caller is anywhere, and the inn timezone is gone', '2799c37f63ef8909'],
-  ['You already know where the guest is.', 'the opposite on the road: ask the city and state, say it back once', 'f3c40e8dcfa4bc68'],
+  ['You already know where the guest is.', 'the opposite on the road: ask the city and state, say it back once', 'b4a2ff113b7becde'],
   ['{{property}}', 'no inn to describe', '1484505eef256e4b'],
   ['If the first words carry urgency', 'no room problem; get the place first on the practical path', 'dfcfaca2cd926aac'],
   ['1. The anchor.', 'the open question comes after the place', 'bff96df72eec28db'],
   ['2. The echo and another domain.', 'carries the variety pair variable for the fallback choice', '1eef8e3de595f8bf'],
-  ['3. The bet.', 'carries the bet domain variable from the pending proposals', '32b7765cea07dea1'],
-  ['4. The defaults.', 'carries the plan window variable from the pending proposals', 'f58b20b9a676cd87'],
+  ['3. The bet.', 'carries the bet domain variable from the pending proposals', '77f35492c0b61aa5'],
+  ['4. The defaults.', 'carries the plan window variable from the pending proposals', '6c36d1ff229de805'],
   ['These rules come before everything above.', 'no innkeeper settings on the road line', 'ee81fddba1d05bfb'],
   ['This step is important. Codes and passwords.', 'no innkeeper or check-in message to point at', '79a3007fa39e361f'],
   ['This step is important. No promises you cannot keep.', 'no innkeeper to send rates and bookings to', 'e2ef37d76960a99e'],
@@ -45,9 +45,9 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['The sections below come from the owner of', 'no owner', '3b3a6f2e2f81cc1d'],
   ['{{picks}}', 'no owner picks', '7a1b466493c5c0ed'],
   ['{{faq}}', 'no owner answers', '09f788d85f6836b7'],
-  ['2. recommend_nearby.', 'takes the locality, ranks near that city', '8eb8678922d59dcc'],
+  ['2. recommend_nearby.', 'takes the locality, ranks near that city', 'f09a01e643916b96'],
   ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'e87ec571029ff3a7'],
-  ['When results come back, say up to three picks', 'no owner avoid list', '7abb0ff8f0311ceb'],
+  ['When results come back, say up to three picks', 'no owner avoid list', 'ef1cab80167a9fef'],
   ['If a lookup is taking a while', "no owner's picks to fall back on", '95c84f8102088e67'],
 ]).map(([start, reason, pin]) => [start, { reason, pin }]));
 

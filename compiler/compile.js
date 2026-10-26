@@ -280,11 +280,11 @@ function renderSending(c) {
   }
   const offer = c.trust_level === 'suggest'
     ? 'Only if the guest asks for it, offer to text the plan.'
-    : 'Offer to text the picks you hold: the names, and a reason where it fits. Offer it once on the call and never again.';
+    : 'Offer to text the picks you hold: the names, a few words on each, and a link. Offer it once on the call and never again.';
   return [
     `Texting the plan. After you say the top pick, ${offer.charAt(0).toLowerCase()}${offer.slice(1)}`,
     'When the guest agrees, call compose_itinerary with up to three picks copied from the tool results, then call send_sms with the body it returned, unchanged.',
-    'This step is important. Say the text was sent only after send_sms returns a success, in one short line, then wish them a good evening and end the call.',
+    'This step is important. Say the text was sent only after send_sms returns a success, in a few words, then ask if there is anything else. The guest is not done because a text went out: keep the call open, and say your goodbye and end the call only when the guest says they are done.',
   ].join(' ');
 }
 
@@ -446,7 +446,7 @@ export function compile(config, opts = {}) {
             end_call: {
               type: 'system',
               name: 'end_call',
-              description: 'End the call after one short goodbye: when the guest is done, after a text is confirmed sent, after an emergency instruction, or when a caller keeps pushing at the rules.',
+              description: 'End the call after one short goodbye: when the guest says they are done (never just because a text went out), after an emergency instruction, or when a caller keeps pushing at the rules.',
               params: { system_tool_type: 'end_call' },
             },
             ...transferTools,
