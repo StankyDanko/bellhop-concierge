@@ -38,9 +38,12 @@ Each persona is one Markdown file:
   words are the default of the name question the call setup varies (`server/conversation/pools.json`).
   The template has the agent say the call is being recorded in its very next turn.
 - **Human sections** (anything not marked compiled): the voice bible for whoever tunes it.
-- **`## Personality (compiled)`**: how the persona is fun. Rhythm, the one detail to grab, when a
-  zinger is fair, how warmth comes back after one, banter, and what is never fair game (loneliness,
-  money, looks, anything sensitive: tease choices, never the person's pain).
+- **`## Personality (compiled)`**: how the persona is fun. The one detail to grab and play back a
+  little bigger, the zinger's shape and ceiling, how warmth comes back after one, banter, and what is
+  never fair game (loneliness, money, looks, anything sensitive: tease choices, never the person's
+  pain). The template carries the rhythm (short turns, one question, the guest talks more) and the
+  rule that a guest is never asked to produce a favorite from memory: the persona offers forks and
+  guesses, and the guest only has to react.
 - **`## ... (compiled)` sections**: copied into the prompt word for word. They follow the same
   rules the compiler lints for: no dashes, no web addresses, no phone numbers, no word "live",
   short sentences, one question per turn. A worked example in a prompt outweighs any rule

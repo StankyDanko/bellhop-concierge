@@ -34,9 +34,11 @@ export function saidBackIsNoAnswer(pair) {
 }
 
 test('every side of every offered choice is a vibe or budget answer', () => {
-  const pairs = [...SOURCES.flatMap((f) => choicePairs(readFileSync(new URL(f, ROOT), 'utf8')).map((p) => ({ f, p }))), ...POOL_PAIRS];
-  assert.ok(pairs.length >= 8 + POOL_PAIRS.length, `found ${pairs.length} choice pairs; the walker lost its grip on the prompts`);
-  assert.ok(SOURCES.every((f) => pairs.some((x) => x.f === f)), 'every persona and the template offer at least one choice');
+  const texts = new Map(SOURCES.map((f) => [f, readFileSync(new URL(f, ROOT), 'utf8')]));
+  const pairs = [...SOURCES.flatMap((f) => choicePairs(texts.get(f)).map((p) => ({ f, p }))), ...POOL_PAIRS];
+  assert.ok(pairs.filter((x) => x.f === 'template/concierge.md').length >= 3, `found ${pairs.length} choice pairs; the walker lost its grip on the prompts`);
+  // A persona offers a choice in its own words, or hands the call setup's {{choice_pair}} to the guest, which the pool rows below cover.
+  assert.ok(SOURCES.every((f) => pairs.some((x) => x.f === f) || texts.get(f).includes('{{choice_pair}}')), 'every persona and the template offer at least one choice');
   assert.ok(POOL_PAIRS.length >= 1, 'the call setup offers at least one enabled pair');
   for (const { f, p } of pairs) {
     for (const side of p) assert.ok(isAnswer(side), `${f}: "${side}" is not a lexicon answer`);
