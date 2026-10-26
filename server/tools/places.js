@@ -55,6 +55,12 @@ export function signalParams({ entityIds, tagIds }) {
 // fill the rest, and the result says cuisine_filter: 'relaxed' so the explanation can say so.
 // ---------------------------------------------------------------------------
 
+/** A film, show, or book genre tag (urn:tag:genre:media:horror): what "a horror show" resolves to. */
+export const isMediaGenreTag = (id) => /^urn:tag:genre:media:[^:]+/.test(String(id));
+
+/** A tag that only means something for places: a restaurant genre, a room's feel, a shop category. */
+export const isPlaceTag = (id) => /:place(?::|$)|^urn:tag:(?:ambience|noise_level|amenity|price_level|offerings|crowd)\b/.test(String(id));
+
 /** A restaurant genre tag: what a guest's cuisine resolves to. */
 export const isCuisineTag = (id) => /^urn:tag:genre:place:restaurant:[^:]+/.test(String(id));
 

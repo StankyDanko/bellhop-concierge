@@ -98,7 +98,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
         properties: {
           mentions: {
             type: 'array',
-            description: 'One to six things the guest likes for themselves, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson. Never something the guest said another person loves.',
+            description: 'One to six things the guest likes for themselves, in their words, each under eighty characters. Example: Sturgill Simpson, thai food, wes anderson, horror thriller show. A kind of film, show, or book, such as horror or true crime, goes in as the guest said it. Never something the guest said another person loves.',
             items: s('One thing the guest named, for example Sturgill Simpson'),
           },
           companion_mentions: {
@@ -137,7 +137,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     cross_domain: {
-      description: 'Picks in another category that fit the same taste, such as a film for a music fan, each with the reason it fits and a pick_token. Call it after resolve_taste. To text one, copy its pick_token exactly; never make one up from an id.',
+      description: 'Picks in another category that fit the same taste, such as a film for a music fan, each with the reason it fits and a pick_token. Call it after resolve_taste. A genre the guest likes, such as horror, comes back as only that genre for a film, show, or book. To text one, copy its pick_token exactly; never make one up from an id.',
       timeout: 15,
       body: {
         type: 'object',

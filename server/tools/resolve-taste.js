@@ -29,7 +29,7 @@
 import { arr, TASTE_MAX } from '../lib/validate.js';
 import { InputError, UpstreamError } from '../lib/errors.js';
 import { withTraceNote } from '../lib/upstream.js';
-import { isCuisineTag } from './places.js';
+import { isCuisineTag, isMediaGenreTag } from './places.js';
 
 /** Words that mark a mention as a category (tag) rather than a named entity. */
 const CATEGORY_WORDS = /\b(food|cuisine|music|movies?|films?|restaurants?|bars?|places?|spots?|dining|vibes?|shows?|books?|podcasts?|style|scene)\b/i;
@@ -101,6 +101,41 @@ function isFoodPhrase(mention) {
     if (FOOD_PHRASES.has(words.slice(i).join(' ')) && words.slice(0, i).every((w) => FOOD_WORDS.has(w))) return true;
   }
   return false;
+}
+
+/**
+ * Genre and mood words for film, television, and books, each with the /v2/tags search words it
+ * stands for. A mention made only of these (and kind words such as "show" or "movie") asks for a
+ * media genre tag (urn:tag:genre:media:...), never a place tag, never /search.
+ */
+export const MEDIA_GENRES = Object.freeze({
+  horror: 'horror', scary: 'horror', creepy: 'horror', thriller: 'thriller', thrillers: 'thriller', suspense: 'thriller', suspenseful: 'thriller',
+  comedy: 'comedy', comedies: 'comedy', funny: 'comedy', sitcom: 'comedy', sitcoms: 'comedy',
+  scifi: 'science fiction', drama: 'drama', dramas: 'drama', romance: 'romance', romantic: 'romance', mystery: 'mystery', mysteries: 'mystery',
+  fantasy: 'fantasy', crime: 'crime', truecrime: 'true crime', documentary: 'documentary', documentaries: 'documentary', docuseries: 'documentary',
+  anime: 'anime', animation: 'animation', animated: 'animation', cartoon: 'animation', cartoons: 'animation', western: 'western', westerns: 'western',
+  action: 'action', adventure: 'adventure', war: 'war', noir: 'film noir', historical: 'history',
+});
+/** Words that say "something to watch or read" without naming a genre. */
+const MEDIA_KIND_WORDS = new Set(['show', 'shows', 'series', 'movie', 'movies', 'film', 'films', 'flick', 'flicks', 'tv', 'television', 'book', 'books', 'novel', 'novels', 'stuff', 'type', 'kind', 'of', 'a', 'the', 'some', 'good', 'and', 'or', 'like', 'genre', 'story', 'stories']);
+
+/**
+ * The media genres a mention names: "horror thriller show" -> ['horror', 'thriller']. Empty unless
+ * every word is a genre word or a kind word and at least one is a genre word, so "horror bar"
+ * (a place) and "Wes Anderson films" (a name) are not media genres.
+ * @param {string} mention @returns {string[]}
+ */
+export function mediaGenresOf(mention) {
+  const said = String(mention).toLowerCase().replace(/sci[\s-]*fi\b|science[\s-]+fiction/g, 'scifi')
+    .replace(/true[\s-]+crime/g, 'truecrime').replace(/rom[\s-]*com\b/g, 'romance comedy');
+  const words = tokens(said);
+  if (!words.length) return [];
+  const genres = [];
+  for (const w of words) {
+    if (Object.hasOwn(MEDIA_GENRES, w)) { if (!genres.includes(MEDIA_GENRES[w])) genres.push(MEDIA_GENRES[w]); }
+    else if (!MEDIA_KIND_WORDS.has(w)) return [];
+  }
+  return genres;
 }
 
 /**
@@ -383,11 +418,31 @@ export async function resolveTaste(body, { qloo }) {
     return { items: [], say: null };
   };
 
+  /**
+   * A film, show, or book genre ("horror thriller show"): each genre word to /v2/tags scoped to
+   * movie tags, keeping only a media genre tag (urn:tag:genre:media:...). It is never a place tag
+   * and never goes to /search. Items carry domain: 'media' so cross_domain filters by them.
+   */
+  const resolveMediaGenres = async (mention, genres) => {
+    const items = await Promise.all(genres.map(async (genre) => {
+      const { tags, call } = await withTraceNote({ mapped_from: mention }, () => qloo.tags({ query: genre, take: 5, parentsType: 'movie' }));
+      calls.push(call);
+      const t = tags.find((x) => isMediaGenreTag(x.tag_id));
+      if (!t) return null;
+      return { mention, kind: 'tag', id: t.tag_id, entity_id: null, tag_id: t.tag_id, name: sentenceCase(genre === 'science fiction' ? 'sci-fi' : genre),
+        type: 'tag', domain: 'media', confidence: round2(Math.max(0.5, nameMatch(genre, t.name))) };
+    }));
+    const found = items.filter(Boolean);
+    return found.length ? { items: found, say: mention } : null;
+  };
+
   const resolveOne = async (mention, who) => {
     const occ = occasionOf(mention);
     if (occ) return resolveOccasion(mention, occ);
     const vibe = vibeOf(mention);
     if (vibe) return resolveVibe(mention, vibe, who);
+    const genres = mediaGenresOf(mention);
+    if (genres.length) return resolveMediaGenres(mention, genres);
     const shape = placeShape(mention);
     const one = shape ? await resolvePlaceShaped(mention, shape) : await resolveNamed(mention);
     return one ? { items: [one], say: one.name } : null;

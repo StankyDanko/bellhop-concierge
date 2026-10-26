@@ -15,5 +15,6 @@ test('object-builtin key names are refused like any other unknown key', () => {
 test('the exact place scope still passes, and nothing else rides on that key', () => {
   assert.doesNotThrow(() => assertNoPii('/v2/tags', { 'filter.parents.types': 'urn:entity:place' }));
   assert.throws(() => assertNoPii('/v2/tags', { 'filter.parents.types': 'urn:entity:place,fx@example.com' }), PiiViolation);
+  for (const t of ['movie', 'tv_show', 'book']) assert.doesNotThrow(() => assertNoPii('/v2/tags', { 'filter.parents.types': `urn:entity:${t}` }));
   assert.throws(() => assertNoPii('/v2/tags', { 'filter.parents.types': 'urn:entity:artist' }), PiiViolation);
 });

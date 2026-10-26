@@ -18,10 +18,11 @@ const TAG_LIST = /^(signal\.interests\.tags|filter\.tags|filter\.exclude\.tags|f
 
 /**
  * Exact values a list param may carry even though they are not tag URNs. Scoping a tag
- * search to place tags (/v2/tags filter.parents.types) takes an entity type URN, and only
- * this one is in use. Any other value on the key still has to be a tag URN.
+ * search to the tags of one entity type (/v2/tags filter.parents.types) takes an entity type
+ * URN: place for food and mood words, movie, tv_show, and book for genre words. Any other
+ * value on the key still has to be a tag URN.
  */
-const EXACT_VALUES = Object.freeze({ 'filter.parents.types': new Set(['urn:entity:place']) });
+const EXACT_VALUES = Object.freeze({ 'filter.parents.types': new Set(['urn:entity:place', 'urn:entity:movie', 'urn:entity:tv_show', 'urn:entity:book']) });
 
 /** Every other param must be one of these, with a constrained value. */
 const ENUM_OR_NUMERIC = new Set([
