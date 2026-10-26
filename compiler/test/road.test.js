@@ -56,7 +56,7 @@ test('road compiles with zero lint errors and the same hardening as Harper', () 
 
 test('road: the opener names Hollis and asks who is calling, and nothing else', () => {
   const first = compile(road(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, 'This is Hollis, your Bellhop concierge, who am I speaking with?');
+  assert.equal(first, 'This is Hollis, your automated concierge, who am I speaking with?');
   assert.equal(sentences(first).length, 1);
   assert.doesNotMatch(first, /city|state|recorded|text/i, 'no place demand and no legal block up front');
 });
@@ -166,7 +166,7 @@ test('road: runtime variables always have placeholders, and they rebuild the ope
   }
   const on = compile(road(), { ...OPTS, memoryWebhook: true });
   const a = on.agent.conversation_config.agent;
-  assert.equal(a.first_message, 'This is Hollis, your Bellhop concierge, {{opener_hook}}');
+  assert.equal(a.first_message, 'This is Hollis, your automated concierge, {{opener_hook}}');
   const rebuilt = a.first_message.replace(/\{\{(\w+)\}\}/g, (_, k) => String(a.dynamic_variables.dynamic_variable_placeholders[k]));
   assert.equal(rebuilt, off.agent.conversation_config.agent.first_message);
   assert.equal(on.agent.platform_settings.overrides.enable_conversation_initiation_client_data_from_webhook, true);

@@ -186,8 +186,8 @@ Errors are never reported as success:
 
 Off unless `GUEST_MEMORY_SECRET` is set and the agent is compiled with the webhook. The voice
 platform posts `{ caller_id, agent_id, called_number, call_sid, conversation_id }` while the line
-rings, and starts the call with the eleven dynamic variables this answers (`opener_hook`,
-`choice_pair`, `plan_window`, `caller_status`, `caller_name`, `call_number`, `recording_noted`,
+rings, and starts the call with the twelve dynamic variables this answers (`opener_hook`,
+`choice_pair`, `night_question`, `plan_window`, `caller_status`, `caller_name`, `call_number`, `recording_noted`,
 `last_call_hook`, `memory_line`, `stay_line`, `texted_count`). For a phone it remembers by name,
 `opener_hook` names that person and asks whether it is still them; `call_number` is that person's
 call count, `recording_noted` says whether they already heard that every call is recorded, and

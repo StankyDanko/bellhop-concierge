@@ -108,7 +108,7 @@ checks that each persona's own guess sample line matches, so a renamed guess can
 
 | Locked: no config field reaches it | Owner toggle (config field) |
 |---|---|
-| Names itself as the concierge in the opener, says the call is being recorded in its next turn, and, when asked, says it is a computer voice | Persona (`voice.persona_id`) |
+| Names itself as the automated concierge in the opener, says the call is being recorded in its next turn, and, when asked, says it is a computer voice | Persona (`voice.persona_id`) |
 | Opener discloses that the call is recorded | Humor 0 to 2 (`voice.humor_level`, capped by the persona) |
 | Never speaks or texts door, gate, lockbox, or wifi details; those stay in `sms_only` | Languages (`voice.languages`) |
 | No payments, card numbers, IDs, birth dates; never asks for name, room, or email | House rules and never-bend rules (`rules`) |

@@ -27,7 +27,7 @@ import { secretTokens } from '../config/schema.js';
  * (server/hooks/conversation-init.js). Their compiled placeholders are today's lines, so a call
  * without the webhook (a browser test, a webhook that is switched off) sounds exactly as before.
  */
-export const RUNTIME_VARIABLES = Object.freeze(['opener_hook', 'choice_pair', 'plan_window',
+export const RUNTIME_VARIABLES = Object.freeze(['opener_hook', 'choice_pair', 'night_question', 'plan_window',
   'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count']);
 
 /**

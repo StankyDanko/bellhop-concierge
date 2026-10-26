@@ -529,5 +529,102 @@
       ],
       "enabled": false
     }
+  ],
+  "night_questions": [
+    {
+      "id": "n-tonight",
+      "text": "What are you up to tonight?",
+      "dayparts": [
+        "afternoon",
+        "evening",
+        "late"
+      ],
+      "default": true
+    },
+    {
+      "id": "n-help",
+      "text": "What can I help you with tonight?",
+      "dayparts": [
+        "afternoon",
+        "evening",
+        "late"
+      ]
+    },
+    {
+      "id": "n-looking",
+      "text": "What's tonight looking like?",
+      "dayparts": [
+        "afternoon",
+        "evening",
+        "late"
+      ]
+    },
+    {
+      "id": "n-plan",
+      "text": "Got a plan for tonight, or are we making one?",
+      "dayparts": [
+        "afternoon",
+        "evening",
+        "late"
+      ]
+    },
+    {
+      "id": "n-settled",
+      "text": "Just got in, or have you been settled a while?",
+      "dayparts": [
+        "any"
+      ]
+    },
+    {
+      "id": "n-stay",
+      "text": "How's the stay going so far?",
+      "dayparts": [
+        "any"
+      ]
+    },
+    {
+      "id": "n-day",
+      "text": "How's your day been?",
+      "dayparts": [
+        "any"
+      ]
+    },
+    {
+      "id": "n-hungry",
+      "text": "Hungry yet, or not quite?",
+      "dayparts": [
+        "any"
+      ]
+    },
+    {
+      "id": "n-here",
+      "text": "What are you hoping to do while you're here?",
+      "dayparts": [
+        "any"
+      ]
+    },
+    {
+      "id": "n-easy",
+      "text": "Big night, or an easy one?",
+      "dayparts": [
+        "evening",
+        "late"
+      ]
+    },
+    {
+      "id": "n-today",
+      "text": "What does today look like for you?",
+      "dayparts": [
+        "morning",
+        "afternoon"
+      ]
+    },
+    {
+      "id": "n-need",
+      "text": "What can I find for you?",
+      "dayparts": [
+        "any"
+      ]
+    }
   ]
 }

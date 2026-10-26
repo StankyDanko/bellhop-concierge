@@ -86,11 +86,11 @@ test('Marisol compiles through the rental template with zero lint errors and the
 
 test('Marisol: the opener names her and the rental, asks who is calling, and stays one sentence', () => {
   const first = compile(miami(), OPTS).agent.conversation_config.agent.first_message;
-  assert.equal(first, 'This is Marisol, your concierge at Casa Coralina, who am I speaking with?');
+  assert.equal(first, 'This is Marisol, your automated concierge at Casa Coralina, who am I speaking with?');
   assert.equal(sentences(first).length, 1);
   // With the memory webhook the name question varies, and the introduction stays compiled.
   const on = compile(miami(), { ...OPTS, memoryWebhook: true }).agent.conversation_config.agent;
-  assert.equal(on.first_message, 'This is Marisol, your concierge at Casa Coralina, {{opener_hook}}');
+  assert.equal(on.first_message, 'This is Marisol, your automated concierge at Casa Coralina, {{opener_hook}}');
 });
 
 test('Marisol: every place tool looks around the rental in Miami, never a locality', () => {

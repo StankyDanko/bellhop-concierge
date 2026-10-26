@@ -234,3 +234,22 @@ test('an empty pool for a daypart falls back to the persona default and never th
     }
   }
 });
+
+test('night_question: the pool is well formed, varies with rng, and defaults without the webhook', () => {
+  const pool = POOLS.night_questions;
+  assert.ok(pool.length >= 10, 'about ten questions');
+  assert.equal(new Set(pool.map((q) => q.id)).size, pool.length, 'unique ids');
+  assert.equal(pool.filter((q) => q.default === true).length, 1, 'one default');
+  for (const q of pool) {
+    assert.ok(q.text.endsWith('?') && q.text.length <= 60 && !/[,;:]\s.*[,;:]/.test(q.text), `${q.id} short and open`);
+    assert.ok(Array.isArray(q.dayparts) && q.dayparts.length, `${q.id} dayparts`);
+    assert.ok(!/favorite|favourite|best ever/i.test(q.text), `${q.id} is no quiz about favorites`);
+  }
+  for (const dp of ['morning', 'afternoon', 'evening', 'late']) {
+    assert.ok(pool.filter((q) => q.dayparts.includes('any') || q.dayparts.includes(dp)).length >= 5, `${dp} has choices`);
+  }
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) seen.add(choose({ persona: 'harper', now: WED.evening, rng: seeded(i + 1) }).vars.night_question);
+  assert.ok(seen.size >= 6, `the draw varies (${seen.size})`);
+  for (const name of PERSONAS) assert.equal(defaultVars(name).night_question, 'What are you up to tonight?');
+});

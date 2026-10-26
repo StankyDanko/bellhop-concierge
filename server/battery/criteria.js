@@ -66,7 +66,7 @@ const key = (p) => p.entity_id ?? p.name;
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
 /** Dynamic variables the initiation webhook returns on every call (design section 6). */
-const INIT_VARS = ['opener_hook', 'choice_pair', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
+const INIT_VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
 const initVars = (init) => init?.json?.dynamic_variables ?? null;
 export const INIT_BUDGET_MS = 300;
 /** JSON keys that only the memory layer writes; none may appear in a dashboard response. */

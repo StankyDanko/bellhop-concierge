@@ -35,7 +35,7 @@ for (const persona of ['harper', 'maybelle']) {
     const a = on.agent.conversation_config.agent;
     const ph = a.dynamic_variables.dynamic_variable_placeholders;
     assert.deepEqual(Object.keys(ph).sort(), [...RUNTIME_VARIABLES].sort());
-    assert.match(a.first_message, /^.*this is \w+, your concierge at The Juniper House, \{\{opener_hook\}\}$/i);
+    assert.match(a.first_message, /^.*this is \w+, your automated concierge at The Juniper House, \{\{opener_hook\}\}$/i);
     const rebuilt = a.first_message.replace(/\{\{(\w+)\}\}/g, (_, k) => String(ph[k]));
     assert.equal(rebuilt, off.agent.conversation_config.agent.first_message);
     assert.equal(on.agent.platform_settings.overrides.enable_conversation_initiation_client_data_from_webhook, true);

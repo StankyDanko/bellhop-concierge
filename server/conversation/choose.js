@@ -131,10 +131,15 @@ export function choose({ persona = FALLBACK_PERSONA, status, name = '', now = ne
   const base = POOLS.pairs.filter((p) => p.enabled && fits(p.dayparts, daypart));
   const pair = pick(avoidRecent(defaultsFirst(pairPool.length ? pairPool : base, key), last.pairIds), rng, defaultOf(POOLS.pairs, key));
 
+  // The relaxed question after the recording note, drawn per call so it never turns into a catchphrase.
+  const nightPool = (POOLS.night_questions ?? []).filter((q) => fits(q.dayparts, daypart));
+  const night = pick(avoidRecent(defaultsFirst(nightPool, key), last.nightIds), rng, defaultOf(POOLS.night_questions ?? [], key) ?? { id: 'none', text: 'What are you up to tonight?' });
+
   return {
     vars: {
       opener_hook,
       choice_pair: pair.text,
+      night_question: night.text,
       plan_window: POOLS.plan_windows[daypart],
       caller_status: state,
       // Memory fields belong to the memory layer; these are the no-memory defaults it overrides.
@@ -147,7 +152,7 @@ export function choose({ persona = FALLBACK_PERSONA, status, name = '', now = ne
       stay_line: 'none',
       texted_count: 0,
     },
-    ids: { opener: hook.id, pair: pair.id, daypart, weekday },
+    ids: { opener: hook.id, pair: pair.id, night: night.id, daypart, weekday },
   };
 }
 
@@ -168,6 +173,7 @@ export function spokenLines() {
     for (const o of [...p.openers, ...p.returning, ...p.same_day]) out.push({ where: `${persona}.${o.id}`, text: o.text.replaceAll('<name>', SAMPLE_NAME) });
   }
   out.push(...POOLS.pairs.map((p) => ({ where: p.id, text: p.text })),
+    ...(POOLS.night_questions ?? []).map((q) => ({ where: q.id, text: q.text })),
     ...Object.values(POOLS.plan_windows).map((text) => ({ where: 'plan_windows', text })));
   return out;
 }

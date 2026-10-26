@@ -23,7 +23,7 @@ export const SUPPORT_EMAIL = 'support@southernsky.cloud';
 /** The toll-free line under carrier review. Printed on the opt-in page's room card only. */
 export const OPT_IN_NUMBER = '(833) 658-4321';
 /** Harper's first sentence (personas/harper.md `opener`), with the demo inn's name filled in. */
-export const OPENER = 'This is Harper, your concierge at The Juniper House, who am I speaking with?';
+export const OPENER = 'This is Harper, your automated concierge at The Juniper House, who am I speaking with?';
 /** What the concierge says in its next turn on every first call (template/concierge.md, The opening). */
 export const RECORDING_LINE = 'Just so you know, this call is being recorded so I can give you the best service possible going forward.';
 export const OFFER_LINE = 'Want me to text these? Any text I send goes only to the number you are calling from.';
@@ -55,7 +55,7 @@ export const PRIVACY = {
       id: 'call',
       heading: 'When you call',
       blocks: [{ ul: [
-        'The concierge asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it says it is a computer voice.',
+        'The concierge says it is automated in its first sentence and asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it also says it is a computer voice.',
         "The call runs on ElevenLabs' voice platform, which records it. This server never stores a transcript or a recording.",
         'The demo inn, The Juniper House, is fictional. The calls to it are real.',
       ] }],
@@ -152,7 +152,7 @@ export const SMS_OPT_IN = {
   slug: 'opt-in',
   title: 'How guests opt in to texts',
   docTitle: 'Text opt-in, Bellhop Concierge',
-  description: 'How a guest of an inn on Bellhop Concierge asks for a text: the room card, the words on the call, and the consent.',
+  description: 'How a guest of an inn on Bellhop Concierge asks for a text: the room card, the words on the call, and the consent. The concierge says it is automated in its first sentence and that the call is recorded in its next line.',
   lead: 'Bellhop Concierge sends a text only when a guest asks for one, out loud, on a call to the inn. Here is every step the guest sees and hears, from the card in the room to the text.',
   sections: [
     {
@@ -176,9 +176,9 @@ export const SMS_OPT_IN = {
       id: 'script',
       heading: 'What the concierge says',
       blocks: [
-        { p: 'The first sentence of every call:' },
+        { p: 'The first sentence of every call, which says the concierge is automated:' },
         { quote: OPENER },
-        { p: 'The next line, on every first call:' },
+        { p: 'The next line, on every first call, which says the call is recorded:' },
         { quote: RECORDING_LINE },
         { p: 'When the plan is ready, the concierge asks before it sends anything:' },
         { quote: OFFER_LINE },

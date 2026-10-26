@@ -21,7 +21,7 @@ import { FIXED_NOW, MEMORY_SECRET, PROPERTY, SECRET, TEST_AGENTS, callInit, call
 const DAY = 86_400_000;
 const CALLER = '+15550100011';
 const OTHER = '+15550100012';
-const VARS = ['opener_hook', 'choice_pair', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
+const VARS = ['opener_hook', 'choice_pair', 'night_question', 'plan_window', 'caller_status', 'caller_name', 'call_number', 'recording_noted', 'last_call_hook', 'memory_line', 'stay_line', 'texted_count'];
 const SERVER = fileURLToPath(new URL('..', import.meta.url));
 
 /** A memory with a clock the test moves. */
@@ -236,7 +236,7 @@ test('empty memory and the default pick give the compiled first message, byte fo
   assert.equal(out.returning, false);
   const persona = readFileSync(new URL('../../personas/harper.md', import.meta.url), 'utf8');
   const opener = persona.match(/^opener: (.*)$/m)[1];
-  assert.ok(opener.startsWith('This is Harper, your concierge at'));
+  assert.ok(opener.startsWith('This is Harper, your automated concierge at'));
   assert.ok(opener.endsWith(` ${out.vars.opener_hook}`), 'the hook is the persona opener\'s last sentence');
   assert.deepEqual([out.vars.memory_line, out.vars.stay_line, out.vars.texted_count, out.vars.caller_status], ['none', 'none', 0, 'new']);
 });

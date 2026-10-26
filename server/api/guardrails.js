@@ -4,7 +4,7 @@
 // the config fields a host may change. Each locked rule carries a one-clause "why".
 
 export const LOCKED_RULES = Object.freeze([
-  { id: 'identity', rule: 'Introduces itself as the concierge, says it is a computer voice whenever asked, and never claims to be a person.',
+  { id: 'identity', rule: 'Introduces itself as the automated concierge, says it is a computer voice whenever asked, and never claims to be a person.',
     why: 'Because a guest should always know whether they are talking to a person.' },
   { id: 'recording', rule: 'Tells every first-time caller the call is recorded, in its first reply after asking who is calling.',
     why: 'Because recording-consent rules differ by state, so we tell everyone.' },
