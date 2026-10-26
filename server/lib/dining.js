@@ -30,10 +30,14 @@ const leafOf = (tagId) => {
 };
 
 /** Restaurant children that are really bars and clubs (Qloo files music venues under them) or counters a store can carry (a superstore's bakery). */
-const BAR_CHILD = /^restaurant_(bar|live_music_bar|night_club|club|lounge|cocktail_bar|sports_bar|pub|event_venue|live_music_venue|bakery|dessert|desserts|ice_cream_shop|donut_shop|sandwich_shop|juice_bar|snack_bar)$/;
+const BAR_CHILD = /^restaurant_(bar|live_music_bar|night_club|club|lounge|cocktail_bar|sports_bar|pub|event_venue|live_music_venue|bakery|dessert|desserts|ice_cream_shop|donut_shop|sandwich_shop|juice_bar|snack_bar|juice_shop|smoothie_shop|frozen_yogurt|frozen_yogurt_shop|candy_store|bubble_tea_shop)$/;
+/** Qloo files a juice bar under organic, vegan or gluten free "restaurant": a diet label, not a meal. */
+const DIET_LABEL = /^(?:restaurant_)?(?:organic|gluten_free|vegan|vegetarian|health_food|raw_food|healthy|natural_food)(?:_restaurant)?$/;
 /** Leaves that say the place is somewhere to eat. */
 const STRONG = /^(restaurant_.+|.+_restaurant|cafe|coffee_shop|espresso_bar|tea_house|diner|bistro|brasserie|deli|delicatessen|bar_grill|gastropub|brewpub|food_truck|food_court|steakhouse|taqueria|buffet|pizza.*|barbecue.*|bbq.*)$/;
-const WEAK = /^(?:restaurant_)?(bakery|dessert|desserts|donut_shop|ice_cream_shop|dessert_shop|sandwich_shop|juice_bar|snack_bar)$/;
+const WEAK = /^(?:restaurant_)?(bakery|dessert|desserts|donut_shop|ice_cream_shop|dessert_shop|sandwich_shop|juice_bar|snack_bar|juice_shop|smoothie_shop|frozen_yogurt|frozen_yogurt_shop|candy_store|bubble_tea_shop)$/;
+/** Counters that are somewhere to snack, never somewhere to have a meal: left out of dining unless the guest asked for one. */
+const TREAT_SHOP = /^(?:restaurant_)?(juice_bar|juice_shop|smoothie_shop|dessert|desserts|dessert_shop|ice_cream_shop|frozen_yogurt_shop|donut_shop|snack_bar|candy_store|bubble_tea_shop)$/;
 /** Leaves that rule a place out even when it also serves food. */
 const LODGING = /(^|_)(hotel|motel|inn|lodge|lodging|hostel|rv_park|campground)(_|$)/;
 /** Leaves that are retail. */
@@ -47,11 +51,14 @@ const PUB_CUISINE = /^urn:tag:cuisine:qloo:(?:pub_food|pub_fare|pub_grub|bar_foo
 /**
  * Whether a place serves food. Reads the place's own tags; no network.
  * @param {{ tags?: Array<{ tag_id: string }> }} e
+ * @param {{ treats?: boolean }} [opts] true when the guest asked for a dessert, a juice, or a snack
  */
-export function isDiningPlace(e) {
+export function isDiningPlace(e, { treats = false } = {}) {
   const tags = (e.tags ?? []).map((t) => String(t.tag_id));
   const leaves = tags.map(leafOf).filter(Boolean).map((l) => l.replace(/:/g, '_'));
   if (leaves.some((l) => LODGING.test(l))) return false;
+  // A juice bar or a frozen yogurt counter is a snack, not dinner, unless the guest asked for one.
+  if (!treats && leaves.some((l) => TREAT_SHOP.test(l)) && !leaves.some((l) => STRONG.test(l) && !BAR_CHILD.test(l) && !DIET_LABEL.test(l))) return false;
   const strong = tags.includes('urn:tag:category:place:restaurant') || leaves.some((l) => STRONG.test(l) && !BAR_CHILD.test(l));
   if (strong) return true;
   if (leaves.some((l) => DENIED.test(l))) return false;

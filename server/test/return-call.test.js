@@ -195,7 +195,9 @@ test('isDiningPlace: restaurants, cafes and food-serving bars in; music venues, 
   assert.equal(isDiningPlace(tags('genre:place:restaurant', 'genre:place:restaurant:pizza', 'category:place:pizza_restaurant')), true);
   assert.equal(isDiningPlace(tags('category:place:restaurant', 'genre:place:restaurant')), true);
   assert.equal(isDiningPlace(tags('category:place:cafe', 'genre:place:restaurant:coffee_shop', 'category:place:coffee_store', 'genre:place:shopping')), true, 'a cafe that also sells coffee');
-  assert.equal(isDiningPlace(tags('genre:place:restaurant:ice_cream_shop')), true);
+  assert.equal(isDiningPlace(tags('genre:place:restaurant:ice_cream_shop')), false, 'a treat counter is not dinner');
+  assert.equal(isDiningPlace(tags('genre:place:restaurant:ice_cream_shop'), { treats: true }), true, 'unless the guest asked for one');
+  assert.equal(isDiningPlace(tags('genre:place:juice_bar')), false);
   assert.equal(isDiningPlace(tags('category:place:bakery', 'genre:place:restaurant:bakery', 'category:place:grocery_store', 'genre:place:department_store', 'genre:place:shopping')), false, 'a superstore with a bakery counter');
   assert.equal(isDiningPlace(tags('genre:place:restaurant', 'category:place:restaurant', 'genre:place:hotel')), false, 'lodging is never dinner');
   assert.equal(isDiningPlace(tags('genre:place:restaurant')), false, 'the bare parent proves nothing');

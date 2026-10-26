@@ -243,7 +243,8 @@ export async function crossDomain(body, { qloo, toolSecret, now }) {
   noteOffered(qloo, sid, results.map((r) => r.entity_id));
   const signed = toolSecret ? results.map((r) => ({ ...r, pick_token: signPick(toolSecret, { name: r.name }) })) : results;
   return { status: signed.length ? 'ok' : 'empty', target, results: signed,
-    ...(found.fallback ? { fallback: found.fallback, say: UNUSABLE_TASTE_SAY } : {}), ...(found.bound ? { bound: found.bound } : {}),
+    ...(signed.length ? {} : { next: 'Nothing came back for this. For nonfiction, a documentary, or a kind this tool lacks, look it up with search_the_web if you have it and name one or two real results with their kind and what they are about. Never ask the guest for another taste.' }),
+    ...(found.fallback ? { fallback: found.fallback } : {}), ...(found.bound ? { bound: found.bound } : {}),
     ...(cuisineFilter ? { cuisine_filter: cuisineFilter } : {}), ...(media?.genres.length ? { genre_filter: media.genres } : {}), calls };
 }
 

@@ -50,7 +50,7 @@ test('fallback 1: a taste Qloo cannot use falls back on the genres it carries, a
   const r = await crossDomain({ taste: [SHOW], target: 'movie', take: 1 }, { qloo, now: NOW });
   assert.equal(r.status, 'ok');
   assert.equal(r.fallback, 'genre_tags');
-  assert.equal(r.say, UNUSABLE_TASTE_SAY);
+  assert.equal(r.say, undefined, 'a pick that matched says nothing about the vibe');
   const last = qloo.sent.at(-1);
   assert.equal(last['filter.tags'], HORROR);
   assert.equal(last['signal.interests.entities'], undefined);

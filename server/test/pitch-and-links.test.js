@@ -24,3 +24,19 @@ test('a searched pick with no link gets one built from its name and kind; a link
   assert.match(withSearchLink({ name: 'Heat', kind: 'film' }).url, /^https:\/\/www\.imdb\.com\/find/);
   assert.equal(withSearchLink({ name: 'X', kind: 'book', url: 'https://example.org/x' }).url, 'https://example.org/x');
 });
+
+test('a subject word alone is a topic, never an entity; a juice counter is not dinner', async () => {
+  const { isTopicWord } = await import('../tools/resolve-taste.js');
+  const { isDiningPlace } = await import('../lib/dining.js');
+  const { makeApp, callTool } = await import('./helpers.js');
+  assert.equal(isTopicWord('Psychology'), true);
+  assert.equal(isTopicWord('Gone Girl'), false);
+  const { app } = makeApp();
+  const { json } = await callTool(app, 'resolve_taste', { mentions: ['psychology'] });
+  assert.deepEqual([json.resolved, json.unresolved], [[], []]);
+  const tags = (...ids) => ({ tags: ids.map((tag_id) => ({ tag_id })) });
+  const juice = tags('urn:tag:genre:place:restaurant:juice_shop', 'urn:tag:genre:place:restaurant:vegan', 'urn:tag:category:place:organic_restaurant', 'urn:tag:category:place:juice_shop');
+  assert.equal(isDiningPlace(juice), false);
+  assert.equal(isDiningPlace(juice, { treats: true }), true);
+  assert.equal(isDiningPlace(tags('urn:tag:genre:place:restaurant:italian_restaurant', 'urn:tag:category:place:restaurant')), true);
+});

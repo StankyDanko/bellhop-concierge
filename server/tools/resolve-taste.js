@@ -116,8 +116,18 @@ export const MEDIA_GENRES = Object.freeze({
   anime: 'anime', animation: 'animation', animated: 'animation', cartoon: 'animation', cartoons: 'animation', western: 'western', westerns: 'western',
   action: 'action', adventure: 'adventure', war: 'war', noir: 'film noir', historical: 'history',
   // A bare "fiction" is a genre of books and shows, never the album or band that carries the word.
-  fiction: 'fiction', nonfiction: 'documentary',
+  fiction: 'fiction', nonfiction: 'documentary', biography: 'biography', biographies: 'biography', memoir: 'biography', memoirs: 'biography',
 });
+
+/**
+ * A school of study or a subject, said alone ("psychology", "history"). It is a topic, not a
+ * title: sent to /search it came back as a book called Psychology and a band whose fans like
+ * it. Heard with nothing to search for, like a bare kind word; a book on the topic is found
+ * by web search, which the prompt names for nonfiction.
+ */
+const TOPIC_WORDS = new Set(['psychology', 'psychiatry', 'sociology', 'philosophy', 'science', 'sciences', 'politics', 'economics', 'religion', 'business', 'self help', 'selfhelp', 'law', 'medicine', 'criminology', 'forensics', 'anthropology', 'neuroscience', 'astronomy', 'physics', 'biology', 'chemistry', 'mathematics', 'math', 'psychological']);
+/** @param {string} mention */
+export const isTopicWord = (mention) => TOPIC_WORDS.has(String(mention).toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim());
 /** Words that say "something to watch or read" without naming a genre. */
 const MEDIA_KIND_WORDS = new Set(['show', 'shows', 'series', 'movie', 'movies', 'film', 'films', 'flick', 'flicks', 'tv', 'television', 'book', 'books', 'novel', 'novels', 'stuff', 'type', 'kind', 'of', 'a', 'the', 'some', 'good', 'and', 'or', 'like', 'genre', 'story', 'stories']);
 
@@ -457,7 +467,7 @@ export async function resolveTaste(body, { qloo }) {
     const genres = mediaGenresOf(mention);
     if (genres.length) return resolveMediaGenres(mention, genres);
     // "novel", "movie": a kind of thing, not a taste. Heard, with nothing to search for.
-    if (bareKindWords(mention)) return { items: [], say: null };
+    if (bareKindWords(mention) || isTopicWord(mention)) return { items: [], say: null };
     const shape = placeShape(mention);
     const one = shape ? await resolvePlaceShaped(mention, shape) : await resolveNamed(mention);
     return one ? { items: [one], say: one.name } : null;

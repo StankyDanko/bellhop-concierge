@@ -261,10 +261,11 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     memoryRedact = { ids: added, exclude: texted.size > 0 };
   }
 
+  const wantsTreat = signalsIn.signals.some((s) => /dessert|sweet|ice cream|gelato|frozen yogurt|juice|smoothie|donut|doughnut|candy|treat|boba|bubble tea/i.test(s.name ?? ''));
   const kidSafe = (e) => !(kids && e.tags.some((t) => ADULTS_ONLY.test(t.name)));
   // Things to do: only places whose own tags say entertainment, leisure, arts or outdoors (lib/activity.js).
   // Somewhere to eat: only places whose own tags say they serve food (lib/dining.js).
-  const fitsKind = (e) => (kind === 'activity' ? isActivityPlace(e) : kind === 'dining' ? isDiningPlace(e) : true);
+  const fitsKind = (e) => (kind === 'activity' ? isActivityPlace(e) : kind === 'dining' ? isDiningPlace(e, { treats: wantsTreat }) : true);
   const usable = (e) => kidSafe(e) && fitsKind(e);
   const notTexted = (e) => !texted.has(e.entity_id);
   // Fewer than three cuisine places (or fewer than asked for) relaxes the filter once.
