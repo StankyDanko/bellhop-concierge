@@ -33,6 +33,25 @@ import { EVENTS_ENDPOINT } from '../lib/ticketmaster.js';
 import { latLng, num, oneOf } from '../lib/validate.js';
 import { eventsByTaste, namedArtist } from './events-by-taste.js';
 
+/** The windows a call may ask for. "week" is the next seven days, the widest one. */
+export const WINDOWS = /** @type {const} */ (['tonight', 'weekend', 'week']);
+export const MAX_RADIUS_MILES = 50;
+const DEFAULT_RADIUS_MILES = 10;
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * What "look wider" means for a window that came back empty: the next window up and a bigger
+ * radius, so the second call is never the first one again. Null once both are at their limit.
+ * @param {'tonight'|'weekend'|'week'} when @param {number} radiusMiles
+ */
+export function widerSearch(when, radiusMiles) {
+  const nextWhen = when === 'tonight' ? 'weekend' : 'week';
+  const nextRadius = Math.min(MAX_RADIUS_MILES, Math.max(radiusMiles + 1, Math.round(radiusMiles * 2.5)));
+  const w = when === 'week' ? when : nextWhen;
+  if (w === when && nextRadius <= radiusMiles) return null;
+  return { when: w, radius_miles: nextRadius };
+}
+
 export const CLASSIFICATIONS = /** @type {const} */ (['music', 'sports', 'arts & theatre', 'film', 'family', 'comedy']);
 
 /** An evening starts at this local hour... */
@@ -167,8 +186,8 @@ export function sayLine(event, sayWhen) {
  */
 export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = () => new Date(), toolSecret }) {
   const { lat, lng } = latLng(body);
-  const radiusMiles = num(body?.radius_miles ?? 10, 'radius_miles', { min: 1, max: 50 });
-  const when = oneOf(body?.when ?? 'tonight', 'when', ['tonight', 'weekend']);
+  const radiusMiles = num(body?.radius_miles ?? DEFAULT_RADIUS_MILES, 'radius_miles', { min: 1, max: MAX_RADIUS_MILES });
+  const when = oneOf(body?.when ?? 'tonight', 'when', [...WINDOWS]);
   const classification = body?.classification === undefined ? undefined
     : oneOf(String(body.classification).toLowerCase(), 'classification', CLASSIFICATIONS);
   const take = num(body?.take ?? 5, 'take', { min: 1, max: 10 });
@@ -187,7 +206,9 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
   }
 
   const at = now();
-  const win = when === 'tonight' ? { start: at, end: tonightEnds(at, tz) } : timeWindow(when, { now: at, timezone: tz });
+  const win = when === 'tonight' ? { start: at, end: tonightEnds(at, tz) }
+    : when === 'week' ? { start: at, end: new Date(at.getTime() + WEEK_MS) }
+      : timeWindow(when, { now: at, timezone: tz });
   // A named artist adds shows by the artists Qloo ranks close to them (events-by-taste.js),
   // fetched beside the plain listing so the two waits overlap.
   // The request's start is rounded down to the hour (as events_by_taste does), so two calls in
@@ -208,10 +229,15 @@ export async function eventsNearby(body, { ticketmaster, qloo, timezone, now = (
     return Number.isFinite(ms) && ms < t.getTime();
   };
 
+  const status = events.some((e) => !startedBefore(e, at)) ? 'ok' : 'empty';
+  const wider = status === 'empty' ? widerSearch(when, radiusMiles) : null;
   return {
     ...(byTaste ? { by_taste: byTasteOut } : {}),
-    status: events.some((e) => !startedBefore(e, at)) ? 'ok' : 'empty',
-    window: { when, start: win.start.toISOString(), end: win.end.toISOString(), timezone: tz },
+    status,
+    window: { when, radius_miles: radiusMiles, start: win.start.toISOString(), end: win.end.toISOString(), timezone: tz },
+    // An empty answer says how to look wider: the next call must change when and radius_miles, never repeat this one.
+    ...(status === 'empty' ? { hint: wider ? `Nothing found for ${when} within ${radiusMiles} miles. To look wider, call again with when ${wider.when} and radius_miles ${wider.radius_miles}.` : `Nothing found for the next week within ${radiusMiles} miles. This is as wide as the search goes.`,
+      ...(wider ? { wider } : {}) } : {}),
     // The request starts at the top of the hour for the cache; a show that already began before
     // this call is not "to come", so it is dropped here (a date with no time stays).
     events: events.filter((e) => !startedBefore(e, at)).slice(0, take).map((e) => {

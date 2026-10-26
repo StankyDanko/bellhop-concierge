@@ -23,7 +23,7 @@
 import { MEMORY_TOOLS, TOOLS } from '../server/app.js';
 import { SECRET_HEADER } from '../server/lib/auth.js';
 import { TARGETS } from '../server/tools/cross-domain.js';
-import { CLASSIFICATIONS } from '../server/tools/events-nearby.js';
+import { CLASSIFICATIONS, WINDOWS as EVENT_WINDOWS } from '../server/tools/events-nearby.js';
 import { STAY_TOPICS } from '../server/tools/stay-info.js';
 
 /** Returning-guest memory tools: compiled only when the agent's memory webhook is on. */
@@ -69,6 +69,8 @@ const TASTE = {
 };
 
 const WHEN = s('tonight or weekend. Use tonight unless the guest said the weekend.', { enum: ['tonight', 'weekend'] });
+
+const EVENTS_WHEN = s('tonight, weekend, or week (the next seven days). Use tonight unless the guest said the weekend. When the guest says look wider, call again with the wider when and radius_miles the empty answer suggested.', { enum: [...EVENT_WINDOWS] });
 
 /** The road line's place input: what the guest said, never a street or a hotel. */
 export const LOCALITY = Object.freeze(s('The city and state the guest is in, in the words you said back, for example Asheville, North Carolina. Only a city and a state, never a street, a hotel, or an address. At most eighty characters.'));
@@ -118,7 +120,7 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
           companion_taste: { ...TASTE, description: 'Optional. The companion_resolved items exactly as resolve_taste returned them, one to eight. Only when the guest has a plus-one.' },
           kind: s('What the guest asked for: dining for restaurants, bars, and cafes, activity for things to do, any for both. Use dining when they ask where to eat or drink.', { enum: ['dining', 'activity', 'any'] }),
           ...where,
-          radius_miles: n('How far to look, in miles. Default three. Use one for walking.'),
+          radius_miles: n('How far to look, in miles. Default three, at most twenty five. Use one for walking. When the guest says look wider or nothing came back, call again with a larger radius_miles (eight, then fifteen, then twenty five) and leave max_minutes out.'),
           take: n('How many places to return, one to five. Use three.'),
           constraints: {
             type: 'object',
@@ -149,14 +151,15 @@ function serverToolSpecs(property, { propertyId, persona, memory = false, roamin
       },
     },
     events_nearby: {
-      description: `Ticketed events ${near} tonight or this weekend. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.`,
+      description: `Ticketed events ${near} tonight, this weekend, or in the next week. When it comes back empty it carries a hint with the wider when and radius_miles to try; when the guest says look wider, call it again with those, never with the same values. Each has a say line to speak as given, a when_label, and a pick_token. After the say line, add only the day or the venue, never a fit, a mood, or an occasion. Whenever the guest named a kind of event, such as a film, a concert, comedy, or sports, pass it as classification, so a film request gets only films. When the guest named a band or singer, pass that artist too: the answer then adds by_taste, up to two shows by artists Qloo ranks close to theirs, each with its own say line, why, when_label, and pick_token. Speak a by_taste say line as given, and to text one, pass its name, why, when_label, and pick_token to compose_itinerary unchanged.`,
       timeout: 12,
       body: {
         type: 'object',
         required: [...whereKeys, 'when'],
         properties: {
           ...where,
-          when: WHEN,
+          when: EVENTS_WHEN,
+          radius_miles: n('How far to look, in miles. Default ten, at most fifty. Raise it when the guest says look wider.'),
           classification: s(`The kind of event the guest asked for, one of ${CLASSIFICATIONS.join(', ')}. Set it whenever the guest named a kind, film for a movie, music for a band. Leave it out only when they want anything at all.`, { enum: [...CLASSIFICATIONS] }),
           take: n('How many events to return, one to five. Use three.'),
           artist: {
