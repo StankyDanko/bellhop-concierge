@@ -122,10 +122,13 @@ checks that each persona's own guess sample line matches, so a renamed guess can
 | `max_tokens` 250, temperature 0, one tool at a time, `max_duration_seconds` 600 | |
 | Platform guardrails on: prompt injection, focus, content (sexual, harassment, self harm, violence) | |
 | Session overrides off for prompt, model, tools, voice, first message | |
+| No backup model: the platform cascade is off and the model gets fifteen seconds | |
+| A wait over seven seconds gets a short, polite line, shuffled from five; lookups and the text always get a line before they run | |
+| Speech recognition boosts the persona, the place, and the demos by name, and filters background voices | |
 
 Trust levels: `test` caps the line at 20 calls a day and one at a time and tags the agent
 name, for the owner's own preview calls. `suggest` allows 100 a day and texts only when a guest
-asks. `live` allows 300 a day and offers the text after the first pick.
+asks. `live` allows 300 a day and offers the text once the guest has heard the picks.
 
 The access and wifi notes are never compiled. They come back in `sms_only` for the inn's own
 booking system to send to the reservation phone. An inbound call proves nothing about who is
@@ -153,6 +156,14 @@ properties; `built_in_tools.end_call` with `params.system_tool_type`; `platform_
 `call_limits`; `overrides`; and the `llm` id `claude-sonnet-4-5`. The create call also showed that
 `platform_settings.guardrails` needs `version: "1"`: without it the API answers 422. An unknown
 field name can still be ignored silently by an API, so a GET after every write remains the real check.
+
+Confirmed on 2026-10-25 against a live GET of a deployed agent and its tools, and the API's
+published schema for the enums and ranges: `prompt.backup_llm_config` (`{ preference: "default" |
+"disabled" | "override" }`), `prompt.cascade_timeout_seconds` (2 to 15), `turn.soft_timeout_config.
+{timeout_seconds, message, additional_soft_timeout_messages (at most seven), use_llm_generated_message,
+randomize_fillers, max_soft_timeouts_per_generation (1 to 8), disable_until_first_user_message}`,
+`asr.keywords`, `vad.background_voice_detection`, and the webhook tool's `pre_tool_speech`
+(`auto`, `force`, `off`).
 
 ## How this relates to the hosted product
 

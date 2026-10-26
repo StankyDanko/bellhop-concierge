@@ -234,6 +234,10 @@ function renderPersonaExamples(persona) {
     persona.sections['sample lines'],
     'Example calls. Each is a different kind of call, in a few turns. Notice how short every turn is, how little the concierge says, how the guest only ever has to react, and that no two go the same way. Your call goes wherever this caller takes it.',
     persona.sections['example calls'],
+    ...(persona.sections['reading the picks'] ? [
+      'Reading the picks. These start once a lookup comes back. One pick at a time, then the guest reacts, and the reaction steers the next pick. Brackets are what this guest and the tool results say.',
+      persona.sections['reading the picks'],
+    ] : []),
   ].join('\n\n');
 }
 
@@ -365,6 +369,18 @@ function renderMemoryTools(memory, first) {
   ].join('\n');
 }
 
+/** What to do when a half remembered title is not found: search for it when the tool is there, else ask once. */
+export function renderTitleSearch(webSearch) {
+  if (!webSearch) return 'If resolve_taste cannot find it, say plainly that you could not place that one, and ask once what it is most like.';
+  return 'If resolve_taste cannot find it, call search_the_web with the words they remember and where they saw it, like [the service] series [the words they remember]. Offer the likely title back as a question, like [the title]?, and once the guest says yes, send that title to resolve_taste and use it. If the search finds nothing, say plainly that you could not place that one, and ask once what it is most like.';
+}
+
+/** The web search tool's entry in the tool list, only when the compiled agent has it. */
+export function renderSearchTool(webSearch) {
+  if (!webSearch) return '';
+  return 'search_the_web. Use it for a half remembered title that resolve_taste could not find, and for a plain fact the guest asks about that the other tools do not cover. Say only the title or the fact it found, in a few words, never a site name or a web address. Never recommend a place or an event from it: every pick comes from the other tools.';
+}
+
 function renderSending(c) {
   if (!c.permissions.send_itinerary_sms) {
     return 'Texting is off on this line. Never offer a text and never use compose_itinerary. Say the top two picks out loud, names and reasons only, so the guest can jot them down.';
@@ -373,8 +389,8 @@ function renderSending(c) {
     ? 'Only if the guest asks for it, offer to text the plan.'
     : 'Offer to text the picks you hold: the names, a few words on each, and a link. Offer it once on the call and never again.';
   return [
-    `Texting the plan. After you say the top pick, ${offer.charAt(0).toLowerCase()}${offer.slice(1)}`,
-    'When the guest agrees, call compose_itinerary with up to three picks copied from the tool results, then call send_sms with the body it returned, unchanged.',
+    `Texting the plan. Once the guest has heard the picks, ${offer.charAt(0).toLowerCase()}${offer.slice(1)}`,
+    'When the guest agrees, call compose_itinerary with the picks the guest liked or kept, up to three, copied from the tool results, then call send_sms with the body it returned, unchanged.',
     'This step is important. Say the text was sent only after send_sms returns a success, in a few words, then ask if there is anything else. The guest is not done because a text went out: keep the call open, and say your goodbye and end the call only when the guest says they are done.',
   ].join(' ');
 }
@@ -455,6 +471,19 @@ export function compile(config, opts = {}) {
   const inner = { property_name: propertyName, handoff_name: handoffName };
 
   const memoryWebhook = opts.memoryWebhook === true;
+  const tools = serverToolConfigs({
+    property: c.property,
+    propertyId: propertyIdOf(c.property),
+    persona: persona.id,
+    baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
+    secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
+    memory: memoryWebhook,
+    roaming: persona.mode === 'road',
+  }).filter((t) => (c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME)
+    // stay_info only for a config with a stay sheet; every config without one compiles as before.
+    && (c.stay || t.tool_config.name !== STAY_TOOL_NAME))
+    .map((t) => (PRE_TOOL_SPEECH[t.tool_config.name] ? { ...t, tool_config: { ...t.tool_config, pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } } : t));
+  const webSearch = tools.some((t) => t.tool_config.name === WEB_SEARCH_TOOL_NAME);
   const slots = {
     ...inner,
     persona: fillSlots(renderPersona(persona), inner),
@@ -476,6 +505,8 @@ export function compile(config, opts = {}) {
     memory_tools: renderMemoryTools(memoryWebhook, persona.mode === 'road' || (persona.mode === 'rental' && c.stay) ? 7 : 6),
     stay_rule: renderStayRule(c),
     stay_tool: renderStayTool(c, 6),
+    title_search: renderTitleSearch(webSearch),
+    search_tool: renderSearchTool(webSearch),
   };
 
   const roaming = persona.mode === 'road';
@@ -509,18 +540,6 @@ export function compile(config, opts = {}) {
     },
   } : {};
 
-  const tools = serverToolConfigs({
-    property: c.property,
-    propertyId: propertyIdOf(c.property),
-    persona: persona.id,
-    baseUrl: opts.toolBaseUrl ?? DEFAULTS.toolBaseUrl,
-    secretId: opts.toolSecretId ?? DEFAULTS.toolSecretId,
-    memory: memoryWebhook,
-    roaming,
-  }).filter((t) => (c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME)
-    // stay_info only for a config with a stay sheet; every config without one compiles as before.
-    && (c.stay || t.tool_config.name !== STAY_TOOL_NAME))
-    .map((t) => (PRE_TOOL_SPEECH[t.tool_config.name] ? { ...t, tool_config: { ...t.tool_config, pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } } : t));
 
   const agent = {
     name: `${c.property.name} Concierge, ${persona.display_name}${c.trust_level === 'test' ? ' [test]' : ''}`,

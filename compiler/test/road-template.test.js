@@ -43,8 +43,8 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['{{faq}}', 'no owner answers', '09f788d85f6836b7'],
   ['2. recommend_nearby.', 'takes the locality, ranks near that city', 'f09a01e643916b96'],
   ['4. cross_domain.', 'nothing to watch at an inn; something to watch tonight', 'e87ec571029ff3a7'],
-  ['When results come back, say up to three picks', 'no owner avoid list', 'ef1cab80167a9fef'],
-  ['If a lookup is taking a while', "no owner's picks to fall back on", '95c84f8102088e67'],
+  ['This step is important. One pick at a time.', 'no owner avoid list', 'c0e4bbba2ad7e0aa'],
+  ['If a lookup is taking a while', "no owner's picks to fall back on", '73421fe20187fd81'],
 ]).map(([start, reason, pin]) => [start, { reason, pin }]));
 
 test('every line of concierge.md is in road.md, or is listed as rewritten for the road', () => {

@@ -51,6 +51,10 @@ Each persona is one Markdown file:
   names and tastes go in square brackets (`[name]`, `[a dish]`, `[town]`) for the agent to fill
   from the caller's own words, and no two example calls go the same way.
 
+- **`## Reading the picks (compiled)`** (optional): what happens once a lookup comes back, in the
+  same `Guest:` / `<display_name>:` lines. One pick a turn, the guest reacts, and the reaction steers
+  the next pick. These start after the lookup, so the stop rule does not apply to them.
+
 - **`## Example call checks`** (not compiled): one line per example call, `- <title>: n, n, n`,
   giving how many taste signals the caller has given after each of their turns. A test uses it
   to hold every example call to the stop rule (see `compiler/README.md`).
