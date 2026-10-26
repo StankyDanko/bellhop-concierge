@@ -404,7 +404,7 @@ function renderSending(c) {
   return [
     `Texting the plan. Once the guest has heard the picks, ${offer.charAt(0).toLowerCase()}${offer.slice(1)}`,
     'When the guest agrees, call compose_itinerary with the picks the guest liked or kept, up to three, copied from the tool results, then call send_sms with the body it returned, unchanged.',
-    'This step is important. Say the text was sent only after send_sms returns a success, in a few words, then ask if there is anything else. The guest is not done because a text went out: keep the call open, and say your goodbye and end the call only when the guest says they are done.',
+    'This step is important. Say the text was sent only after send_sms returns a success, in a few words, and give the guest a beat to look, like it is on your phone, take a look. Then stop and let them answer: never ask if there is anything else in that same turn, because it sounds like you are about to end the call. The guest is not done because a text went out: keep the call open, and say your goodbye and end the call only when the guest says they are done.',
   ].join(' ');
 }
 

@@ -24,7 +24,7 @@ const AGENTS = {
   hollis: (o) => compile(cfg('road-line'), { ...OPTS, ...o }),
   marisol: (o) => compile(cfg('miami-rental'), { ...OPTS, ...o }),
 };
-const QUIZ = /loving lately|in your feed|your reading lately|been into lately|a band, a dish, a show|what city and state you're in|city and state, so/i;
+const QUIZ = /loving lately|in your feed|your reading lately|been into lately|usually go for|a band, a dish, a show|what city and state you're in|city and state, so/i;
 
 /** Every file under a directory, recursively. */
 const walk = (dir) => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [join(dir, f)]));
@@ -32,9 +32,11 @@ const walk = (dir) => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).is
 test('the old taste quiz is gone from every source the agents are built from', () => {
   // Tests may name the phrase to forbid it; the template may only forbid it, in its one rule.
   const RULE = 'Never ask what they have been loving lately';
+  // The stated-need rule names the two relapse questions so it can forbid them, once per template.
+  const NEED_RULE = /Never ask what they have been into lately, and never ask what kind of films or shows they usually go for\.|Wrong: "What kind of movies do you usually go for\?" Also wrong: "What have you been into lately\?"/g;
   const sources = ['template', 'personas', 'server/conversation', 'config', 'compiler'].flatMap((d) => walk(join(ROOT, d)))
     .filter((f) => /\.(md|json|js)$/.test(f) && !f.includes(`${join('compiler', 'test')}`));
-  const hits = sources.filter((f) => QUIZ.test(readFileSync(f, 'utf8').replaceAll(RULE, ''))).map((f) => f.slice(ROOT.length));
+  const hits = sources.filter((f) => QUIZ.test(readFileSync(f, 'utf8').replaceAll(RULE, '').replace(NEED_RULE, ''))).map((f) => f.slice(ROOT.length));
   assert.deepEqual(hits, []);
 });
 
