@@ -547,6 +547,21 @@ export class GuestMemory {
     return true;
   }
 
+  /**
+   * Fold what the call has so far into the caller's row, without closing the call. The tools call
+   * this as things happen (a name, a town, an offer, a text) so a call that ends badly, or never
+   * reaches log_session, still leaves the name and the place for the next call. Folding is
+   * idempotent: it rebuilds from the call's scratch each time, so doing it again, or doing it
+   * and then commit(), writes the same row and nothing doubles. Skipped when the guest said forget me.
+   * @param {string} sessionId
+   */
+  checkpoint(sessionId) {
+    const l = this.link(sessionId);
+    if (!l || l.scratch.forgotten) return false;
+    this.commitLink(l);
+    return true;
+  }
+
   expiredLink(sessionId) {
     const sid = sessionFrom(sessionId);
     if (!sid) return null;
@@ -720,7 +735,13 @@ export function observeTool(memory, tool, body, result) {
       break;
     default:
   }
+  // Fold the call so far into the row as it goes, so a call that never reaches log_session still
+  // leaves the guest's name, town, and offered or texted places behind.
+  if (CHECKPOINT_TOOLS.has(tool) || typeof result.locality === 'string') memory.checkpoint(sid);
 }
+
+/** Tools after which the call's memory is saved at once. */
+const CHECKPOINT_TOOLS = new Set(['remember_guest', 'recommend_nearby', 'cross_domain', 'send_sms']);
 
 /** Param keys that carry ids a tool added from memory. */
 const SIGNAL_KEYS = ['signal.interests.entities', 'signal.interests.tags'];
