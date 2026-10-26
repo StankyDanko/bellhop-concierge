@@ -29,6 +29,72 @@ export const LOCKED_SETTINGS = Object.freeze({
 });
 
 /**
+ * The language model has no fallback. With the platform's backup cascade on, a slow answer
+ * from the chosen model handed the call to a different model that called a tool which does
+ * not exist, about twenty five times, while the guest waited in silence. So the backup is
+ * off, and the chosen model gets the longest wait the platform allows (fifteen seconds).
+ * Field names and the range are the platform's own (agent.prompt in the agent API schema).
+ */
+export const LLM_CASCADE = Object.freeze({
+  backup_llm_config: Object.freeze({ preference: 'disabled' }),
+  cascade_timeout_seconds: 15,
+});
+
+/**
+ * What the guest hears when the model takes a while to answer: a short, polite line after
+ * seven seconds, and another seven seconds later, drawn in a shuffled order each turn so two
+ * waits in a row do not sound the same. Never during the opener, before the guest has spoken.
+ * The words follow the prompt's writing rules: commas and periods only.
+ */
+export const WAIT_FILLERS = Object.freeze([
+  'Still on it, thanks for hanging in.',
+  'Thanks for your patience, almost there.',
+  'Bear with me, one more second.',
+  'Still looking, thanks for waiting.',
+  'Almost got it, thanks for sticking with me.',
+]);
+export const SOFT_TIMEOUT = Object.freeze({
+  timeout_seconds: 7,
+  message: WAIT_FILLERS[0],
+  additional_soft_timeout_messages: WAIT_FILLERS.slice(1),
+  use_llm_generated_message: false,
+  randomize_fillers: true,
+  max_soft_timeouts_per_generation: 2,
+  disable_until_first_user_message: true,
+});
+
+/** The web search tool's name. The compiler includes the tool only when asked; the prompt follows what is there. */
+export const WEB_SEARCH_TOOL_NAME = 'search_the_web';
+
+/**
+ * Whether the agent speaks before a tool runs. force: the lookups that go out to Qloo,
+ * Ticketmaster, or the web, and the text, so the guest always hears a short line before a
+ * wait. off: the tools the prompt calls silently, where a spoken line would announce a
+ * bookkeeping step. Any other tool keeps the platform's own choice (auto, by recent latency).
+ */
+export const PRE_TOOL_SPEECH = Object.freeze({
+  recommend_nearby: 'force',
+  events_nearby: 'force',
+  cross_domain: 'force',
+  area_insights: 'force',
+  compose_itinerary: 'force',
+  [WEB_SEARCH_TOOL_NAME]: 'force',
+  remember_guest: 'off',
+  log_session: 'off',
+});
+
+/**
+ * Speech recognition boosts the names a caller says to reach someone: the persona, the place,
+ * and on the road line the two demos. Background voices are filtered (vad in compile), so a
+ * street, a TV, or a nearby table is not heard as the caller's answer.
+ * @param {{ display_name: string }} persona @param {string} propertyName @param {boolean} roaming
+ */
+export function asrKeywords(persona, propertyName, roaming) {
+  const names = [persona.display_name, propertyName, ...(roaming ? ['Harper', 'Marisol', 'The Juniper House', 'Casa Coralina', 'Airbnb'] : [])];
+  return [...new Set(names.map((n) => speakable(n)).filter(Boolean))];
+}
+
+/**
  * inn: the persona answers for one inn at fixed coordinates. road: the caller says where they are.
  * rental: one short-term rental at fixed coordinates, with a stay sheet instead of a front desk.
  */
@@ -453,7 +519,8 @@ export function compile(config, opts = {}) {
     roaming,
   }).filter((t) => (c.permissions.send_itinerary_sms || t.tool_config.name !== SMS_TOOL_NAME)
     // stay_info only for a config with a stay sheet; every config without one compiles as before.
-    && (c.stay || t.tool_config.name !== STAY_TOOL_NAME));
+    && (c.stay || t.tool_config.name !== STAY_TOOL_NAME))
+    .map((t) => (PRE_TOOL_SPEECH[t.tool_config.name] ? { ...t, tool_config: { ...t.tool_config, pre_tool_speech: PRE_TOOL_SPEECH[t.tool_config.name] } } : t));
 
   const agent = {
     name: `${c.property.name} Concierge, ${persona.display_name}${c.trust_level === 'test' ? ' [test]' : ''}`,
@@ -469,6 +536,7 @@ export function compile(config, opts = {}) {
           temperature: LOCKED_SETTINGS.temperature,
           max_tokens: LOCKED_SETTINGS.max_tokens,
           enable_parallel_tool_calls: false,
+          ...LLM_CASCADE,
           tool_ids: [],
           built_in_tools: {
             end_call: {
@@ -481,6 +549,9 @@ export function compile(config, opts = {}) {
           },
         },
       },
+      asr: { keywords: asrKeywords(persona, propertyName, roaming) },
+      vad: { background_voice_detection: true },
+      turn: { soft_timeout_config: { ...SOFT_TIMEOUT, additional_soft_timeout_messages: [...SOFT_TIMEOUT.additional_soft_timeout_messages] } },
       tts: {
         model_id: LOCKED_SETTINGS.tts_model_id,
         voice_id: opts.voiceId ?? DEFAULTS.voiceId,
