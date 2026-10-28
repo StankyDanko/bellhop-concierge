@@ -17,7 +17,7 @@ for (const persona of ['harper', 'maybelle']) {
     const p = prompt(r);
     assert.match(p, /The plus-one\. If the guest says we, or mentions someone with them/);
     assert.match(p, /Ask it at most once, only if it helps the plan, and never on the practical path\./);
-    assert.match(p, /This step is important\. The stop rule\. Ask no more than three questions before the guest hears a first pick/);
+    assert.match(p, /This step is important\. The stop rule\. Ask no more than two questions before the guest hears a first pick/);
     for (const line of ['that one leans your way', 'that one is for your plus-one', 'this one you both will like']) {
       assert.ok(p.includes(line), line);
     }

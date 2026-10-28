@@ -1,7 +1,7 @@
 // The worked example calls teach the agent more than any rule written next to them, so they
 // must obey the stop rule exactly. This test parses every persona's "Example calls" section
 // and its uncompiled "Example call checks" list and fails if an example:
-//   - puts more than three concierge questions before the lookup (the first message asks only
+//   - puts more than two concierge questions before the lookup (the first message asks only
 //     for a name, so it does not count, and neither does asking again for a name or a place),
 //   - asks any question once the caller has given three taste signals, or
 //   - ends on a question instead of the lookup line, or
@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { listPersonas, loadPersona } from '../compile.js';
 
 const PERSONAS_DIR = new URL('../../personas/', import.meta.url);
-const MAX_QUESTIONS = 3;
+const MAX_QUESTIONS = 2;
 const STOP_AT_NAMED = 3;
 
 /** @returns {Array<{ title: string, turns: Array<{ who: 'guest'|'concierge', text: string }> }>} */

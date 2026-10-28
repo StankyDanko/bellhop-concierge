@@ -96,7 +96,7 @@ in different directions: a quiet caller, a chatty one, someone lonely, someone w
 fast, a movie for the room, a caller who banters back. `compiler/test/examples.test.js` parses
 every persona's `## Example calls (compiled)` section and fails the build if an example:
 
-- puts more than three concierge questions before the lookup line (the first message only asks
+- puts more than two concierge questions before the lookup line (the first message only asks
   for a name, so it never counts, and neither does asking again for a name or, for a road
   persona, asking where the caller is),
 - asks any question after the caller has given three taste signals (the plus-one's count),

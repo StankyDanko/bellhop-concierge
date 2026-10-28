@@ -179,7 +179,7 @@ test('road: no inn, no room card, no innkeeper, no owner notes in the prompt', (
   for (const value of ['No check-in', 'the road line has no rooms', 'Anyone in the United States, at home']) assert.ok(!p.includes(value), `config text leaked: ${value}`);
   assert.match(p, /you learn it in the conversation, never as the first thing you ask/);
   assert.match(p, /like where are you staying tonight\?/);
-  assert.match(p, /never counts toward the three questions in the stop rule/);
+  assert.match(p, /never counts toward the two questions in the stop rule/);
 });
 
 test('road: runtime variables always have placeholders, and they rebuild the opener byte for byte', () => {

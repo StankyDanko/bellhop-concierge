@@ -169,7 +169,7 @@ test('the compiled prompt: no invented town, the town from last time is confirme
   const out = compile(cfg, { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test', memoryWebhook: true });
   const prompt = out.agent.conversation_config.agent.prompt.prompt;
   assert.match(prompt, /Never invent a place: the locality you pass to any tool is a town the guest said on this call, or the town from an earlier call, \{\{last_place\}\}, which they confirmed on this call, and nothing else/);
-  assert.match(prompt, /still in Macon\? and only then use it/);
+  assert.match(prompt, /are you still in Macon tonight\? and only then use it/);
   assert.match(prompt, /If it is none, ask where they are/);
   assert.match(prompt, /The town from last time, for a guest who said yes: \{\{last_place\}\}/);
   assert.match(prompt, /recording note comes next, before any question and before the one thing from last time, every time, whatever caller_status is and even on a same-day call/);
