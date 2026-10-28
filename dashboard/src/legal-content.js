@@ -117,7 +117,7 @@ export const TERMS = {
       heading: 'What this is',
       blocks: [{ ul: [
         'A working demo. The inn on the demo line, The Juniper House, is fictional.',
-        'The demo number is capped at twenty calls a day.',
+        'The demo number takes up to three hundred calls a day, three at a time.',
         'It is offered as is, with no warranty of any kind. It may be slow, down, or changed without notice.',
       ] }],
     },

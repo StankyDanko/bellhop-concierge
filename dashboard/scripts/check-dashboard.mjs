@@ -35,7 +35,7 @@ const js = assets.filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(
 const css = assets.filter((f) => f.endsWith('.css')).map((f) => readFileSync(join(D, 'dist/assets', f), 'utf8')).join('\n');
 for (const s of ['What your callers love.', 'Every call, and what it asked Qloo.', 'The text a guest gets.', 'Who shares these tastes nearby.',
   'What to stock or partner with.', 'How to read this page', 'Back to the dashboard', 'The guest names things', 'Qloo ranks places near the inn',
-  'One text with the reasons', 'What your concierge will be told.', 'Test line, 20 calls a day', 'Not published', "Your callers' taste fingerprint"]) {
+  'One text with the reasons', 'What your concierge will be told.', 'Live line, 300 calls a day', 'Not published', "Your callers' taste fingerprint"]) {
   check(js.includes(s), `bundle carries ${JSON.stringify(s)}`);
 }
 // "Back to the front desk" survives in App.jsx's not-found page (a link to the landing); the brief check is on its rendered text below.
@@ -116,7 +116,7 @@ try {
   check(ta.includes('What the people who call your number love, every call with the requests behind it, and the text each guest gets.'), 'one-sentence lede: what the innkeeper gets');
   const h2s = [...a.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => textOf(m[1]).trim());
   check(JSON.stringify(h2s) === JSON.stringify(['What your callers love.', 'Every call, and what it asked Qloo.', 'The text a guest gets.', 'Who shares these tastes nearby.', 'What to stock or partner with.']), `H2 order ${JSON.stringify(h2s)}`);
-  check(ta.includes('Not published') && ta.includes('Test line, 20 calls a day') && !/\bDraft\b|Trust:/.test(ta), 'plain chips: Not published, Test line, 20 calls a day');
+  check(ta.includes('Not published') && ta.includes('Live line, 300 calls a day') && !/\bDraft\b|Trust:/.test(ta), 'plain chips: Not published, Live line, 300 calls a day');
   check(a.includes('aria-label="How to read this page"') && ta.includes('Fictional callers, to show how the page looks.'), 'reading key: what is sample');
   check(ta.includes('On this server Qloo is answering from sample fixtures.'), 'reading key: mock said plainly when Qloo is mock');
   const floorHits = (ta.match(/so no single guest can be picked out/g) ?? []).length;
@@ -184,7 +184,7 @@ try {
   // ---- 5. numbers: live count, clock, or a measured constant ----
   const MEASURED = new Map([
     ['480', 'MEASUREMENTS.md: "Text at most 480 characters" (grep -n "MAX_CHARS =" server/lib/sms.js)'],
-    ['20', 'MEASUREMENTS.md: "Twenty calls a day on the test line" (grep -n "daily_limit" compiler/compile.js)'],
+    ['300', 'MEASUREMENTS.md: "Calls a day by trust level ... live 300" (grep -n "daily_limit" compiler/compile.js)'],
     ['5', 'MEASUREMENTS.md: "Panels dark below five calls" (grep -n "SESSION_GATE =" server/api/routes.js)'],
     ['1', 'radius control and ranks'], ['2', 'radius control'], ['3', 'ranks and the three-station rail'],
   ]);

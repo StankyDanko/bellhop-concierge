@@ -62,7 +62,7 @@
     "suggest_partners": false,
     "upsell": false
   },
-  "trust_level": "test",
+  "trust_level": "live",
   "stay": {
     "welcome": "Welcome to Casa Coralina. Make yourself at home, the coffee in the kitchen is yours, and the hammock out back is the best seat in the house.",
     "amenities": "The pool is shared with one other cottage and is open from eight in the morning to ten at night. Two bikes and the beach towels are in the hall closet.",

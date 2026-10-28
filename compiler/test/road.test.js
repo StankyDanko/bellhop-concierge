@@ -108,7 +108,8 @@ test('road: trust level sets the call limits exactly as it does for an inn', () 
     assert.deepEqual(r.agent.platform_settings.call_limits, { ...TRUST_LIMITS[level], bursting_enabled: false });
     assert.equal(r.agent.name.endsWith('[test]'), level === 'test');
   }
-  assert.deepEqual(compile(road(), OPTS).agent.platform_settings.call_limits, { daily_limit: 20, agent_concurrency_limit: 1, bursting_enabled: false });
+  // The road line is the public number judges call: live limits.
+  assert.deepEqual(compile(road(), OPTS).agent.platform_settings.call_limits, { daily_limit: 300, agent_concurrency_limit: 3, bursting_enabled: false });
 });
 
 test('road: the inn demo and the rental demo are one transfer away, with placeholders until the agent ids are passed', () => {

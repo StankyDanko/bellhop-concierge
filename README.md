@@ -27,7 +27,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 
 **Where the demo stands.** Qloo is live: the hackathon key arrived on October 19, 2026, every
 capability below was checked against the live API on October 22, and the public server reports Qloo
-as live. The number is a toll-free line, verified for texting, capped at twenty calls a day. The server says which mode
+as live. The number is a toll-free line, verified for texting, capped at three hundred calls a day, three at once. The server says which mode
 each service is in, Qloo, Ticketmaster, and the text sender, so you never have to take our word
 for it:
 
