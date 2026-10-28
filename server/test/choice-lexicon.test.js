@@ -19,7 +19,7 @@ export function choicePairs(text) {
 
 /** The choice pools the call setup draws from (server/conversation/pools.json): enabled pairs only. */
 const POOL_PAIRS = JSON.parse(readFileSync(new URL('server/conversation/pools.json', ROOT), 'utf8')).pairs
-  .filter((p) => p.enabled).map((p) => ({ f: `pools.json ${p.id}`, p: p.sides.map((side) => side.join(' and ')), text: p.text }));
+  .filter((p) => p.enabled).map((p) => ({ f: `pools.json ${p.id}`, p: p.sides.map((side) => side.join(' and ')), text: p.text, ask: p.ask }));
 
 /** A side the guest can pick: a vibe or budget answer. */
 export const isAnswer = (side) => { const v = vibeOf(side); return Boolean(v && !v.undecided && (v.tastes.length || v.budget)); };
@@ -44,7 +44,11 @@ test('every side of every offered choice is a vibe or budget answer', () => {
     for (const side of p) assert.ok(isAnswer(side), `${f}: "${side}" is not a lexicon answer`);
     assert.ok(saidBackIsNoAnswer(p), `${f}: "${p.join(' or ')}" said back still resolves to a taste or a budget`);
   }
-  for (const { f, p, text } of POOL_PAIRS) assert.equal(text, p.join(', or '), `${f}: the spoken text and the sides agree`);
+  for (const { f, p, text, ask } of POOL_PAIRS) {
+    assert.equal(text, p.join(', or '), `${f}: the text and the sides agree`);
+    // What the guest hears is the whole question, and it names each side in the words resolve_taste knows.
+    assert.ok(ask?.endsWith('?') && p.every((side) => ask.includes(side)), `${f}: the spoken question names both sides: ${ask}`);
+  }
 });
 
 test('the said-back check bites: a pair with no opposite across its sides is caught', () => {

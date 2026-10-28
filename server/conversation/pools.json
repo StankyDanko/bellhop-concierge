@@ -308,6 +308,7 @@
     {
       "id": "p-spicy",
       "text": "spicy and loud, or slow and candlelit",
+      "ask": "Are you in the mood for somewhere spicy and loud, or somewhere slow and candlelit?",
       "sides": [
         [
           "spicy",
@@ -331,6 +332,7 @@
     {
       "id": "p-lively",
       "text": "spicy and lively, or slow and candlelit",
+      "ask": "Would you like somewhere spicy and lively, or would you rather go slow and candlelit?",
       "sides": [
         [
           "spicy",
@@ -352,6 +354,7 @@
     {
       "id": "p-adventure",
       "text": "adventurous and fun, or familiar and quiet",
+      "ask": "Do you feel like something adventurous and fun, or something familiar and quiet?",
       "sides": [
         [
           "adventurous",
@@ -370,6 +373,7 @@
     {
       "id": "p-noise",
       "text": "loud and fun, or quiet and candlelit",
+      "ask": "Are you after a place that is loud and fun, or one that is quiet and candlelit?",
       "sides": [
         [
           "loud",
@@ -388,6 +392,7 @@
     {
       "id": "p-heat",
       "text": "spicy and adventurous, or slow and familiar",
+      "ask": "Would you like to try something spicy and adventurous, or keep it slow and familiar?",
       "sides": [
         [
           "spicy",
@@ -406,6 +411,7 @@
     {
       "id": "p-patio",
       "text": "casual and outdoors, or cozy and candlelit",
+      "ask": "Do you want something casual and outdoors, or somewhere cozy and candlelit?",
       "sides": [
         [
           "casual",
@@ -424,6 +430,7 @@
     {
       "id": "p-dress",
       "text": "upscale and quiet, or casual and loud",
+      "ask": "Are you dressing up for upscale and quiet, or keeping it casual and loud?",
       "sides": [
         [
           "upscale",
@@ -442,6 +449,7 @@
     {
       "id": "p-light",
       "text": "fresh and light, or hearty and slow",
+      "ask": "Are you hungry for something fresh and light, or something hearty and slow?",
       "sides": [
         [
           "fresh",
@@ -460,6 +468,7 @@
     {
       "id": "p-view",
       "text": "scenic and slow, or lively and casual",
+      "ask": "Would you like somewhere scenic and slow, or somewhere lively and casual?",
       "sides": [
         [
           "scenic",
@@ -478,6 +487,7 @@
     {
       "id": "p-share",
       "text": "casual and spicy, or upscale and candlelit",
+      "ask": "Are you thinking something casual and spicy, or something upscale and candlelit?",
       "sides": [
         [
           "casual",
@@ -496,6 +506,7 @@
     {
       "id": "p-cozy",
       "text": "outdoors and fun, or cozy and quiet",
+      "ask": "Are you up for something outdoors and fun, or something cozy and quiet?",
       "sides": [
         [
           "outdoors",
@@ -514,6 +525,7 @@
     {
       "id": "p-comfort",
       "text": "hearty and familiar, or fresh and adventurous",
+      "ask": "Do you want something hearty and familiar, or something fresh and adventurous?",
       "sides": [
         [
           "hearty",
@@ -552,7 +564,7 @@
     },
     {
       "id": "n-looking",
-      "text": "What's tonight looking like?",
+      "text": "What's tonight looking like for you?",
       "dayparts": [
         "afternoon",
         "evening",
@@ -561,7 +573,7 @@
     },
     {
       "id": "n-plan",
-      "text": "Got a plan for tonight, or are we making one?",
+      "text": "Do you have a plan tonight, or are we making one?",
       "dayparts": [
         "afternoon",
         "evening",
@@ -570,7 +582,7 @@
     },
     {
       "id": "n-settled",
-      "text": "Just got in, or have you been settled a while?",
+      "text": "Did you just get in, or have you been settled for a while?",
       "dayparts": [
         "any"
       ]
@@ -584,14 +596,14 @@
     },
     {
       "id": "n-day",
-      "text": "How's your day been?",
+      "text": "How has your day been so far?",
       "dayparts": [
         "any"
       ]
     },
     {
       "id": "n-hungry",
-      "text": "Hungry yet, or not quite?",
+      "text": "Are you hungry yet, or is it a bit early for food?",
       "dayparts": [
         "any"
       ]
@@ -605,7 +617,7 @@
     },
     {
       "id": "n-easy",
-      "text": "Big night, or an easy one?",
+      "text": "Are you after a big night tonight, or more of an easy one?",
       "dayparts": [
         "evening",
         "late"

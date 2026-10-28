@@ -123,7 +123,8 @@ export function choose({ persona = FALLBACK_PERSONA, status, name = '', now = ne
   const hook = pick(avoidRecent(defaultsFirst(hookPool, key), last.openerIds), rng, defaultOf(pool.openers, key));
   const opener_hook = known ? hook.text.replaceAll('<name>', name) : hook.text;
 
-  // The mood choice for a stuck caller: never the last pair, never one that shares a side with it.
+  // The mood choice for a stuck caller, handed over as its whole spoken question (ask): never the
+  // last pair, never one that shares a side with it.
   const lastPair = POOLS.pairs.find((p) => p.id === (last.pairIds ?? []).at(-1));
   const lastSides = new Set((lastPair?.sides ?? []).map(sideKey));
   const pairPool = POOLS.pairs.filter((p) => p.enabled && fits(p.dayparts, daypart)
@@ -138,7 +139,7 @@ export function choose({ persona = FALLBACK_PERSONA, status, name = '', now = ne
   return {
     vars: {
       opener_hook,
-      choice_pair: pair.text,
+      choice_pair: pair.ask ?? pair.text,
       night_question: night.text,
       plan_window: POOLS.plan_windows[daypart],
       caller_status: state,
@@ -173,7 +174,7 @@ export function spokenLines() {
   for (const [persona, p] of Object.entries(POOLS.personas)) {
     for (const o of [...p.openers, ...p.returning, ...p.same_day]) out.push({ where: `${persona}.${o.id}`, text: o.text.replaceAll('<name>', SAMPLE_NAME) });
   }
-  out.push(...POOLS.pairs.map((p) => ({ where: p.id, text: p.text })),
+  out.push(...POOLS.pairs.map((p) => ({ where: p.id, text: p.ask ?? p.text })),
     ...(POOLS.night_questions ?? []).map((q) => ({ where: q.id, text: q.text })),
     ...Object.values(POOLS.plan_windows).map((text) => ({ where: 'plan_windows', text })));
   return out;

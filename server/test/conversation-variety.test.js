@@ -106,8 +106,8 @@ test('empty memory and default variables give the compiled first message, byte f
     assert.equal(v.greeting, undefined);
     assert.equal(v.bet_domain, undefined);
   }
-  assert.equal(defaultVars('harper').choice_pair, 'spicy and loud, or slow and candlelit');
-  assert.equal(defaultVars('maybelle').choice_pair, 'spicy and lively, or slow and candlelit');
+  assert.equal(defaultVars('harper').choice_pair, 'Are you in the mood for somewhere spicy and loud, or somewhere slow and candlelit?');
+  assert.equal(defaultVars('maybelle').choice_pair, 'Would you like somewhere spicy and lively, or would you rather go slow and candlelit?');
   assert.ok(POOLS.personas.marisol, 'Marisol has her own pools, not Harper\'s');
   // An unknown persona is Harper, never an exception.
   assert.deepEqual(defaultVars('nobody'), defaultVars('harper'));
