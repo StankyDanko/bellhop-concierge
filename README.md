@@ -11,7 +11,7 @@ A twelve-room inn doesn't have a concierge. It has an innkeeper who is also the 
 baker, and the person who picks up the phone at 11pm. This is for them.
 
 Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026. Project page: [Devpost](https://devpost.com/software/bellhop-concierge).
-[Live demo](https://concierge.southernsky.cloud) · call **(706) 810-9262** ·
+[Live demo](https://concierge.southernsky.cloud) · call **(833) 658-4321** ·
 [Architecture](docs/ARCHITECTURE.md) · [How we use Qloo](docs/QLOO.md) ·
 [What we learned](docs/LEARNED.md) · [AGPL-3.0](LICENSE)
 
@@ -19,7 +19,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 
 | | |
 |---|---|
-| **Call it** | **(706) 810-9262.** Harper answers for The Juniper House, a demo inn in Savannah, GA. Name a band you love and what you feel like eating. |
+| **Call it** | **(833) 658-4321.** Harper answers for The Juniper House, a demo inn in Savannah, GA. Name a band you love and what you feel like eating. |
 | **See it** | [concierge.southernsky.cloud](https://concierge.southernsky.cloud): a sample pick, the Qloo request behind it, and what the guest would have heard without their tastes. |
 | **Run the inn** | [`/property/demo`](https://concierge.southernsky.cloud/property/demo): calls, the exact text a guest gets, where each line came from, area insights. |
 | **Print the brief** | [`/property/demo/brief`](https://concierge.southernsky.cloud/property/demo/brief): one page for the front desk, room cards tear off the bottom. |
@@ -27,7 +27,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 
 **Where the demo stands.** Qloo is live: the hackathon key arrived on October 19, 2026, every
 capability below was checked against the live API on October 22, and the public server reports Qloo
-as live. The number is a test line, capped at twenty calls a day. The server says which mode
+as live. The number is a toll-free line, verified for texting, capped at twenty calls a day. The server says which mode
 each service is in, Qloo, Ticketmaster, and the text sender, so you never have to take our word
 for it:
 

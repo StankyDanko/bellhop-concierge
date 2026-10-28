@@ -20,7 +20,7 @@ export const SITE = 'https://southernsky.cloud';
 export const REPO_URL = 'https://github.com/StankyDanko/bellhop-concierge';
 export const BRIDGE = 'Bellhop Concierge is a product of SouthernSky, a service of E Brands, LLC.';
 export const SUPPORT_EMAIL = 'support@southernsky.cloud';
-/** The toll-free line under carrier review. Printed on the opt-in page's room card only. */
+/** The toll-free line, verified for texting. Printed on the opt-in page's room card only. */
 export const OPT_IN_NUMBER = '(833) 658-4321';
 /** Harper's first sentence (personas/harper.md `opener`), with the demo inn's name filled in. */
 export const OPENER = 'This is Harper, your automated concierge at The Juniper House, who am I speaking with?';
@@ -117,7 +117,7 @@ export const TERMS = {
       heading: 'What this is',
       blocks: [{ ul: [
         'A working demo. The inn on the demo line, The Juniper House, is fictional.',
-        'The demo number is a test line, capped at twenty calls a day.',
+        'The demo number is capped at twenty calls a day.',
         'It is offered as is, with no warranty of any kind. It may be slow, down, or changed without notice.',
       ] }],
     },
@@ -170,7 +170,7 @@ export const SMS_OPT_IN = {
           line: 'Ask for a text and the plan goes to the number you call from.',
           fine: 'An automated line. Calls are recorded.',
         } },
-        { p: 'Toll-free number, pending carrier approval. Today\'s test line is (706) 810-9262.' },
+        { p: 'Toll-free number, verified for texting.' },
         { p: ['The same card as an image: ', { text: 'room-card-juniper-833.png', to: '/room-card-juniper-833.png' }, '.'] },
       ],
     },

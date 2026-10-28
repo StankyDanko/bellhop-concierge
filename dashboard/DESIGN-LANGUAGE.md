@@ -7,7 +7,7 @@ Precedence: this file > register > brand constants > the house design doctrine. 
 
 The spec ran ahead of the build in a few places. Where this file and the running pages differ, the pages are the truth, and this list says where:
 
-- **The demo inn is The Juniper House,** Savannah, GA. The test line is (706) 810-9262, Harper answering, capped at twenty calls a day. Earlier drafts below used a placeholder inn name and a different number.
+- **The demo inn is The Juniper House,** Savannah, GA. The demo line is the toll-free (833) 658-4321, Harper answering, capped at twenty calls a day. Earlier drafts below used a placeholder inn name and a different number.
 - **Guests name three things,** not two. Every "two things" in the original copy now reads "three things" on the site and on the room cards.
 - **No ring-back or in-browser call.** The landing offers the number to call. Sections 5.1 and 5.9 describe a flow that was designed and not built.
 - **Two sources besides the innkeeper: Qloo and Ticketmaster.** No other place source is used, so the blue source chip only ever says Ticketmaster.
@@ -359,5 +359,5 @@ Self-assessment of this design language against the polish bar: designed on pape
 
 1. **Light default vs brand dark-native** (section 1, deviation 1): light default, dark a full toggle.
 2. **Demo inn name and city:** The Juniper House, Savannah, GA.
-3. **The demo number:** (706) 810-9262, a test line. It lives in one config value, so a swap is a config change, not a design change.
+3. **The demo number:** (833) 658-4321, a toll-free line verified for texting. It lives in one config value, so a swap is a config change, not a design change.
 4. **Voice samples** for Harper and Maybelle: the builder shows a quoted sample line for each, and says the audio samples play in the hosted service.
