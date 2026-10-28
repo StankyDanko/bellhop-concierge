@@ -52,6 +52,64 @@ export function sentences(text) {
   return text.trim().split(/(?<=[.!?])\s+/).filter((x) => /\w/.test(x));
 }
 
+/** How a whole spoken question starts, once a leading so, and, or okay is set aside. */
+const QUESTION_START = /^(?:what|what's|where|where's|when|who|who's|which|how|how's|why|is|isn't|are|aren't|am|was|were|do|does|did|have|has|can|could|would|will|should|want|anything)\b/i;
+const LEAD_WORDS = /^(?:(?:and|so|okay|well|now|then|alright|or|but)\b,?\s+)+/i;
+/** A short question that is still whole: is this Sam? */
+const IDENTITY_CHECK = /^(?:is|am) (?:this|that|it|i)\b/i;
+const spokenWords = (text) => text.replace(/\[[^\]]*\]/g, 'X').split(/\s+/).filter((w) => /\w/.test(w));
+
+/**
+ * Why a spoken question would not land on first hearing, or [] when it is fine. The voice does
+ * not pause at a comma, so "What's not working, too loud?" is heard as one strange question, and
+ * "Hungry, or just looking around?" is a fragment a stranger has to decode. A question must be:
+ *   - a whole sentence: it starts like a question (what, are, would, want...), after an optional
+ *     lead-in clause, and has at least four words (an identity check like "Is this Sam?" excepted);
+ *   - free of comma riders: after the question's own clause, a comma may only bring in a second
+ *     option of at least three words after a first option of at least three ("or would you
+ *     rather stay in"), or a name or placeholder said to the guest. A guessed answer or a second
+ *     question after a comma belongs in its own sentence.
+ * Statements, and short answers like "Got it.", are never questions and are never checked.
+ * @param {string} question one sentence ending in a question mark
+ * @returns {string[]}
+ */
+export function questionProblems(question) {
+  const s = question.trim().replace(/\[[^\]]*\]/g, 'X');
+  if (!s.endsWith('?')) return [];
+  const out = [];
+  const chunks = s.slice(0, -1).split(/,\s*/);
+  const main = chunks.findIndex((c) => QUESTION_START.test(c.replace(LEAD_WORDS, '')));
+  if (main < 0) return ['a fragment: it never starts a whole question'];
+  if (spokenWords(s).length < 4 && !IDENTITY_CHECK.test(s.replace(LEAD_WORDS, ''))) out.push('under four words');
+  for (let i = main + 1; i < chunks.length; i++) {
+    const c = chunks[i];
+    if (/^or\b/i.test(c)) {
+      if (spokenWords(c).length < 3) out.push(`a clipped option: "${c}"`);
+      if (spokenWords(chunks[i - 1]).length < 3) out.push(`a clipped option: "${chunks[i - 1]}"`);
+    } else if (!/^(?:X|[A-Z][a-z]+)$/.test(c.trim())) {
+      out.push(`a comma carries a second question or a guess: "${c}"`);
+    }
+  }
+  return out;
+}
+
+/** Filler a voice should never open a question with. */
+export const QUESTION_FILLER = /^easy one\.$/i;
+
+/**
+ * The spoken questions written into prose (a prompt, a template): every sentence ending in a
+ * question mark, from its last ", like " or ": " when the example sits inside an instruction.
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function proseQuestions(text) {
+  return sentences(text.replace(/\{\{[a-z_]+\}\}/g, 'X')).filter((x) => x.endsWith('?')).map((x) => {
+    const m = /.*(?:, like |: )(.*)$/.exec(x);
+    if (!m && x.startsWith('- ')) return ''; // an owner FAQ entry: the guest's question, not the concierge's
+    return (m ? m[1] : x).replace(/^"|"$/g, '');
+  }).filter(Boolean);
+}
+
 /**
  * Every model-visible string in a tool definition, with a path for the report.
  * @param {Array<{ tool_config: any }>} tools
