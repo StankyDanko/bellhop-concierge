@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GuestMemory, NAME_MAX, TTL_CEILING_DAYS, cleanName, expiresAt, lastCallHook } from '../lib/memory.js';
+import { GuestMemory, NAME_MAX, TTL_CEILING_DAYS, cleanName, expiresAt, lastCallHook, memoryLine } from '../lib/memory.js';
 import { FIXED_NOW, MEMORY_SECRET, PROPERTY, callInit, callTool, makeApp } from './helpers.js';
 
 const DAY = 86_400_000;
@@ -29,14 +29,15 @@ test('a name, a confirmation, and a callback land in the row; the next confirmed
   m.commit('conv-g-1');
   let row = m.read(hash, 'demo');
   assert.deepEqual([row.guest.name, row.guest.person_calls, row.guest.recording_noted], ['Dana', 1, undefined]);
-  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar, a place to go');
+  // Offered and never texted: the guest did not take it, so it is not the callback.
+  assert.equal(lastCallHook(row.guest.last), 'they talked about Sturgill Simpson');
   advance(DAY);
   start('conv-g-2');
   m.noteGuest('conv-g-2', { sameGuest: true });
   m.commit('conv-g-2');
   row = m.read(hash, 'demo');
   assert.deepEqual([row.guest.name, row.guest.person_calls, row.guest.recording_noted], ['Dana', 2, true]);
-  assert.equal(lastCallHook(row.guest.last), 'you suggested Fx Oyster Bar, a place to go', 'a call that left nothing keeps the callback before it');
+  assert.equal(lastCallHook(row.guest.last), 'they talked about Sturgill Simpson', 'a call that left nothing keeps the callback before it');
 });
 
 test('someone else on a remembered phone: nothing remembered reaches the tools, and the row starts over as theirs', () => {
@@ -97,7 +98,7 @@ test('the callback names one kind of thing from the last call, short, or none', 
   assert.equal(lastCallHook({ texted: ['Fx Serial'], kind: 'tv_show' }), 'you texted them Fx Serial, a show to watch');
   assert.equal(lastCallHook({ texted: ['Fx Oyster Bar'], kind: 'place' }), 'you texted them Fx Oyster Bar, a place to go');
   assert.equal(lastCallHook({ texted: ['Fx Oyster Bar'], kind: 'nonsense' }), 'you texted them Fx Oyster Bar', 'an unknown kind is dropped, not guessed');
-  assert.equal(lastCallHook({ offered: ['Fx Oyster Bar'] }), 'you suggested Fx Oyster Bar');
+  assert.equal(lastCallHook({ offered: ['Fx Oyster Bar'] }), 'none', 'a pick offered and passed on is never the callback');
   assert.equal(lastCallHook({ tastes: ['tacos', 'Sturgill Simpson'] }), 'they talked about tacos');
   assert.equal(lastCallHook({}), 'none');
   assert.equal(lastCallHook(undefined), 'none');
@@ -186,4 +187,34 @@ test('someone else on a remembered phone gets none of the old tastes, exclusions
   assert.match(v.memory_line, /thai/i, "Robin's own are kept");
   assert.equal(v.texted_count, 2, "only Robin's own texted places are left out");
   assert.ok(!textedBefore.some((id) => v.last_call_hook.includes(id)));
+});
+
+test('a pick offered on an earlier call and passed on never comes back as the callback; a texted one does', () => {
+  const { m, hash, start, advance } = mem();
+  start('conv-p-1');
+  m.noteOffered('conv-p-1', [{ entity_id: 'fx-place-one', name: 'Fx Playhouse' }], undefined, 'place');
+  m.commit('conv-p-1');
+  assert.equal(lastCallHook(m.read(hash, 'demo').guest.last), 'none');
+  advance(DAY);
+  start('conv-p-2');
+  m.noteOffered('conv-p-2', [{ entity_id: 'fx-place-two', name: 'Fx Oyster Bar' }, { entity_id: 'fx-place-three', name: 'Fx Noodle House' }], undefined, 'place');
+  m.noteComposed('conv-p-2', ['Fx Noodle House'], 'Fx Noodle House\nfx body');
+  m.noteTexted(CALLER, 'Fx Noodle House\nfx body', 'conv-p-2');
+  m.commit('conv-p-2');
+  assert.match(lastCallHook(m.read(hash, 'demo').guest.last), /^you texted them Fx Noodle House/);
+});
+
+test('a mood answer steers its call but is never stored as a taste, in the line, or in the recall', () => {
+  const { m, hash, start } = mem();
+  start('conv-m-1');
+  m.noteResolved('conv-m-1', [{ id: 'urn:tag:fx-adventurous', mention: 'adventurous and fun' }, { id: 'fx-artist-one', mention: 'Sturgill Simpson' }]);
+  m.commit('conv-m-1');
+  const row = m.read(hash, 'demo');
+  assert.deepEqual(row.tastes.map((t) => t.words), ['Sturgill Simpson']);
+  assert.equal(memoryLine(row.tastes), 'Sturgill Simpson');
+  assert.equal(memoryLine([{ who: 'guest', words: 'adventurous and fun' }]), 'none');
+  assert.deepEqual(row.guest.last.tastes, ['Sturgill Simpson']);
+  start('conv-m-2');
+  assert.deepEqual(m.recallFor('conv-m-2').guest.entityIds, ['fx-artist-one']);
+  assert.deepEqual(m.recallFor('conv-m-2').guest.tagIds, []);
 });

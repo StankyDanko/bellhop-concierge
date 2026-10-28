@@ -25,6 +25,7 @@ import { createHash, createHmac } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { localParts } from '../conversation/choose.js';
+import { vibeOf } from '../tools/resolve-taste.js';
 import { toGsm } from './sms.js';
 
 /** Days a memory lasts after the last call when no stay length is known. */
@@ -194,8 +195,8 @@ const kindOf = (k) => (typeof k === 'string' && Object.hasOwn(KIND_PHRASE, k) ? 
 
 /**
  * ONE thing from the last call for the concierge to ask about, written as a fact about that
- * call, never as a line to read out: the first thing texted, else the first thing suggested,
- * else the first thing the guest talked about. A pick carries its kind and what a guest does
+ * call, never as a line to read out: the first thing texted, else the first thing the guest
+ * talked about (never a pick that was offered and passed on). A pick carries its kind and what a guest does
  * with it ("a film to watch", "a place to go"), so the callback can use the right verb: three
  * films are never asked about as if they were places. 'none' when the last call left nothing.
  * @param {{ texted?: string[], offered?: string[], tastes?: string[], kind?: string|null }} [last]
@@ -211,8 +212,9 @@ export function lastCallHook(last = {}) {
     return '';
   };
   const kind = kindOf(last?.kind);
-  return fit('you texted them', last?.texted?.[0], kind) || fit('you suggested', last?.offered?.[0], last?.texted?.[0] ? null : kind)
-    || fit('they talked about', last?.tastes?.[0], null) || 'none';
+  // Only what the guest accepted: a pick offered and passed on is never a callback, and the server
+  // cannot hear a yes, so a pick counts only once it was texted.
+  return fit('you texted them', last?.texted?.[0], kind) || fit('they talked about', last?.tastes?.[0], null) || 'none';
 }
 
 const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
@@ -234,8 +236,18 @@ export function stayLine(party = {}) {
   return parts.length ? parts.join(', ') : 'none';
 }
 
+/**
+ * A mood or budget answer ("adventurous and fun", "cheap"): it steers the call it was said on,
+ * and is never a taste to remember or resolve later. The same lexicon resolve_taste uses.
+ * @param {unknown} words
+ */
+export function isMoodAnswer(words) {
+  return typeof words === 'string' && vibeOf(words) !== null;
+}
+
 /** Remembered tastes in the guest's words, guest's before companion's, at most MEMORY_LINE_MAX characters. */
 export function memoryLine(tastes = []) {
+  tastes = tastes.filter((t) => !isMoodAnswer(t?.words));
   const words = [];
   for (const who of ['guest', 'companion']) {
     for (const t of tastes) if (t.who === who && t.words && !words.includes(t.words)) words.push(t.words);
@@ -425,7 +437,7 @@ export class GuestMemory {
     const at = this.now().toISOString();
     const add = (items ?? []).filter((r) => r && typeof r.id === 'string' && r.id)
       .map((r) => ({ id: r.id, words: cleanWords(r.mention ?? r.name), who: r.who === 'companion' ? 'companion' : 'guest', at }))
-      .filter((r) => r.words);
+      .filter((r) => r.words && !isMoodAnswer(r.words));
     if (!add.length) return false;
     return this.updateScratch(sessionId, (s) => {
       const resolved = (s.resolved ?? []).filter((r) => !add.some((x) => x.id === r.id && x.who === r.who));
@@ -583,7 +595,8 @@ export class GuestMemory {
     const at = this.now().toISOString();
     // Someone else on a remembered phone: this call starts the row over, as that person's first.
     const base = s.fresh ? { ...row, tastes: [], texted: [], party: {}, guest: { person_calls: 1 } } : row;
-    const tastes = [...base.tastes];
+    // Mood answers stored by earlier versions leave with the next write.
+    const tastes = base.tastes.filter((t) => !isMoodAnswer(t.words));
     for (const r of s.resolved ?? []) {
       const i = tastes.findIndex((t) => t.id === r.id && t.who === r.who);
       if (i >= 0) tastes.splice(i, 1);
@@ -613,7 +626,7 @@ export class GuestMemory {
     const last = {
       texted: (s.texted_ids ?? []).map((id) => byId(id)?.name).filter(Boolean).slice(0, LAST_KEEP),
       offered: (s.last_offered ?? []).slice(0, LAST_KEEP),
-      tastes: (s.resolved ?? []).filter((r) => r.who === 'guest').map((r) => r.words).slice(-LAST_KEEP),
+      tastes: (s.resolved ?? []).filter((r) => r.who === 'guest' && !isMoodAnswer(r.words)).map((r) => r.words).slice(-LAST_KEEP),
     };
     // The kind of the one item the callback will name: the first thing texted, else the first suggested.
     const kind = last.texted.length ? (s.texted_ids ?? []).map((id) => byId(id)).find(Boolean)?.kind : s.last_offered_kind;
@@ -637,7 +650,7 @@ export class GuestMemory {
     if (!l || l.scratch.forgotten || l.scratch.fresh) return null;
     const row = this.read(l.caller_hash, l.property_id);
     const split = (who) => {
-      const ids = [...new Set((row?.tastes ?? []).filter((t) => t.who === who).map((t) => t.id))];
+      const ids = [...new Set((row?.tastes ?? []).filter((t) => t.who === who && !isMoodAnswer(t.words)).map((t) => t.id))];
       return { entityIds: ids.filter((id) => !isTag(id)), tagIds: ids.filter(isTag) };
     };
     return { texted: [...new Set((row?.texted ?? []).map((t) => t.id))].slice(-MAX_TEXTED),
