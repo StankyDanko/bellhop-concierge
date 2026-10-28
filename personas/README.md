@@ -21,8 +21,8 @@ with the rental persona, so the template always matches the place.
 
 Hollis has `mode: road`. A road persona compiles through `template/road.md` instead of
 `template/concierge.md`: there is no inn, so the city and state come up in the conversation, every place
-tool takes that locality instead of fixed coordinates, and two transfers reach the inn demo (a caller
-asks for the inn demo) and the Miami rental demo (the Airbnb demo, or the rental demo). `compiler/test/road-template.test.js` holds the two templates
+tool takes that locality instead of fixed coordinates, and the agent has no transfers: each number has one concierge. (The compiler can still build the old
+demo transfers when it is given `--inn-demo-agent-id` and `--rental-demo-agent-id`; the live lines do not.) `compiler/test/road-template.test.js` holds the two templates
 together line by line, so a fix to one cannot skip the other.
 
 The innkeeper's `humor_level` (0 to 2) is capped by the persona's ceiling, so an innkeeper who asks for

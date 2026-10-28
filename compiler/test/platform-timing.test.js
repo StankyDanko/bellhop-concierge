@@ -15,7 +15,7 @@ import { demo } from './helpers.js';
 const OPTS = { toolBaseUrl: 'https://tools.example.org', toolSecretId: 'sec_test' };
 const cfg = (name) => JSON.parse(readFileSync(new URL(`../../config/examples/${name}.json`, import.meta.url), 'utf8'));
 const builds = {
-  road: () => compile(cfg('road-line'), OPTS),
+  road: (extra = {}) => compile(cfg('road-line'), { ...OPTS, ...extra }),
   rental: () => compile(cfg('miami-rental'), { ...OPTS, persona: 'marisol' }),
   harper: () => compile(demo(), { ...OPTS, persona: 'harper' }),
   maybelle: () => compile(demo(), { ...OPTS, persona: 'maybelle' }),
@@ -79,7 +79,7 @@ test('pre-tool speech names only real tools and the platform values', () => {
 });
 
 test('road: the demos are boosted for speech recognition', () => {
-  const kw = builds.road().agent.conversation_config.asr.keywords;
+  const kw = builds.road({ innDemoAgentId: 'agent_inn_example', rentalDemoAgentId: 'agent_rental_example' }).agent.conversation_config.asr.keywords;
   for (const n of ['Hollis', 'Harper', 'Marisol', 'The Juniper House', 'Casa Coralina']) assert.ok(kw.includes(n), n);
 });
 

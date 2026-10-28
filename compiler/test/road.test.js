@@ -112,16 +112,36 @@ test('road: trust level sets the call limits exactly as it does for an inn', () 
   assert.deepEqual(compile(road(), OPTS).agent.platform_settings.call_limits, { daily_limit: 300, agent_concurrency_limit: 3, bursting_enabled: false });
 });
 
+test('road: no demo ids, no transfers: one number, one concierge', () => {
+  const r = compile(road(), OPTS);
+  const p = promptOf(r);
+  assert.equal(r.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent, undefined);
+  assert.deepEqual(Object.keys(r.agent.conversation_config.agent.prompt.built_in_tools), ['end_call']);
+  assert.doesNotMatch(p, /transfer|Harper|Marisol|Juniper House|Casa Coralina|Airbnb|inn demo|rental demo|handed to you/i);
+  assert.match(p, /the only one on this line/);
+  assert.ok(!r.lint.some((f) => f.rule === 'placeholder'));
+  const kw = r.agent.conversation_config.asr.keywords;
+  for (const n of ['Harper', 'Marisol']) assert.ok(!kw.includes(n), n);
+  const m = compile(road(), { ...OPTS, memoryWebhook: true });
+  assert.match(promptOf(m), /6\. remember_guest\.[^\n]*\n7\. forget_guest\./);
+  assert.doesNotMatch(promptOf(m), /transfer|handed to you/i);
+  // The rental line never carries one either.
+  const rental = compile(JSON.parse(readFileSync(new URL('../../config/examples/miami-rental.json', import.meta.url), 'utf8')), { ...OPTS, persona: 'marisol', memoryWebhook: true });
+  assert.equal(rental.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent, undefined);
+  assert.doesNotMatch(promptOf(rental), /transfer|handed to you|inn demo|Airbnb demo/i);
+});
+
 test('road: the inn demo and the rental demo are one transfer away, with placeholders until the agent ids are passed', () => {
-  const off = compile(road(), OPTS);
+  // Opt-in only: the transfers exist when at least one demo agent id is passed.
+  const off = compile(road(), { ...OPTS, innDemoAgentId: 'agent_inn_demo_example' });
   const t = off.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent;
   assert.equal(t.type, 'system');
   assert.equal(t.params.system_tool_type, 'transfer_to_agent');
   assert.equal(t.params.transfers.length, 2);
-  assert.equal(t.params.transfers[0].agent_id, INN_DEMO_TRANSFER.placeholder);
+  assert.equal(t.params.transfers[0].agent_id, 'agent_inn_demo_example');
   assert.equal(t.params.transfers[1].agent_id, RENTAL_DEMO_TRANSFER.placeholder);
   for (const x of t.params.transfers) assert.equal(x.enable_transferred_agent_first_message, true);
-  assert.equal(off.lint.filter((f) => f.rule === 'placeholder' && f.where === 'built_in_tools.transfer_to_agent').length, 2);
+  assert.equal(off.lint.filter((f) => f.rule === 'placeholder' && f.where === 'built_in_tools.transfer_to_agent').length, 1);
   const on = compile(road(), { ...OPTS, innDemoAgentId: 'agent_inn_demo_example', rentalDemoAgentId: 'agent_rental_demo_example' });
   const onT = on.agent.conversation_config.agent.prompt.built_in_tools.transfer_to_agent.params.transfers;
   assert.deepEqual(onT.map((x) => x.agent_id), ['agent_inn_demo_example', 'agent_rental_demo_example']);
@@ -182,7 +202,7 @@ test('road: runtime variables always have placeholders, and they rebuild the ope
 
 test('road: forget_guest is named in the prompt only when the memory tools are compiled', () => {
   const off = compile(road(), OPTS);
-  const on = compile(road(), { ...OPTS, memoryWebhook: true });
+  const on = compile(road(), { ...OPTS, memoryWebhook: true, innDemoAgentId: 'agent_inn_example', rentalDemoAgentId: 'agent_rental_example' });
   assert.ok(!promptOf(off).includes('forget_guest'));
   assert.ok(!off.tools.some((t) => t.tool_config.name === 'forget_guest'));
   assert.match(promptOf(on), /call forget_guest at once/);

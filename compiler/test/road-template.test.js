@@ -35,6 +35,7 @@ const REWRITTEN = new Map(/** @type {Array<[string, string, string]>} */ ([
   ['This step is important. Only what you know.', "no owner's picks or answers; never name a place from memory of a city", '1ac4a8b627c17ae0'],
   ['This step is important. Emergencies.', 'no innkeeper to tell afterward', '638cf14c71c4ca6d'],
   ['This step is important. Handing off to a person.', 'no person; the one transfer is the inn demo', 'b6ee834806ccc944'],
+  ['{{memory_tools}}', 'numbered after the road line\'s optional transfer tool', '92d48b4456af0c28'],
   ['{{rules}}', 'no house rules', '03835ae7cab2398a'],
   ['{{permissions}}', 'nothing sold, no partners', '0fc579b0f0e7fbef'],
   ["# Owner's notes", 'no owner', '04166d0b7adc4057'],

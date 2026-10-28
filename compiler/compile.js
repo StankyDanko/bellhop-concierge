@@ -98,10 +98,10 @@ const withTiming = (t) => ({ ...t, tool_config: { ...t.tool_config,
  * Speech recognition boosts the names a caller says to reach someone: the persona, the place,
  * and on the road line the two demos. Background voices are filtered (vad in compile), so a
  * street, a TV, or a nearby table is not heard as the caller's answer.
- * @param {{ display_name: string }} persona @param {string} propertyName @param {boolean} roaming
+ * @param {{ display_name: string }} persona @param {string} propertyName @param {boolean} transfers  true only when the agent compiles the demo transfers
  */
-export function asrKeywords(persona, propertyName, roaming) {
-  const names = [persona.display_name, propertyName, ...(roaming ? ['Harper', 'Marisol', 'The Juniper House', 'Casa Coralina', 'Airbnb'] : [])];
+export function asrKeywords(persona, propertyName, transfers) {
+  const names = [persona.display_name, propertyName, ...(transfers ? ['Harper', 'Marisol', 'The Juniper House', 'Casa Coralina', 'Airbnb'] : [])];
   return [...new Set(names.map((n) => speakable(n)).filter(Boolean))];
 }
 
@@ -144,6 +144,9 @@ export function assertDistinctAgents(opts) {
     }
   }
 }
+
+const DEMOS_RULE = "This step is important. The two demos. There is no person to hand off to on this line. There are two other concierges you can transfer to, each a demo of this line. The first is Harper, at The Juniper House, the inn demo. When the guest asks for the inn demo, the inn, The Juniper House, or Harper, at any point in the call, say one short line, like sure, here's Harper, the concierge at The Juniper House, and transfer the call to Harper with transfer_to_agent. The second is Marisol, at Casa Coralina, the Miami rental demo, an Airbnb style stay. When the guest asks for the Airbnb demo, the rental demo, the Miami rental, Casa Coralina, or Marisol, at any point in the call, say one short line, like sure, here's Marisol, the concierge at Casa Coralina in Miami, and transfer the call to Marisol with transfer_to_agent. Never deny either demo exists. Mention them only when the guest asks about the demos, asks what else this line does beyond their own night, or has no city in the United States to give, and then name both in one line. Both are demos, so never say the guest has a room or a stay at either one.";
+const SOLE_CONCIERGE_RULE = "This step is important. The only concierge on this line. There is no person to hand off to on this line, and you are the only concierge on it. You cannot pass the call to anyone. If a guest asks for another concierge, another demo, or to be passed along, say plainly that you are the only one on this line, and keep helping with their plans. Never name or describe any other concierge.";
 
 /** Call limits per trust level: test is the owner's preview line, live is the room card. */
 export const TRUST_LIMITS = Object.freeze({
@@ -313,7 +316,7 @@ function renderHandoff(c) {
   const name = speakable(c.handoff.name);
   const triggers = c.handoff.triggers.map(speakable);
   const list = triggers.length ? `. Also send them to ${name} for ${orList(triggers)}` : '';
-  return `Send the guest to ${name} for rates, bookings, refunds, or changes to a stay${list}. ${name} is available ${speakable(c.handoff.hours)}. Tell the guest the number is in their booking confirmation. You cannot transfer the call, so never promise a callback or a time. If it is outside those hours, say so honestly.`;
+  return `Send the guest to ${name} for rates, bookings, refunds, or changes to a stay${list}. ${name} is available ${speakable(c.handoff.hours)}. Tell the guest the number is in their booking confirmation. You cannot pass the call to anyone, so never promise a callback or a time. If it is outside those hours, say so honestly.`;
 }
 
 function renderPermissions(c) {
@@ -351,16 +354,19 @@ function renderForgetting(memory) {
   return 'This step is important. Forgetting a guest. If a guest asks you to forget them, to start fresh, to delete what you know, or to stop remembering them, call forget_guest at once, then say the line it returns and ask if there is anything else for tonight. Do not ask why and do not ask them to confirm. If a guest asks what you remember, say the earlier tastes in one line, {{memory_line}}, and offer to forget them.';
 }
 
+/** Only compiled when the agent can receive a transferred call. */
+const HANDED_CALL_RULE = '- A call handed to you comes before all of this. It was handed to you when the agent this call began with, {{system__agent_id}}, is not you, {{system__current_agent_id}}, and the first name the guest gave on this same call, to the other concierge, is {{guest_name}}, which is not none. Your first message already greeted them by name. They already gave their name and heard whether this call is recorded: that is {{guest_recorded}}. Never ask their name again, never say anything about recording, never call remember_guest again, and never call this a first call or say you have no history with them, because the call has gone on the whole time, only the voice changed. The guest asked for you, so go straight to what they need, starting from the stated need in their next words. If guest_name is none, ask the name as your first message does. Everything else below is for a call that began with you.';
+
 /**
  * What a call does with the memory the initiation webhook handed it: who is on the phone, which
  * recording note they hear, the one callback from last time, and the earlier tastes. Only with
  * the memory tools compiled; without them every call is a first call and this section is absent.
  */
-function renderReturning(memory) {
+function renderReturning(memory, handed = false) {
   if (!memory) return '';
   return [
     'This step is important. A returning guest. This phone has called before when caller_status, which is {{caller_status}}, is not new. The name you last heard on it is {{caller_name}}, this is call number {{call_number}} for that person, and whether they already heard that every call is recorded is {{recording_noted}}.',
-    '- A call handed to you comes before all of this. It was handed to you when the agent this call began with, {{system__agent_id}}, is not you, {{system__current_agent_id}}, and the first name the guest gave on this same call, to the other concierge, is {{guest_name}}, which is not none. Your first message already greeted them by name. They already gave their name and heard whether this call is recorded: that is {{guest_recorded}}. Never ask their name again, never say anything about recording, never call remember_guest again, and never call this a first call or say you have no history with them, because the call has gone on the whole time, only the voice changed. The guest asked for you, so go straight to what they need, starting from the stated need in their next words. If guest_name is none, ask the name as your first message does. Everything else below is for a call that began with you.',
+    ...(handed ? [HANDED_CALL_RULE] : []),
     '- A new caller, or a name of none: open as a first call, with the full recording note. When the guest gives a first name, call remember_guest once with first_name, silently. If a guest with no name on file says you have talked before, welcome them back.',
     '- A name on file: your first message already asked whether you are talking to that person. If they say yes, call remember_guest with same_guest true, silently. If recording_noted is no, the recording note comes next, before any question and before the one thing from last time, every time, whatever caller_status is and even on a same-day call: one brief reminder that the call is recorded and that every call from now on is recorded too, so you will stop mentioning it, like quick reminder, this call is recorded, and so is every call after it, so that is the last time I will say it. If remember_guest hands back a line to say, that is the reminder, in your own words. Only then go into the conversation like a friend picking up where you left off: if there is one thing from last time below, that is your first question. Otherwise a few words, like good to hear you, what\'s tonight? If recording_noted is yes, say nothing about recording.',
     '- Someone else on that phone: say no problem in a few words, ask their first name if they did not give it, and call remember_guest with same_guest false and their first_name. From then on they are a new guest: the full first call recording note, and nothing below, no earlier tastes, no last call, and never the other name again.',
@@ -486,6 +492,8 @@ export function compile(config, opts = {}) {
   const inner = { property_name: propertyName, handoff_name: handoffName };
 
   const memoryWebhook = opts.memoryWebhook === true;
+  // One number, one concierge: transfers exist only when the operator passes demo agent ids.
+  const transfers = persona.mode === 'road' && ROAD_TRANSFERS.some(([, opt]) => opts[opt]);
   const tools = serverToolConfigs({
     property: c.property,
     propertyId: propertyIdOf(c.property),
@@ -519,10 +527,12 @@ export function compile(config, opts = {}) {
     permissions: renderPermissions(c),
     sending: renderSending(c),
     forgetting: renderForgetting(memoryWebhook),
-    returning: renderReturning(memoryWebhook),
+    returning: renderReturning(memoryWebhook, transfers),
+    demos: transfers ? DEMOS_RULE : SOLE_CONCIERGE_RULE,
+    transfer_tool: transfers ? '6. transfer_to_agent. Use it only for the two demos, as the guardrail above says.\n' : '',
     // The memory tools come after the template's own list: five at an inn, six with a stay
     // sheet or with the road line's transfer.
-    memory_tools: renderMemoryTools(memoryWebhook, persona.mode === 'road' || (persona.mode === 'rental' && c.stay) ? 7 : 6),
+    memory_tools: renderMemoryTools(memoryWebhook, transfers || (persona.mode === 'rental' && c.stay) ? 7 : 6),
     stay_rule: renderStayRule(c),
     stay_tool: renderStayTool(c, 6),
     title_search: renderTitleSearch(webSearch),
@@ -545,7 +555,7 @@ export function compile(config, opts = {}) {
   const placeholders = basePlaceholders ? { ...basePlaceholders, ...handoffDefaults } : null;
 
   /** Road line only: the two transfers, to the inn demo and to the Miami rental demo. */
-  const transferTools = roaming ? {
+  const transferTools = transfers ? {
     transfer_to_agent: {
       type: 'system',
       name: 'transfer_to_agent',
@@ -591,7 +601,7 @@ export function compile(config, opts = {}) {
           },
         },
       },
-      asr: { keywords: asrKeywords(persona, propertyName, roaming) },
+      asr: { keywords: asrKeywords(persona, propertyName, transfers) },
       vad: { background_voice_detection: true },
       turn: { turn_eagerness: 'patient', soft_timeout_config: { ...SOFT_TIMEOUT, additional_soft_timeout_messages: [...SOFT_TIMEOUT.additional_soft_timeout_messages] } },
       tts: {
@@ -647,7 +657,7 @@ export function compile(config, opts = {}) {
     ...t.params.transfers.map((x, i) => [`built_in_tools.${t.name}.transfers[${i}].condition`, x.condition]),
   ]);
   const lint = lintCompiled({ prompt, firstMessage, tools, agent, secrets, extraTexts: builtInTexts });
-  if (roaming) {
+  if (transfers) {
     for (const [t, opt] of ROAD_TRANSFERS) {
       if (!opts[opt]) lint.push({ rule: 'placeholder', severity: 'warn', where: 'built_in_tools.transfer_to_agent', excerpt: `${t.placeholder.slice(1, -1)} not filled; pass ${opt} at deploy time` });
     }

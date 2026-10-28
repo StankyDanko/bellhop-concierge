@@ -6,6 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { compile, fillSlots, RUNTIME_VARIABLES, runtimeOpener } from '../compile.js';
 import { lintCompiled } from '../lint.js';
 import { makeApp, callTool } from '../../server/test/helpers.js';
@@ -109,7 +110,9 @@ test('a call handed to another concierge: remember_guest hands the name over, th
     [['guest_name', 'guest_name'], ['guest_recorded', 'guest_recorded'], ['opener_hook', 'handoff_hook']]);
   const ph = r.agent.conversation_config.agent.dynamic_variables.dynamic_variable_placeholders;
   assert.deepEqual([ph.guest_name, ph.guest_recorded], ['none', 'no']);
-  assert.match(promptOf(r), /A call handed to you comes before all of this/);
+  // No transfers compiled, so no handed-call rule; with the demo transfers it is there.
+  assert.doesNotMatch(promptOf(r), /A call handed to you/);
+  assert.match(promptOf(compile(JSON.parse(readFileSync(new URL('../../config/examples/road-line.json', import.meta.url), 'utf8')), { ...OPTS, memoryWebhook: true, innDemoAgentId: 'agent_inn_example', rentalDemoAgentId: 'agent_rental_example' })), /A call handed to you comes before all of this/);
   const { app } = makeApp({ memory: true });
   const named = await callTool(app, 'remember_guest', { session_id: 'conv-hand-1', first_name: 'dana' });
   assert.deepEqual([named.json.guest_name, named.json.guest_recorded], ['Dana', 'yes']);

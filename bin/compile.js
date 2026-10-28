@@ -4,7 +4,8 @@
 //   node bin/compile.js config/examples/demo-inn.json [--persona maybelle] [--out agent.json]
 //        [--tool-base-url https://tools.example.org] [--tool-secret-id <id>]
 //        [--llm <id>] [--voice-id <id>] [--memory-webhook]
-//        [--search-url <https url> --search-secret-name <workspace secret name>] [--inn-demo-agent-id <id>] [--rental-demo-agent-id <id>] [--road-agent-id <id>]
+//        [--search-url <https url> --search-secret-name <workspace secret name>]
+//        [--inn-demo-agent-id <id> --rental-demo-agent-id <id>]  (road line only; omit both and the agent has no transfers)
 //   node bin/compile.js --print-schema        the JSON Schema for innkeeper configs
 //
 // Exit codes: 0 compiled with no lint errors, 1 lint errors (output still written),
