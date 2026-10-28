@@ -1,17 +1,17 @@
-// The opt-in page quotes Harper's first sentence word for word. If the persona's opener changes,
+// The opt-in page quotes Hollis's first sentence word for word. If the persona's opener changes,
 // the page must change with it, or a carrier review reads a script the line no longer says.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { BRIDGE, OPENER, RECORDING_LINE, SMS_OPT_IN, STOP_HELP } from '../../dashboard/src/legal-content.js';
 
-const persona = readFileSync(new URL('../../personas/harper.md', import.meta.url), 'utf8');
-const demo = JSON.parse(readFileSync(new URL('../../config/examples/demo-inn.json', import.meta.url), 'utf8'));
+const persona = readFileSync(new URL('../../personas/road.md', import.meta.url), 'utf8');
+const demo = JSON.parse(readFileSync(new URL('../../config/examples/miami-rental.json', import.meta.url), 'utf8'));
 
 describe('sms opt-in page copy', () => {
-  it("quotes the persona's opener as the demo inn says it", () => {
+  it("quotes the road persona's opener, the first message of the public line", () => {
     const opener = /^opener:\s*(.+)$/m.exec(persona)?.[1] ?? '';
-    const said = opener.replaceAll('{{property_name}}', demo.property?.name ?? '');
+    const said = opener.replaceAll('{{opener_hook}}', 'who am I speaking with?');
     assert.ok(said.startsWith(OPENER), `persona opener no longer starts with the quoted sentence:\n${said}`);
   });
 

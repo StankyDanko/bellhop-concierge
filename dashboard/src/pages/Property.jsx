@@ -275,7 +275,7 @@ function ReadingKey({ gate, sample, tastes, qlooMode }) {
 
 // ---- page ---------------------------------------------------------------------------------------
 
-/** Properties whose page opens with the labeled sample on: the demo inn and the Miami rental demo. */
+/** Properties whose page opens with the labeled sample on: the sample inn and Casa Coralina. */
 export const SAMPLE_ON = ['demo', 'miami'];
 
 export default function Property({ id, health }) {
@@ -302,8 +302,8 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
     return (
       <div className="container stack">
         <h1 style={{ fontSize: 'var(--text-2xl)' }}>{prop.status === 404 ? 'No property by that name.' : "We couldn't load this property."}</h1>
-        <p className="dim">{prop.status === 404 ? 'Build one first, or open the demo inn.' : 'The line is still answering. Try again in a moment.'}</p>
-        <p className="row"><Link to="/build" className="btn btn-primary">Build your concierge</Link><Link to="/property/demo" className="btn btn-secondary">Open the demo inn</Link></p>
+        <p className="dim">{prop.status === 404 ? 'Build one first, or open Casa Coralina.' : 'The line is still answering. Try again in a moment.'}</p>
+        <p className="row"><Link to="/build" className="btn btn-primary">Build your concierge</Link><Link to="/property/miami" className="btn btn-secondary">Open Casa Coralina</Link></p>
       </div>
     );
   }
@@ -313,9 +313,9 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const isDemo = id === 'demo';
   const rental = cfg.property.kind === 'rental';
-  // The Miami rental demo has no number of its own: the main line transfers to it.
-  const transferDemo = id === 'miami';
-  const badgeState = isDemo ? health.state : transferDemo ? 'transfer' : p.status === 'published' ? 'test' : 'paused';
+  // Casa Coralina, the featured sample rental, has its own line, but the site never prints it.
+  const unlisted = id === 'miami';
+  const badgeState = isDemo ? health.state : unlisted ? 'unlisted' : p.status === 'published' ? 'test' : 'paused';
   /** How the panels name the place: the stay for a rental, the inn otherwise. */
   const place = rental ? 'the stay' : 'the inn';
   const list = sessions.data?.sessions ?? [];
@@ -340,11 +340,11 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   return (
     <div className="container property">
       <header className="prop-head">
-        <p className="micro">{rental ? `Rental host dashboard${id === 'miami' ? ', the Miami rental demo' : ''}` : `Innkeeper dashboard${isDemo ? ', sample inn' : ''}`}</p>
+        <p className="micro">{rental ? `Rental host dashboard${unlisted ? ', sample property in Miami' : ''}` : `Innkeeper dashboard${isDemo ? ', sample inn' : ''}`}</p>
         <h1>{cfg.property.name}</h1>
         <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
         <div className="prop-chips">
-          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={transferDemo ? 'Reached by saying "the rental demo" on the main line' : undefined} />
+          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={unlisted ? 'A fictional rental. Its line is shared on request. For a night out in any city, call Hollis at (833) 658-4321.' : undefined} />
           <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Not published'}</span>
           <span className="chip">{TRUST_WORDS[cfg.trust_level] ?? `Line limits: ${cfg.trust_level}`}</span>
           {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
@@ -409,7 +409,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
             </div>
             {list.length === 0 ? (
               <div className="card calls-empty">
-                <p>{isDemo ? 'No real calls on this line yet. The sample call below shows how each one will look.' : 'No calls yet. Share your number on a room card, or make a preview call to see how a call looks here.'}</p>
+                <p>{SAMPLE_ON.includes(id) ? 'No real calls on this line yet. The sample call below shows how each one will look.' : 'No calls yet. Share your number on a room card, or make a preview call to see how a call looks here.'}</p>
                 {!isDemo && <p style={{ marginTop: 'var(--space-3)' }}><Link to="/build" className="btn btn-secondary">Open the builder</Link></p>}
               </div>
             ) : (

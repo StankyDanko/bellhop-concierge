@@ -123,7 +123,7 @@ export function AreaCard({ insights, fingerprint, compact = false, place = 'the 
         </div>
       </div>
       <p className="micro area-caption">Distances to scale. Streets are not drawn.</p>
-      {compact && <Link to="/property/demo" className="btn btn-text area-link">Open the innkeeper dashboard</Link>}
+      {compact && <Link to="/property/miami" className="btn btn-text area-link">Open the rental host dashboard</Link>}
     </div>
   );
 }

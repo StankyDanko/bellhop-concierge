@@ -60,8 +60,8 @@ const BADGE_LABEL = {
   answering: 'Answering now',
   test: 'Test mode',
   paused: 'Paused',
-  // A demo reached by a transfer from the main line, not by a number of its own.
-  transfer: 'Transfer demo',
+  // A sample property whose own line is not printed on the site.
+  unlisted: 'Sample property, line unlisted',
   busy: 'Line busy, try again in a minute',
 };
 

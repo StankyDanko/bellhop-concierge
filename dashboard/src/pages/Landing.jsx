@@ -34,7 +34,7 @@ const CAPABILITIES = [
 
 const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen'];
 
-/** One GET on mount; path null waits (the demo inn id comes from /health). */
+/** One GET on mount; path null waits (the featured property's id is fixed). */
 function useGet(path) {
   const [s, setS] = useState({ state: 'loading' });
   useEffect(() => {
@@ -46,12 +46,15 @@ function useGet(path) {
   return s;
 }
 
-function NumberCard({ number, onCopy, cardRef, live, innName, health }) {
+/** The featured sample property: a fictional Miami short-term rental. Its own line is unlisted; the one public number is Hollis's. */
+const FEATURED = { id: 'miami', name: 'Casa Coralina' };
+
+function NumberCard({ number, onCopy, cardRef, live, health }) {
   const badge = <LiveBadge state={health.state} lastSessionAt={health.data?.last_session_at} />;
   if (!number) {
     return (
       <div className="number-card" ref={cardRef}>
-        <div className="number-card-head"><p className="micro">Try it: {innName}, a sample inn</p>{badge}</div>
+        <div className="number-card-head"><p className="micro">Try it: Hollis, the road concierge</p>{badge}</div>
         <p className="the-number pending">Number goes live at submission</p>
         <p className="caption">The phone line opens with the hackathon submission. Until then, everything on this page and the dashboard works in full.</p>
       </div>
@@ -60,15 +63,15 @@ function NumberCard({ number, onCopy, cardRef, live, innName, health }) {
   const pretty = formatPhone(number);
   return (
     <div className="number-card" ref={cardRef}>
-      <div className="number-card-head"><p className="micro">Try it: call {innName}, a sample inn</p>{badge}</div>
+      <div className="number-card-head"><p className="micro">Try it: call Hollis, the road concierge for any US city</p>{badge}</div>
       <a className="number-link" href={telHref(number)} aria-label={`Call ${pretty}`}>
         <span className="the-number">{pretty}</span>
       </a>
-      <p className="caption">{!live ? 'The inn is fictional. Today the line answers with sample places until the Qloo key is live.'
-        : health.data?.tools?.sms === 'live' ? 'The inn is fictional. The calls and texts are real.'
-          : 'The inn is fictional. The calls are real. Texts are in test mode until the toll-free number is approved.'}</p>
+      <p className="caption">{!live ? 'Hollis answers for any US city. Today the line answers with sample places until the Qloo key is live.'
+        : health.data?.tools?.sms === 'live' ? 'Hollis answers for any US city. The calls and texts are real.'
+          : 'Hollis answers for any US city. The calls are real. Texts are in test mode until the toll-free number is approved.'}</p>
       <div className="row number-actions">
-        <a className="btn btn-primary btn-lg only-coarse" href={telHref(number)}><Icon name="phone" />Call now</a>
+        <a className="btn btn-primary btn-lg only-coarse" href={telHref(number)}><Icon name="phone" />Call Hollis now</a>
         <button type="button" className="btn btn-primary only-fine" onClick={onCopy}><Icon name="copy" />Copy number</button>
         <Link to="/build" className="btn btn-text">Build your own <Icon name="arrow" /></Link>
       </div>
@@ -93,8 +96,7 @@ function Chapter({ id, title, line, children, aside }) {
 export default function Landing({ health }) {
   const data = health.data;
   const number = data?.demo_number;
-  const innName = data?.demo?.name ?? 'the demo inn';
-  const demoId = encodeURIComponent(data?.demo?.id ?? 'demo');
+  const demoId = FEATURED.id;
   const ready = health.state !== 'checking';
   const pick = useGet('/sample-pick');
   const itin = useGet(ready ? `/properties/${demoId}/itinerary-sample` : null);
@@ -133,12 +135,16 @@ export default function Landing({ health }) {
       <section className="hero" aria-labelledby="hero-h">
         <div className="hero-main">
           <p className="product-name">Bellhop Concierge</p>
-          <h1 id="hero-h">The front desk concierge for small inns and short-term rentals.</h1>
+          <h1 id="hero-h">The front desk concierge for short-term rentals and small inns.</h1>
           {/* "three things": the stop rule (grep -n "three named things" template/concierge.md). "three places":
               compose_itinerary's "One to three picks" (grep -n "One to three picks" compiler/tools.js); "one to
               watch at the inn": cross_domain (grep -n "one to watch at the inn" template/concierge.md). */}
           <p className="hero-lead">Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.</p>
-          <NumberCard number={number} onCopy={copy} cardRef={cardRef} live={health.state === 'answering'} innName={innName} health={health} />
+          <NumberCard number={number} onCopy={copy} cardRef={cardRef} live={health.state === 'answering'} health={health} />
+          <p className="caption featured-line">
+            Featured property: <strong>{FEATURED.name}</strong>, a fictional short-term rental in Miami, shown on the dashboard below. One concierge answers each line. The rental's own line is shared on request; for a night out in any city, call Hollis.{' '}
+            <Link to={`/property/${FEATURED.id}`}>See the rental host's dashboard</Link>.
+          </p>
           {health.state === 'busy' && (
             <Banner tone="warning">We couldn't reach the concierge's tool server just now. The number stays the same; try again in a minute.</Banner>
           )}
@@ -191,19 +197,19 @@ export default function Landing({ health }) {
       </Chapter>
 
       {/* 5. V4 teaser: what the innkeeper sees. */}
-      <Chapter id="love-h" title="What your callers love." line="For the innkeeper: the tastes of the people who call this number, on the map around the inn. Dark until five calls.">
+      <Chapter id="love-h" title="What your callers love." line={`For the rental host: the tastes of the people who call, on the map around ${FEATURED.name}. Labeled sample until five calls.`}>
         {(insights.state === 'loading' || fingerprint.state === 'loading') && <div className="skeleton area-skeleton" aria-busy="true" aria-label="Loading the area card" />}
         {insights.state === 'ok' && <AreaCard insights={insights.data} fingerprint={fingerprint.state === 'ok' ? fingerprint.data : null} compact />}
-        {insights.state === 'error' && <Link to="/property/demo" className="btn btn-text">Open the innkeeper dashboard</Link>}
+        {insights.state === 'error' && <Link to="/property/miami" className="btn btn-text">Open the rental host dashboard</Link>}
       </Chapter>
 
       {/* 6. Proof chips: the safety rules, each one a link to where it shows. */}
       <Chapter id="safe-h" title="Safe by default."
         line={typeof locked === 'number' && locked > 0 ? `${WORDS[locked] ?? locked} rules are always on, for every inn.` : 'The same rules are always on, for every inn.'}>
         <ul className="proof-chips">
-          <li><Link to="/property/demo/brief" className="proof-chip"><Icon name="check" />Says it is automated</Link></li>
+          <li><Link to="/property/miami/brief" className="proof-chip"><Icon name="check" />Says it is automated</Link></li>
           <li><Link to="/privacy" className="proof-chip"><Icon name="lock" />Keeps no names or numbers</Link></li>
-          <li><Link to="/property/demo" className="proof-chip"><Icon name="dash" />Dark until five calls</Link></li>
+          <li><Link to="/property/miami" className="proof-chip"><Icon name="dash" />Dark until five calls</Link></li>
         </ul>
       </Chapter>
 
@@ -219,8 +225,8 @@ export default function Landing({ health }) {
           </p>
           <div className="row own-actions">
             <Link to="/build" className="btn btn-primary btn-lg">Build yours</Link>
-            <Link to="/property/demo" className="btn btn-secondary btn-lg">See the innkeeper dashboard</Link>
-            <Link to="/property/demo/brief" className="btn btn-text">See the one-page brief</Link>
+            <Link to="/property/miami" className="btn btn-secondary btn-lg">See the rental host dashboard</Link>
+            <Link to="/property/miami/brief" className="btn btn-text">See the one-page brief</Link>
           </div>
           {data?.tools && (
             <p className="micro mono">Tool server: Qloo {data.tools.qloo}, Ticketmaster {data.tools.ticketmaster}.{Number.isFinite(Date.parse(data.checked_at)) ? ` Checked ${new Date(data.checked_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}</p>
@@ -230,7 +236,7 @@ export default function Landing({ health }) {
 
       {number && showBar && (
         <div className="callbar only-coarse">
-          <a className="btn btn-primary" href={telHref(number)}><Icon name="phone" />Call now · <span className="tnum">{formatPhone(number)}</span></a>
+          <a className="btn btn-primary" href={telHref(number)}><Icon name="phone" />Call Hollis · <span className="tnum">{formatPhone(number)}</span></a>
         </div>
       )}
       <Toast message={toast} onDone={() => setToast('')} />

@@ -19,10 +19,10 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 
 | | |
 |---|---|
-| **Call it** | **(833) 658-4321.** Hollis, the road-line concierge, answers from any US city. Name a band you love and what you feel like eating. |
+| **Call it** | **(833) 658-4321.** Hollis, the road concierge, answers for any city in the United States. Name a band you love and what you feel like eating. It is the one public number: one concierge per line, no transfers. |
 | **See it** | [concierge.southernsky.cloud](https://concierge.southernsky.cloud): a sample pick, the Qloo request behind it, and what the guest would have heard without their tastes. |
-| **Run the inn** | [`/property/demo`](https://concierge.southernsky.cloud/property/demo): calls, the exact text a guest gets, where each line came from, area insights. |
-| **Print the brief** | [`/property/demo/brief`](https://concierge.southernsky.cloud/property/demo/brief): one page for the front desk, room cards tear off the bottom. |
+| **Run the rental** | [`/property/miami`](https://concierge.southernsky.cloud/property/miami): the featured demo property, Casa Coralina, a fictional Airbnb-style short-term rental in Miami. The rental host's view of the property its guests call: calls, the exact text a guest gets, where each line came from, area insights, all labeled sample data until real calls arrive. Its own phone line is not listed here and is shared on request. |
+| **Print the brief** | [`/property/miami/brief`](https://concierge.southernsky.cloud/property/miami/brief): one page for the front desk, room cards tear off the bottom. |
 | **Build your own** | [`/build`](https://concierge.southernsky.cloud/build): eleven questions, a preview, then publish. |
 
 **Where the demo stands.** Qloo is live: the hackathon key arrived on October 19, 2026, every

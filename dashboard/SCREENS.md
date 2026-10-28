@@ -2,7 +2,7 @@
 
 Companion to `DESIGN-LANGUAGE.md` (component names in CAPS refer to its section 5). Ship date **2026-10-28**; hackathon deadline Oct 30. Priority: **MUST** = the entry fails or looks fake without it; **SHOULD** = materially strengthens judging; **COULD** = cut first.
 
-This is the spec as written. What shipped differently (no "Ring my phone" or in-browser call: the number is called directly; the demo inn is The Juniper House) is listed under "As built" at the top of `DESIGN-LANGUAGE.md`. Where the two disagree, the running pages are the truth.
+This is the spec as written. What shipped differently (no "Ring my phone" or in-browser call: the number is called directly; the featured demo property is Casa Coralina, a fictional Miami rental, and the one public number is Hollis's toll-free line; The Juniper House is retired) is listed under "As built" at the top of `DESIGN-LANGUAGE.md`. Where the two disagree, the running pages are the truth.
 Data contracts: `server/README.md` (tool responses; `area_insights` per-section `status`). Build order from R8: compiler + ConfigCard (typing alone works) -> concierge agent + tool server -> voice builder -> preview/ring-back -> insight panels.
 
 Global shell (all screens): 390 = single column, 16px gutters, bottom tab bar (4 slots) on dashboard screens only; 768 = 2-col card grids; 1440 = 1152px centered column, left rail on dashboard screens. Wordmark top-left, theme toggle and GitHub link top-right (text link, 48px target). Footer: "Bellhop Concierge, an edition of Bellhop by SouthernSky. AGPL-3.0. Source." and the sourcing line "Picks from Qloo taste graph and Ticketmaster."
@@ -31,7 +31,7 @@ If time runs out, cut in this order: Settings write paths, Compare panel, "what 
 
 **Layout at 390 (single column, in order):**
 1. Wordmark row (24px) + theme toggle + "GitHub" link.
-2. Eyebrow (Micro): `THE JUNIPER HOUSE, SAMPLE INN` and LiveBadge `Answering now` on the same row (wraps).
+2. Eyebrow (Micro): `RENTAL HOST DASHBOARD, SAMPLE PROPERTY IN MIAMI` (Casa Coralina) and LiveBadge `Sample property, line unlisted` on the same row (wraps).
 3. h1 (Display): "Call the front desk." Lead sentence: "Tell it three things you love. It texts you three places nearby, with the reason for each."
 4. PhoneNumberCard: the number at `--text-number` (36px, fits on one line at 390 with tabular-nums; verify the width audit), caption "Free to call. The inn is fictional; the calls and texts are real."
 5. Qloo line (purple SourceChip + one sentence): "Picks come from Qloo's taste graph, with the reason shown. Live events from Ticketmaster."
@@ -164,7 +164,7 @@ Tab bar (390) / left rail (1440): Home, Sessions, Insights, Settings. Header str
 
 - **Purpose:** the evidence page a toll-free review asks for: how a guest gets from the room to one text, with the entity, brand, domain, and number telling one story. Not linked from the footer; linked from the Terms page and the landing shell's no-script note.
 - **Same build as 4b:** a page in `src/legal-content.js` (`SMS_OPT_IN`), rendered by `LegalPage` in-app and by `scripts/build-legal.mjs` into `dist/sms-opt-in.html`, no scripts. Two block shapes exist for it: `card` (the room card) and `quote` (words the concierge says). Card and quote styles live in `src/opt-in.css`, imported by `LegalPage` and inlined into the static copy.
-- **Top to bottom:** the card in the room (paper on any theme, 3:2, the inn name, "Need a plan tonight?", "Call the concierge:" and the toll-free number, "Ask for a text and the plan goes to the number you call from.", the automated-line note) and a link to the same card as `/room-card-juniper-833.png` (about 1200x800, captured from this page); what the concierge says (Harper's opener verbatim, the offer line, "only if the guest says yes"); what the guest agrees to (one text per call at most, only the calling number, about 1 to 3 a month, the plan and nothing else, STOP and HELP set apart, the never-sold sentence, the support address); links to `/privacy` and `/sms-terms`. The usual footer with the bridge sentence.
+- **Top to bottom:** the card in the room (paper on any theme, 3:2, the property name (Casa Coralina), "Need a plan tonight?", "Call Hollis, the concierge:" and the toll-free number, "Ask for a text and the plan goes to the number you call from.", the automated-line note) and a link to the same card as `/room-card-juniper-833.png` (about 1200x800, captured from this page); what the concierge says (Harper's opener verbatim, the offer line, "only if the guest says yes"); what the guest agrees to (one text per call at most, only the calling number, about 1 to 3 a month, the plan and nothing else, STOP and HELP set apart, the never-sold sentence, the support address); links to `/privacy` and `/sms-terms`. The usual footer with the bridge sentence.
 - This is the one page that carries an email address and a phone number: the support mailbox and the toll-free line. `server/test/opt-in-copy.test.js` fails if the persona's opener drifts from the quoted one.
 
 ---

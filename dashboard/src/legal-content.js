@@ -22,11 +22,11 @@ export const BRIDGE = 'Bellhop Concierge is a product of SouthernSky, a service 
 export const SUPPORT_EMAIL = 'support@southernsky.cloud';
 /** The toll-free line, verified for texting. Printed on the opt-in page's room card only. */
 export const OPT_IN_NUMBER = '(833) 658-4321';
-/** Harper's first sentence (personas/harper.md `opener`), with the demo inn's name filled in. */
-export const OPENER = 'This is Harper, your automated concierge at The Juniper House, who am I speaking with?';
+/** Hollis's first sentence (personas/road.md `opener`, default opener hook). */
+export const OPENER = 'This is Hollis, your automated concierge, who am I speaking with?';
 /** What the concierge says in its next turn on every first call (template/concierge.md, The opening). */
 export const RECORDING_LINE = 'Just so you know, this call is being recorded so I can give you the best service possible going forward.';
-export const OFFER_LINE = 'Want me to text these? Any text I send goes only to the number you are calling from.';
+export const OFFER_LINE = 'Want me to text the ones you liked?';
 export const STOP_HELP = 'Reply STOP to opt out, HELP for help. Message and data rates may apply.';
 export const SMS_SENTENCE = 'Mobile numbers and consent are never sold, shared, or transferred to third parties for marketing.';
 
@@ -57,14 +57,14 @@ export const PRIVACY = {
       blocks: [{ ul: [
         'The concierge says it is automated in its first sentence and asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it also says it is a computer voice.',
         "The call runs on ElevenLabs' voice platform, which records it. This server never stores a transcript or a recording.",
-        'The demo inn, The Juniper House, is fictional. The calls to it are real.',
+        'The demo line is answered by Hollis, a road concierge for any city in the United States. Casa Coralina, the sample rental shown on the dashboard, is fictional.',
       ] }],
     },
     {
       id: 'qloo',
       heading: 'What a call sends to Qloo',
       blocks: [
-        { p: "Taste ids, tags, the inn's coordinates, a search radius, and filters such as a kind of place. The one free-text field is the taste you named, capped at 80 characters." },
+        { p: "Taste ids, tags, the coordinates being searched, a search radius, and filters such as a kind of place. The one free-text field is the taste you named, capped at 80 characters." },
         { p: 'Never your phone number, an email address, or your room. Every outbound parameter is checked against an allowlist before it leaves the server, and a taste that contains an email address, a phone number, or a room number is refused. Your first name never leaves this server. Ticketmaster gets a location, a date range, and a kind of event, nothing about you.' },
       ],
     },
@@ -99,7 +99,7 @@ export const PRIVACY = {
     {
       id: 'dashboard',
       heading: 'The innkeeper dashboard',
-      blocks: [{ p: "The innkeeper sees totals and rankings: which tastes came up, how many calls, how many texts. Never a caller's number or name. Until an inn has five calls, the guest panels stay dark, so one guest can't be picked out of a short list. Anything shown before then is a labeled sample." }],
+      blocks: [{ p: "The innkeeper sees totals and rankings: which tastes came up, how many calls, how many texts. Never a caller's number or name. Until a property has five calls, the guest panels stay dark, so one guest can't be picked out of a short list. Anything shown before then is a labeled sample." }],
     },
     questions([' The ', { text: 'terms', to: '/terms' }, ' cover the demo line and the code.']),
   ],
@@ -116,7 +116,7 @@ export const TERMS = {
       id: 'demo',
       heading: 'What this is',
       blocks: [{ ul: [
-        'A working demo. The inn on the demo line, The Juniper House, is fictional.',
+        'A working demo. The line is answered by Hollis, a concierge for a night out in any US city. Casa Coralina, the sample short-term rental on the dashboard, is fictional.',
         'The demo number takes up to three hundred calls a day, three at a time.',
         'It is offered as is, with no warranty of any kind. It may be slow, down, or changed without notice.',
       ] }],
@@ -131,8 +131,8 @@ export const TERMS = {
       heading: 'Text messages',
       blocks: [
         { ul: [
-          'Program: Bellhop Concierge. The text is the plan you asked for on the call.',
-          'The concierge offers the text. It goes out only if you say yes, and only to the number you are calling from.',
+          'Program: Bellhop Concierge, the toll-free demo line answered by Hollis. The text is the plan you asked for on the call.',
+          'A text goes out when you ask for one or say yes to the offer, and only to the number you are calling from.',
           'Frequency: a text when the guest asks for one, up to ten on a call, and at most twelve to one number in an hour.',
           'Reply STOP to any text to stop them. Message and data rates may apply.',
         ] },
@@ -154,24 +154,24 @@ export const SMS_OPT_IN = {
   slug: 'opt-in',
   title: 'How guests opt in to texts',
   docTitle: 'Text opt-in, Bellhop Concierge',
-  description: 'How a guest of an inn on Bellhop Concierge asks for a text: the room card, the words on the call, and the consent. The concierge says it is automated in its first sentence and that the call is recorded in its next line.',
-  lead: 'Bellhop Concierge sends a text only when a guest asks for one, out loud, on a call to the inn. Here is every step the guest sees and hears, from the card in the room to the text.',
+  description: 'How a guest of a property on Bellhop Concierge asks for a text: the room card, the words on the call, and the consent. The concierge says it is automated in its first sentence and that the call is recorded in its next line.',
+  lead: 'Bellhop Concierge sends a text only when a guest asks for one, out loud, on a call to the concierge. Here is every step the guest sees and hears, from the card in the room to the text.',
   sections: [
     {
       id: 'card',
       heading: 'The card in the room',
       blocks: [
-        { p: 'The inn sets this card in the guest room. It is how a guest finds the number to call.' },
+        { p: 'A host sets a card like this in the guest room. It is how a guest finds the number to call. This one is for Casa Coralina, the fictional sample rental.' },
         { card: {
-          inn: 'The Juniper House',
+          inn: 'Casa Coralina',
           hook: 'Need a plan tonight?',
-          call: 'Call the concierge:',
+          call: 'Call Hollis, the concierge:',
           number: OPT_IN_NUMBER,
-          line: 'Ask for a text and the plan goes to the number you call from.',
+          line: 'Ask for a text and the plan goes to the number you call from. A night out in any US city.',
           fine: 'An automated line. Calls are recorded.',
         } },
         { p: 'Toll-free number, verified for texting.' },
-        { p: ['The same card as an image: ', { text: 'room-card-juniper-833.png', to: '/room-card-juniper-833.png' }, '.'] },
+        { p: ['The same card as an image: ', { text: 'room-card-coralina-833.png', to: '/room-card-coralina-833.png' }, '.'] },
       ],
     },
     {
@@ -184,7 +184,7 @@ export const SMS_OPT_IN = {
         { quote: RECORDING_LINE },
         { p: 'When the plan is ready, the concierge asks before it sends anything:' },
         { quote: OFFER_LINE },
-        { p: 'The text goes out only if the guest says yes.' },
+        { p: 'The text goes out only if the guest says yes, and only to the number that called.' },
       ],
     },
     {

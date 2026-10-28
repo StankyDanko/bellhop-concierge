@@ -66,7 +66,7 @@ export default function App() {
           <nav className="topnav" aria-label="Main">
             <Link to="/" aria-current={cur('/')}>Demo</Link>
             <Link to="/build" aria-current={cur('/build')}>Build yours</Link>
-            <Link to="/property/demo" aria-current={cur('/property')}>Dashboard</Link>
+            <Link to="/property/miami" aria-current={cur('/property')}>Dashboard</Link>
             {repo && <a href={repo} rel="noopener">GitHub</a>}
             <ThemeToggle />
           </nav>

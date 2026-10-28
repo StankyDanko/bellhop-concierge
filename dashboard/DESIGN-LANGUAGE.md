@@ -7,7 +7,7 @@ Precedence: this file > register > brand constants > the house design doctrine. 
 
 The spec ran ahead of the build in a few places. Where this file and the running pages differ, the pages are the truth, and this list says where:
 
-- **The demo inn is The Juniper House,** Savannah, GA. The demo line is the toll-free (833) 658-4321, Harper answering, capped at twenty calls a day. Earlier drafts below used a placeholder inn name and a different number.
+- **The featured demo property is Casa Coralina,** a fictional Miami short-term rental (Airbnb-style, not affiliated with any booking platform). The one public line is the toll-free (833) 658-4321, Hollis answering, one concierge per line; Casa Coralina's own line is never printed on the site. The Juniper House (Savannah, GA, Harper) is retired from the featured spots. Landing, dashboard default, brief, and room card all lead with Casa Coralina. The older notes below still describe the inn. Earlier drafts below used a placeholder inn name and a different number.
 - **Guests name three things,** not two. Every "two things" in the original copy now reads "three things" on the site and on the room cards.
 - **No ring-back or in-browser call.** The landing offers the number to call. Sections 5.1 and 5.9 describe a flow that was designed and not built.
 - **Two sources besides the innkeeper: Qloo and Ticketmaster.** No other place source is used, so the blue source chip only ever says Ticketmaster.

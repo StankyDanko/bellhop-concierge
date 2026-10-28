@@ -65,7 +65,7 @@ const css = assets.filter((f) => f.endsWith('.css')).map((f) => readFileSync(joi
 check(html.includes('<title>Bellhop Concierge</title>'), 'built HTML keeps the title');
 check((html.match(/viewport-fit=cover/g) ?? []).length === 1, 'built HTML has viewport-fit=cover once');
 check(!/<img(?![^>]*\balt=)[^>]*>/i.test(html), 'built HTML: every <img> has alt (shell has none or all carry alt)');
-for (const s of ['The front desk concierge for small inns and short-term rentals.', 'What your words changed.', 'Your words moved the answer.', 'How a call becomes a plan.',
+for (const s of ['The front desk concierge for short-term rentals and small inns.', 'What your words changed.', 'Your words moved the answer.', 'How a call becomes a plan.',
   'Why this pick.', 'What your callers love.', 'Safe by default.', 'Run your own concierge.', 'Step through the call', 'Show each step',
   'See the exact request', 'matches your words', 'Eleven questions, then a preview.']) {
   check(js.includes(s), `bundle carries ${JSON.stringify(s)}`);
@@ -112,12 +112,14 @@ try {
   const smsLive = render(h(Landing, { health: { ...health, data: { ...health.data, tools: { ...health.data.tools, sms: 'live' } } } }), 'landing (sms live)');
   check(smsLive.includes('The calls and texts are real.') && !smsLive.includes('test mode'), 'answering with sms live: calls and texts real');
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
-  check(h1 === 'The front desk concierge for small inns and short-term rentals.', `H1 = ${JSON.stringify(h1)}`);
+  check(h1 === 'The front desk concierge for short-term rentals and small inns.', `H1 = ${JSON.stringify(h1)}`);
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
   check(land.includes('Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.'), 'product sentence present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
   check(tels.length >= 2 && tels.every((t) => t === 'tel:+15550100199'), `tel: links ${tels.length}, all tel:+15550100199`);
-  check(land.includes('Try it: call The Juniper House, a sample inn'), 'number card label names the sample inn');
+  check(land.includes('Try it: call Hollis, the road concierge for any US city'), 'number card label names Hollis, the one public line');
+  check(land.includes('Featured property: <strong>Casa Coralina</strong>') && land.includes('href="/property/miami"'), 'Casa Coralina is the featured property, linked to its dashboard');
+  check(!/Juniper|Harper|\b706\b|transfer|three agents/i.test(land), 'landing has no Juniper, Harper, 706, transfer, or three agents');
   const h2s = [...land.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
   check(JSON.stringify(h2s) === JSON.stringify(['What your words changed.', 'How a call becomes a plan.', 'Why this pick.', 'What your callers love.', 'Safe by default.', 'Run your own concierge.']), `H2 order ${JSON.stringify(h2s)}`);
   const pending = render(h(Landing, { health: { state: 'test', data: { ...health.data, demo_number: null } } }), 'landing (no number)');

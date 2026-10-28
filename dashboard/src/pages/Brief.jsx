@@ -215,7 +215,7 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
     return (
       <div className="container stack">
         <h1 style={{ fontSize: 'var(--text-2xl)' }}>{prop.status === 404 ? 'No property by that name.' : "We couldn't load this brief."}</h1>
-        <p className="row"><Link to="/property/demo/brief" className="btn btn-secondary">Open the demo inn's brief</Link></p>
+        <p className="row"><Link to="/property/miami/brief" className="btn btn-secondary">Open the Casa Coralina brief</Link></p>
       </div>
     );
   }
@@ -223,9 +223,10 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
   const cfg = prop.data.config;
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const town = townOf(cfg.property.address);
-  // Only the demo property has a public number today (PUBLIC_DEMO_NUMBER via /api/health-summary).
-  // Any other inn gets a write-in line: we never print a number we cannot vouch for.
-  const number = id === 'demo' ? health?.data?.demo_number ?? null : null;
+  // The one public number (PUBLIC_DEMO_NUMBER via /api/health-summary) is Hollis's. It prints on the featured sample
+  // brief; Casa Coralina's own line is never printed. Any other property gets a write-in line: we never print a number we cannot vouch for.
+  const featured = id === 'miami' || id === 'demo';
+  const number = featured ? health?.data?.demo_number ?? null : null;
   const locked = rails.state === 'ok' ? rails.data.locked : LOCKED_RULES;
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ready = [sessions, ins, rails, fp].every((s) => s.state !== 'loading') && health?.state !== 'checking';
@@ -249,7 +250,8 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
             <p className="brief-eyebrow">The concierge line</p>
             {number
               ? <p className="brief-number tnum">{formatPhone(number)}</p>
-              : <p className="brief-number-pending">{id === 'demo' ? 'Number goes live at submission' : 'Your number appears here once it is published'}</p>}
+              : <p className="brief-number-pending">{featured ? 'Number goes live at submission' : 'Your number appears here once it is published'}</p>}
+                      {id === 'miami' && number && <p className="brief-note">Hollis answers this line for a night out in any US city. The rental's own line is shared on request.</p>}
           </div>
         </header>
 
@@ -291,8 +293,8 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
         <div className="brief-tear" aria-label="Room cards to cut out">
           <p className="brief-tear-label"><span aria-hidden="true">✂</span> Cut along the dashed lines: a room card for the welcome folder and a smaller one for the nightstand.</p>
           <div className="brief-cards">
-            <RoomCard name={cfg.property.name} number={number} variant="large" label="Room card, 4 by 6 proportions" />
-            <RoomCard name={cfg.property.name} number={number} variant="tent" label="Nightstand card, 3 by 5 proportions" />
+            <RoomCard name={cfg.property.name} number={number} call={id === 'miami' ? 'Call Hollis, the concierge' : undefined} variant="large" label="Room card, 4 by 6 proportions" />
+            <RoomCard name={cfg.property.name} number={number} call={id === 'miami' ? 'Call Hollis, the concierge' : undefined} variant="tent" label="Nightstand card, 3 by 5 proportions" />
           </div>
         </div>
       </article>
