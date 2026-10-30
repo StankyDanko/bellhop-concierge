@@ -9,8 +9,9 @@ October 15 to 17, 2026 (`git log --reverse` has the details):
 - **The tool server.** Taste resolution, places near the inn, cross-domain picks, live events,
   the text composer, and area insights, over Qloo and Ticketmaster. A PII guard on every
   outbound Qloo parameter. A private cache with mock, live, and cache-only modes.
-- **The compiler, the template, and two personas.** An innkeeper's answers and a persona go in,
-  a linted voice agent definition comes out. Harper and Maybelle.
+- **The compiler and the template.** An innkeeper's answers and a persona go in, a linted voice
+  agent definition comes out. The first two inn voices shipped here; the builder still offers
+  them.
 - **Texts and the session log.** `send_sms` reports success only on a real send, to the number
   that called. `log_session` stores a keyed hash of the caller, never the number.
 - **The dashboard, deployed.** The landing page, the builder, and the innkeeper dashboard at
@@ -43,11 +44,23 @@ October 22, 2026, the day the key arrived:
 
 What the live API taught us along the way: [docs/LEARNED.md](docs/LEARNED.md).
 
-## In flight
+October 23 to 29, 2026:
 
-- **A second call that sounds new.** The opener, the food choice, and the bet, picked per call
-  from small pools (`server/conversation/`), so a guest who calls back doesn't hear the same
-  words twice. The chooser is built and tested; wiring it into the call comes next.
+- **Any city in the US.** Hollis, the road concierge, answers the public toll-free line,
+  (833) 658-4321, and finds out where the caller is as they talk (`template/road.md`).
+- **Short-term rentals.** Casa Coralina, a fictional Miami rental, with Marisol answering the
+  stay questions from the owner's own stay sheet (`stay_info`) before the evening ones.
+- **One concierge per number.** No transfers between concierges; each property's line is
+  compiled from its own config file.
+- **One pick at a time.** The concierge says one pick and its reason, then lets the guest react,
+  and the reaction steers the next pick. Tastes come from the chat, never from a quiz.
+- **A text with a picks page.** Picks by name and one short link to a page that opens each one.
+- **A second call that picks up the first.** Returning-guest memory (first name, town, tastes,
+  what was texted), cleared at once by `forget_guest`. The opener and the mood choice are picked
+  per call from small pools (`server/conversation/`), so a caller doesn't hear the same words
+  twice, and picks already offered stay out.
+- **Fresher picks.** Films and shows lean recent unless the guest asks for older, and a
+  "lesser known" ask caps popularity.
 
 ## Next, measured and waiting
 

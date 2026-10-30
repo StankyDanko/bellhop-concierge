@@ -2,8 +2,8 @@
 
 Public base URL: `https://concierge.southernsky.cloud`. The dashboard is at `/`, `/build`,
 `/property/<id>`, and `/property/<id>/brief`; the JSON API at `/api/*`; the tool server at
-`/health` and `/tools/<name>`. The demo runs in mock mode (`QLOO_MOCK=1`, `TICKETMASTER_MOCK=1`)
-until the hackathon key arrives.
+`/health` and `/tools/<name>`. `/health` says which mode each service runs in (Qloo,
+Ticketmaster, texts, geocoding); the public demo runs all of them live.
 
 ## The shape
 
@@ -47,13 +47,15 @@ first run and pushes it only when the server has none. To change it later: edit
 ## Sample data
 
 Production seeds no sessions. The `sessions` table is written only by the `log_session` tool,
-so a fresh volume shows zero. Only the demo inn's config is seeded, labeled as a sample inn,
-and the guest-taste panels stay gated until five real sessions exist.
+so a fresh volume shows zero. Only the sample configs are seeded (the road line, the Miami
+rental, and a sample inn), and the guest-taste panels stay gated until five
+real sessions exist.
 
-## Going live (after the Qloo key arrives)
+## Going live
 
-Add `QLOO_API_KEY` and `TICKETMASTER_API_KEY` to `server/.env`, remove the two `*_MOCK` lines,
-and run `node deploy.mjs --sync-env`.
+Add `QLOO_API_KEY` and `TICKETMASTER_API_KEY` to `server/.env` (and the `TWILIO_*` keys with
+`SMS_FROM_NUMBER` for real texts), remove the `*_MOCK` lines, and run
+`node deploy.mjs --sync-env`. `/health` should then report each service as `live`.
 
 ## Roll back
 
