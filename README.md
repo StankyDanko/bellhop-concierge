@@ -1,247 +1,201 @@
 # Bellhop Concierge
 
-A phone concierge for small inns and short-term rentals, on the room card or the welcome card. A
-guest calls and names three things they love; Qloo's taste graph picks three places nearby, each
-with the reason it was picked; the plan arrives as one text. At a rental the same number also
-answers the stay questions a rental host gets all weekend: what time is checkout, where do I park,
-which night does the trash go out. The innkeeper, or the rental host, gets a dashboard and a
-one-page brief to print.
+<!-- PITCH: the one line below is the swap point for a headline or tagline. -->
+**Call a number, talk about your night, get one good pick at a time and a text with the plan: a
+phone concierge for small inns and short-term rentals, with Qloo's taste graph doing the
+picking.**
+
+**Call (833) 658-4321** ·
+[Live site](https://concierge.southernsky.cloud) ·
+<!-- FILM: add "[Watch the film](<video url>) ·" here when the video is up. -->
+[How we use Qloo](docs/QLOO.md) ·
+[Devpost](https://devpost.com/software/bellhop-concierge) ·
+[AGPL-3.0](LICENSE)
+
+<!-- HERO: uncomment when docs/media/hero.png is committed.
+![A call with Hollis, the text it sends, and the picks page](docs/media/hero.png)
+-->
 
 A twelve-room inn doesn't have a concierge. It has an innkeeper who is also the plumber, the
-baker, and the person who picks up the phone at 11pm. This is for them.
+baker, and the person who picks up the phone at 11pm. A rental has no front desk at all. This
+puts a concierge on the room card: a guest calls, chats about their night, and the concierge
+listens for the things they love (a show, a band, a craving) and turns them into places nearby
+that fit, each with the reason it fits. Built for the
+[Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026.
 
-Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), October 2026. Project page: [Devpost](https://devpost.com/software/bellhop-concierge).
-[Live demo](https://concierge.southernsky.cloud) · call **(833) 658-4321** ·
-[Architecture](docs/ARCHITECTURE.md) · [How we use Qloo](docs/QLOO.md) ·
-[What we learned](docs/LEARNED.md) · [AGPL-3.0](LICENSE)
+## Judge in 60 seconds
 
-## Try it
+1. **Call (833) 658-4321.** That's Hollis, the road concierge, for any city in the United
+   States. Say where you are and mention something you've been into. She gives one pick at a
+   time, waits for your reaction, and offers to text the plan. The text comes from the same
+   number and links to a picks page.
+2. **Open [`/property/miami`](https://concierge.southernsky.cloud/property/miami).** Casa
+   Coralina, a fictional short-term rental in Miami, and the dashboard its owner would see:
+   the text a guest gets, where every line came from, and the Qloo request behind each pick.
+   Its concierge is Marisol, who answers the stay questions first (checkout, parking, trash
+   night) and then asks about your evening.
+3. **Check the switches yourself.** The server says which services are live, so you don't have
+   to take our word for it:
 
-| | |
-|---|---|
-| **Call it** | **(833) 658-4321.** Hollis, the road concierge, answers for any city in the United States. Name a band you love and what you feel like eating. It is the one public number: one concierge per line, no transfers. |
-| **See it** | [concierge.southernsky.cloud](https://concierge.southernsky.cloud): a sample pick, the Qloo request behind it, and what the guest would have heard without their tastes. |
-| **Run the rental** | [`/property/miami`](https://concierge.southernsky.cloud/property/miami): the featured demo property, Casa Coralina, a fictional Airbnb-style short-term rental in Miami. The rental host's view of the property its guests call: calls, the exact text a guest gets, where each line came from, area insights, all labeled sample data until real calls arrive. Its own phone line is not listed here and is shared on request. |
-| **Print the brief** | [`/property/miami/brief`](https://concierge.southernsky.cloud/property/miami/brief): one page for the front desk, room cards tear off the bottom. |
-| **Build your own** | [`/build`](https://concierge.southernsky.cloud/build): eleven questions, a preview, then publish. |
+   ```bash
+   curl -s https://concierge.southernsky.cloud/health
+   # "qloo":"live","ticketmaster":"live","sms":"live", and the eleven tools by name
+   ```
 
-**Where the demo stands.** Qloo is live: the hackathon key arrived on October 19, 2026, every
-capability below was checked against the live API on October 22, and the public server reports Qloo
-as live. The number is a toll-free line, verified for texting, capped at three hundred calls a day, three at once. The server says which mode
-each service is in, Qloo, Ticketmaster, and the text sender, so you never have to take our word
-for it:
+More of a reader than a caller? [docs/JUDGES.md](docs/JUDGES.md) maps each judging criterion to
+the code and the measurement behind it.
 
-```bash
-curl -s https://concierge.southernsky.cloud/health
+## One call
+
+```mermaid
+flowchart TD
+    guest(["Guest on the phone"]) -->|"talks about their night"| voice["Voice agent: Hollis or Marisol"]
+    voice -->|"the guest's own words"| guard["Tool server: allowlist on every outbound parameter"]
+    guard --> resolve
+    subgraph qloo ["Qloo taste graph"]
+        resolve["search and v2/tags: a name becomes an id, a craving becomes a place tag"]
+        insights["v2/insights near the caller: taste as signals, cuisine as a filter, explainability on"]
+        contrast["The same call with no taste: what anyone nearby would be told"]
+        cross["Cross-domain: a band picks a film, a film picks a place"]
+        resolve --> insights
+        resolve --> cross
+        insights -.-> contrast
+    end
+    insights --> tm["Ticketmaster: shows by artists Qloo ranks close to yours"]
+    insights --> pick["One pick at a time, with the reason Qloo gave"]
+    cross --> pick
+    tm --> pick
+    pick -->|"the guest says yes"| text["One text to the caller's own number, with a picks page link"]
+    contrast -.-> dash["Owner dashboard: what the guest's taste changed"]
 ```
 
-Or on your own machine, no keys needed:
+The same path as a sequence, tool by tool: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Why Qloo is load-bearing
+
+- **The voice agent knows no places.** Every place, film, show, and reason a caller hears comes
+  back from a tool call on that call, and the tools ask Qloo first. Each tool response records
+  its upstream requests (`meta.upstream`), and the dashboard shows the request behind every pick.
+- **The reason is Qloo's, or it says so.** The reason line comes from Qloo's explainability,
+  which names the entities that drove a pick. Explainability never attributed a tag (0 times in
+  90 live results), so a cuisine is said as a fact read from the place ("tagged Thai"), never
+  as "fans of". ([docs/QLOO.md](docs/QLOO.md#4-explainability-the-reason-line))
+- **Taste changes the answer, and we measure it.** Every place call runs twice, with the
+  guest's taste and without. The guest's list moved away from the town's popular list for 12
+  of 12 callers in the latest live battery run. ([docs/MEASUREMENTS.md](docs/MEASUREMENTS.md))
+- **Thirteen Qloo capabilities, each tied to a decision.** Entity and tag search, place
+  insights, cross-domain picks, per-person scoring for a plus-one, the no-taste contrast,
+  heatmaps, demographics, tag leanings, and compare. A stated cuisine sent only as a signal
+  showed up in 0 of 5 top picks; sent as a filter, in every one. So a cuisine is a filter here.
+  ([docs/QLOO.md](docs/QLOO.md))
+- **The owner's panels are the callers' own tastes.** The ids callers resolved pool into a
+  fingerprint per property, and the heatmap, demographics, and lean lists are asked of it,
+  dark until five calls are in.
+
+## What the guest gets
+
+- **A friend on the phone, not a form.** Nobody is asked to name a favorite from memory. A show
+  mentioned in passing is the signal. One pick at a time, the reason in a few words, then a
+  pause for the guest to react; a "meh, too loud" steers the next one.
+- **Fresher picks.** Films and shows lean to the last three years unless the guest asks for
+  older, a "lesser known" ask caps popularity, and what it already offered you doesn't come
+  back.
+- **A text with the plan,** from the number they called, with one link to a picks page
+  (`/p/<token>`, gone after 30 days).
+- **Memory, on a short leash.** Call back and the concierge remembers your first name, your
+  town, your tastes, and what it already texted you, so the second call starts where the first
+  left off. Ask it to forget you and `forget_guest` clears it. Memory lasts a week after the
+  last call by default and never more than 30 days from the first.
+
+## What the owner gets
+
+- **A concierge compiled from one config file.** Each property is a JSON config
+  ([`config/examples/`](config/examples/)) that [`bin/compile.js`](bin/compile.js) turns into a
+  linted voice agent: the favorite spots and why, the house rules, the stay sheet, the persona.
+  One concierge per number, no transfers.
+- **Guardrails that can't be switched off.** Twelve locked rules: it says it's automated, says
+  the call is recorded, and never speaks a door code, takes a payment, or names a place that
+  didn't come from Qloo, Ticketmaster, or the owner's own notes.
+- **A dashboard and a brief.** Calls, the exact text a guest got and the source of every line,
+  area insights, and a one-page brief with tear-off room cards. Build your own at
+  [`/build`](https://concierge.southernsky.cloud/build).
+
+## What we learned
+
+From checking a docs-first client against the live API. All twelve lessons are in
+[docs/LEARNED.md](docs/LEARNED.md).
+
+- **A requirement is a filter, not a signal.** "Thai" sent as a signal produced no Thai place.
+- **Scores can be close while ranks are not.** Two people's affinities for one shortlist sat
+  within a few hundredths, so a score threshold called every pick "for both". A rank rule
+  replaced it.
+- **The top pick isn't the proof; the list is.** With and without taste, the top pick sometimes
+  matched while the rest of the list moved entirely.
+- **A slow right answer is a wrong answer on the phone.** A town as a signal took about thirteen
+  seconds; the voice platform waits about ten. It became a filter.
+
+## Honest limits
+
+1. **Hours go stale.** The concierge never invents an opening hour, and can't promise one either.
+2. **Speech recognition mishears names.** The concierge says each name back, and a name the
+   tools can't find gets "what is it most like?" instead of a guess.
+3. **Distances are as the crow flies.** It says "about a quarter mile", never "five minutes".
+4. **Small towns are thin.** Near a small city a cuisine filter can find single digits of
+   places, so the filter relaxes once and the concierge stops claiming the cuisine.
+5. **Demographics describe people who share these tastes nearby,** never a caller.
+6. **US only, by city name,** on Open-Meteo's free, non-commercial geocoder and forecast.
+7. **The line has limits.** 300 calls a day, 3 at once, 10 texts per call, 12 per number per
+   hour. Hackathon keys end after the event; `CACHE_FREEZE=1` keeps a pre-warmed demo answering.
+
+Where every number on this page comes from: [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md). What
+leaves the server and what is never stored: [docs/PRIVACY.md](docs/PRIVACY.md).
+
+## Run it yourself
+
+Node 20 or newer, no keys needed. Mock mode answers from hand-written fixtures with fictional
+places.
 
 ```bash
 git clone https://github.com/StankyDanko/bellhop-concierge && cd bellhop-concierge
 npm install
-npm test        # the offline suite; it prints its own count
-npm run mock    # the tool server on :8787, answering from hand-written fixtures
+npm test                      # the offline suite; it prints its own count
+npm run battery -- --mock     # simulated callers, scored against the battery criteria
+npm run mock                  # the tool server and dashboard API on :8787
 curl -s -X POST localhost:8787/tools/resolve_taste \
   -H 'X-Concierge-Secret: local-dev-secret-change-me' -H 'content-type: application/json' \
   -d '{"mentions":["Sturgill Simpson","thai food"]}'
+npm run compile -- config/examples/miami-rental.json   # Casa Coralina as an agent definition
 ```
 
-## How a call works
-
-1. The guest names what they love, in their own words: a band, a film, a cuisine, a mood.
-2. Each name goes to Qloo's `/search` and becomes an entity id. Each cuisine or mood goes to
-   `/v2/tags`, scoped to places, and becomes a tag. Nothing is guessed: a name that doesn't
-   resolve is said back as not found.
-3. `/v2/insights` ranks places near the inn for those ids, with a stated cuisine as a hard
-   filter and explainability on, so each pick comes back with the inputs that drove it.
-4. If a plus-one came along, the shortlist is scored once per person, and each pick says who
-   it's for.
-5. The same place call runs again with no taste at all. The two lists, side by side, show what
-   the guest's taste changed.
-6. Ticketmaster adds what's on tonight or this weekend. When the guest named a band, Qloo
-   names the artists it ranks close to that one, and Ticketmaster says which of them play within
-   a drive in the next three weeks: "Fans of Sturgill Simpson also love Tyler Childers, playing
-   Friday at eight." Qloo supplies the reason, Ticketmaster only the date and the venue. Two
-   shows at most.
-7. One text, at most 480 characters, goes to the number that called, and only that number.
-
-**Weather can reorder, never replace.** For a tonight plan the server asks Open-Meteo for the
-hourly rain chance once per call (no key, cached for the hour per inn). If the chance at seven
-in the evening, inn time, is 50 percent or more, picks whose own Qloo tags read outdoor (patio,
-rooftop, beer garden, park, market and the like) move after the indoor ones, and the concierge
-adds one clause: "Rain likely tonight, so the indoor pick goes first." The set of places is
-whatever Qloo picked; weather changes only their order. If the forecast is unavailable the
-picks go out exactly as Qloo ranked them. Battery criterion C17 checks the sets match.
-(`grep -n "RAIN_THRESHOLD_PCT\|OUTDOOR_TAG" server/lib/weather.js`)
-
-The picture, the eleven tools, and what is stored where: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Works anywhere in the US
-
-The road line asks a caller where they are, and the place tools take that city, in the
-caller's words, as `locality`. One lookup on Open-Meteo's free geocoding API turns it into
-coordinates and a time zone, and from then on Qloo, Ticketmaster, and the forecast are all
-asked about that same point, so the three never disagree about where "there" is. A name shared
-by two states gets a question instead of a guess ("Which Austin, the one in Texas?"), and a town
-it can't place gets "what state is it in?". Nothing goes to Qloo or Ticketmaster until the city
-is placed. A city name is the only location stored, and only for calls that named one.
-
-Coverage was measured in five cities (New York, Austin, Denver, Nashville, Boise) with the
-standard callers: see [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
-
-## Short-term rentals
-
-A rental is a home with no front desk, so half the calls are about the stay, not the evening. A
-rental config sets `property.kind` to `rental` and may carry a stay sheet: a welcome, the pool or
-building amenities and their hours, trash day, quiet hours, how to reach the rental host, and a
-transit tip. Check-in, checkout, parking, the house rules, and the favorite spots come from the
-answers the builder already asks for. With a sheet the agent gets a tenth tool, `stay_info`: the
-model sends one topic, the property id is compiled in, and the answer is the owner's own words,
-with nothing sent upstream. Wifi passwords and door codes are never answered on the phone; they
-come in the check-in message, and the concierge says so. An answer that looks like a code (three
-digits in a row, a word mixing letters and digits, a piece of the access or wifi note) is refused
-even if someone typed it into the sheet, and battery criterion C19 holds every stay answer to it.
-
-The demo is Casa Coralina, a fictional two bedroom bungalow in Coconut Grove, Miami
-(`config/examples/miami-rental.json`), with Marisol as the voice (`personas/marisol.md`,
-compiled through `template/rental.md`). Every place tool looks around its own coordinates, and
-"tonight" is judged on its clock. (`npm test -- --test-name-pattern "stay_info|Marisol|rental"`)
-
-## Why Qloo is load-bearing
-
-- **Taste in, places out.** The voice line knows no restaurants. Every place, event, and reason
-  the guest hears comes back from a tool call on that call, and the tools are Qloo first.
-  Each response records its upstream calls (`meta.upstream`), and the dashboard shows the
-  request behind every pick.
-- **The reason is Qloo's, or it says so.** The reason line comes from Qloo's explainability,
-  which names the entities that drove a pick. Qloo doesn't attribute tags, so when a pick
-  matches the guest's cuisine the reason says "tagged Thai" as a fact about the place, and when
-  nothing is attributed it says "Strong match for your overall taste". Nothing is made up.
-- **Taste changes the answer, measurably.** Without taste, Qloo returns the town's popular
-  list. With it, the guest's list moved away from that one for every simulated caller in the
-  latest live battery run: 12 of 12 run, 3 held back by the call cap (2026-10-22,
-  `npm run battery -- --live`).
-- **The innkeeper's panels are the callers' own tastes.** The ids each caller resolved add up to
-  a fingerprint, and the heatmap, demographics, and the callers' lean list are asked of that, behind a
-  five-call floor.
-
-Every capability, the parameters we send, and what we measured live: [docs/QLOO.md](docs/QLOO.md).
-Where every number on this page comes from: [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
-
-## What the innkeeper gets
-
-- **A concierge that knows their favorites.** Eleven questions in the builder, including the
-  local spots they love and why (the concierge quotes the reason), a choice of two voices,
-  Harper or Maybelle, a preview, then publish. Twelve guardrails are locked on and can't be
-  switched off: it says it's automated, it says the call is recorded, and it never speaks a
-  door code, takes a payment, or names a place that didn't come from Qloo, Ticketmaster, or
-  the innkeeper's own notes.
-- **A dashboard.** Calls, the text a guest gets and where every line of it came from, and area
-  insights. Panels about guest tastes stay dark until five calls are in.
-- **A brief.** One printable page for the front desk, with room cards that tear off the bottom.
-
-## What it never does
-
-- **Sends personal data to Qloo.** Every outbound parameter passes an allowlist first: ids,
-  tags, coordinates, filters, and the guest's own words for a taste (80 characters at most).
-  A taste mention shaped like an email, a phone number, or a room number is refused, by
-  parameter name and by value, before it leaves the server. The concierge never asks a name.
-- **Keeps a caller's number.** The session log stores a keyed hash of it, never the number,
-  never a name, never a transcript.
-- **Texts anyone but the caller.** The recipient is bound to the number that called, not
-  chosen by the model, and one number gets at most twelve texts an hour, and one call at most ten.
-- **Commits Qloo data.** The fixtures in `server/fixtures/` are hand-written fakes with
-  fictional places. Real responses live only in a private, gitignored cache.
-
-The whole data flow, one table: [docs/PRIVACY.md](docs/PRIVACY.md).
-
-## Honest limits
-
-1. **Hours go stale.** Picks come from place data, and places change their hours. The
-   concierge never invents an opening hour, but it can't promise one either.
-2. **Speech recognition gets names wrong.** Each match carries a confidence, the concierge
-   says the name back in its next line, and a name the tools can't find gets one "what is it
-   most like?" instead of a guess.
-3. **Distances are as the crow flies,** from the inn's coordinates. The concierge says "about a
-   quarter mile", never "five minutes", because it doesn't know the streets.
-4. **The reason names artists and films, not moods.** Qloo's explainability attributes entity
-   signals only; across 90 live results, a tag was attributed 0 times. So the reason line
-   names the entity, the cuisine is enforced as a filter instead of hoped for as a signal, and
-   the call trace shows everything else that was sent. Details: [docs/LEARNED.md](docs/LEARNED.md).
-5. **Demographics describe people who share these tastes nearby,** not this inn's guests. The
-   callers' fingerprint is a small, self-selected sample, which is why every panel shows its
-   call count and stays dark under five.
-6. **Hackathon keys are switched off after the event.** Cache freeze (`CACHE_FREEZE=1`) keeps a
-   pre-warmed demo answering the questions it was asked while the key was live, and nothing new.
-7. **Weather data is free-tier, non-commercial.** The forecast comes from Open-Meteo's free API,
-   which is licensed for non-commercial use and requires attribution (below). A commercial
-   deployment of Bellhop Concierge needs Open-Meteo's paid plan; swap the base URL with
-   `WEATHER_BASE_URL` and nothing else changes. The frozen demo serves the cached forecast of the
-   day it was warmed, so the reorder shows only for a demo run on that same local day; on any
-   other day the forecast is skipped and the picks stand alone.
-8. **Any city, US only, by name.** The geocoder is Open-Meteo's free tier (non-commercial, like
-   the forecast). A bare name is taken without a question only for a city of a million people or
-   more; anything smaller that shares its name with a town in another state gets asked about.
-   Places outside the US are not looked up.
-
-## Tested
-
-```bash
-npm test                         # unit and contract suite, offline, mock transports
-npm run smoke:dashboard          # boots the server, loads the pages a judge opens
-npm run battery -- --mock        # twenty simulated callers and two two-call sequences, twenty-four criteria, offline
-```
-
-The battery plays callers against the tool server in the order the voice agent calls the
-tools and scores each call: every name resolved or said unresolved, every pick inside the
-radius, every pick with a reason, the text under 480 characters, every outbound parameter
-through the allowlist, and seven more. With a key, `--live` runs the same callers against
-Qloo. What each layer checks and how to read a scorecard: [docs/TESTING.md](docs/TESTING.md).
+The npm scripts call `/usr/bin/node`; if your Node lives elsewhere, run the same files with
+`node`. Live mode reads keys from `server/.env` (`npm run live`); the variables are in
+[`server/README.md`](server/README.md). What each test layer proves:
+[docs/TESTING.md](docs/TESTING.md).
 
 ## What's in the repo
 
 | Path | What it is |
 |---|---|
-| [`server/`](server/README.md) | The tool server the voice line calls: eleven tools over Qloo, Ticketmaster, and Twilio, a PII guard, a private cache, the dashboard API, and the battery. |
-| `dashboard/` | The landing page, the builder, the innkeeper dashboard, and the printable brief (React, Vite). |
-| [`compiler/`](compiler/README.md) | Turns an innkeeper's answers and a persona into a voice agent definition, then lints it. |
-| [`template/`](template/concierge.md) | The concierge prompt, with its locked rules. |
-| [`personas/`](personas/README.md) | Harper and Maybelle. |
-| `config/` | The config schema and the demo inn. |
-| [`docs/`](docs/ARCHITECTURE.md) | Architecture, how we use Qloo, what we learned, testing, privacy, measurements. |
+| [`server/`](server/README.md) | The tool server: eleven tools over Qloo, Ticketmaster, and the text sender, the PII guard, a private cache, guest memory, the dashboard API, the battery. |
+| [`compiler/`](compiler/README.md), [`bin/compile.js`](bin/compile.js) | A config and a persona in, a linted voice agent definition out. |
+| [`config/`](config/examples/) | The config schema and the examples: Hollis's road line, Casa Coralina, and a sample inn. |
+| [`template/`](template/concierge.md), [`personas/`](personas/README.md) | The concierge prompts with their locked rules, and the voices. |
+| `dashboard/` | The landing page, the builder, the owner dashboard, and the printable brief (React, Vite). |
+| [`docs/`](docs/ARCHITECTURE.md) | Architecture, Qloo use, what we learned, measurements, privacy, testing. |
 | [`QLOO-NOTES.md`](QLOO-NOTES.md) | Every Qloo shape we read from the docs, and how each held up live. |
-| `deploy/`, `Containerfile`, `deploy.mjs` | How the demo is shipped. |
-| `scripts/githooks/` | The checks every commit passes. See [CONTRIBUTING.md](CONTRIBUTING.md). |
+| `deploy/`, `Containerfile`, `deploy.mjs` | How the demo ships. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How commits are kept, and the hooks every one passes. |
 
 Where it's headed: [ROADMAP.md](ROADMAP.md).
 
-## Run it
-
-Node 20 or newer. The npm scripts call `/usr/bin/node`; if your Node lives elsewhere, run the
-same files with `node`.
-
-```bash
-npm install
-npm test                    # the offline suite
-npm run mock                # tool server + dashboard API on :8787, fixtures only
-npm run build:dashboard     # build the dashboard; the server serves it
-npm run smoke:dashboard     # boot the server and check the pages a judge opens
-npm run compile -- config/examples/demo-inn.json   # the demo inn as an agent definition
-npm run hooks               # turn on the repo's commit checks
-```
-
-Live mode reads keys from `server/.env` (`npm run live`). The variables are listed in
-[`server/README.md`](server/README.md).
-
 ## License
 
-AGPL-3.0-only. See [LICENSE](LICENSE). This is the reference implementation. The hosted
-product's hardening, client configs, and credentials are not in this repository.
+AGPL-3.0-only. See [LICENSE](LICENSE). This is the reference implementation; the hosted
+product's hardening, client configs, and credentials are not in this repository. Qloo's terms
+forbid storing their responses in a public repo, so every fixture here is a hand-written fake.
 
-Not affiliated with Airbnb or any booking platform.
-
-Weather data by Open-Meteo.com (CC BY 4.0)
+Not affiliated with Airbnb or any booking platform. Weather and geocoding by Open-Meteo.com
+(CC BY 4.0).
 
 ---
 
