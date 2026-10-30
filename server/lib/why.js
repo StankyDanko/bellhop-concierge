@@ -143,7 +143,9 @@ export function buildWhy(entity, signals) {
   let why;
   if (fans.length) why = `Fans of ${joinNames(fans)} love it${rest ? `; ${rest}` : ''}`;
   else if (spotLine) why = `A spot for ${joinNames(dishes)}${taggedLine ? `; ${taggedLine}` : ''}`;
-  else if (signals.length) why = `Strong match for your overall taste${taggedLine ? `; ${taggedLine}` : ''}`;
+  // No driver and no dish: name the pick's own tags the guest asked for, or give no reason at all.
+  // A bare "strong match" is a claim the guest cannot check, and the agent must never say it.
+  else if (signals.length) why = taggedLine ? `T${taggedLine.slice(1)}` : '';
   else why = 'Highly rated nearby';
   return { why, drivers, basis: drivers.length ? 'explainability' : 'affinity', tag_words: tagWords };
 }

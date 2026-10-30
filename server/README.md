@@ -408,8 +408,8 @@ In mock mode the unsignaled call answers from `fixtures/qloo.unsignaled-places.j
 
 **The why trace.** `why_trace.basis` is `explainability` when Qloo attributed the result to
 specific inputs; the drivers are those inputs, strongest first. When Qloo ranked a result
-without attributing it, the basis is `affinity` and the reason says only "Strong match for
-your overall taste". The server never invents an attribution. The reason names the entity
+without attributing it, the basis is `affinity` and the reason names only the pick's own tags
+the guest asked for ("Tagged Thai"), or is empty. The server never invents an attribution. The reason names the entity
 drivers Qloo attributed ("Fans of X love it") and then, when the pick's own tag list carries
 one of the guest's cuisine or vibe tags, "tagged Thai". That second part is a fact about the
 place, not an attribution: Qloo's explainability names entity signals only, so a tag is never
