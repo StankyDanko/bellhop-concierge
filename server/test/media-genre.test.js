@@ -82,7 +82,8 @@ function fakeInsights() {
     async insights(params) {
       sent.push(params);
       const g = (params['filter.tags'] ?? 'none').split(':').pop();
-      return { entities: [{ entity_id: `fx-${g}-1`, name: `Fx ${g} one`, type: 'movie' }, { entity_id: `fx-${g}-2`, name: `Fx ${g} two`, type: 'movie' }], body: {}, call: { endpoint: '/v2/insights' } };
+      const summary = 'A made-up title for the tests.';
+      return { entities: [{ entity_id: `fx-${g}-1`, name: `Fx ${g} one`, type: 'movie', summary }, { entity_id: `fx-${g}-2`, name: `Fx ${g} two`, type: 'movie', summary }], body: {}, call: { endpoint: '/v2/insights' } };
     },
   };
   return { qloo, sent };

@@ -33,7 +33,7 @@ function fake({ entityTags = [HORROR, DRAMA], entityType = 'tv_show', lookupFail
       if (params['signal.interests.entities']) throw unusable();
       if (empty(params)) return { entities: [], body: {}, call: {} };
       n += 1;
-      return { entities: [{ entity_id: `fx-pick-${n}`, name: `Fx Pick ${n}`, type: 'movie', year: 2025 }], body: {}, call: { endpoint: '/v2/insights' } };
+      return { entities: [{ entity_id: `fx-pick-${n}`, name: `Fx Pick ${n}`, type: 'movie', year: 2025, summary: 'A made-up film for the tests.' }], body: {}, call: { endpoint: '/v2/insights' } };
     },
   };
 }

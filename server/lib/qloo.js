@@ -111,6 +111,7 @@ function entitiesOf(body) {
  * @property {string|null} genre         the place's primary genre name ("Cocktail bar"), from properties.primary_genre
  * @property {string|null} neighborhood  its neighborhood name when Qloo has one ("Midtown")
  * @property {string|null} summary       one plain sentence on what it is, from properties.short_description or description
+ * @property {number|null} duration      a film's or show's runtime in minutes, from properties.duration when present
  */
 
 /** A short name from a string or an object with a name; null for anything else (the akas lists are never read). */
@@ -168,6 +169,7 @@ export function normalizeEntity(e) {
     genre: nameOf(p.primary_genre),
     neighborhood: nameOf(p.neighborhood) ?? nameOf(p.locality?.neighborhood),
     summary: summaryOf(p),
+    duration: num(p.duration),
   };
 }
 
