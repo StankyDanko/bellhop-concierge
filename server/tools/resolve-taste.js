@@ -115,6 +115,8 @@ export const MEDIA_GENRES = Object.freeze({
   fantasy: 'fantasy', crime: 'crime', truecrime: 'true crime', documentary: 'documentary', documentaries: 'documentary', docuseries: 'documentary',
   anime: 'anime', animation: 'animation', animated: 'animation', cartoon: 'animation', cartoons: 'animation', western: 'western', westerns: 'western',
   action: 'action', adventure: 'adventure', war: 'war', noir: 'film noir', historical: 'history',
+  // Mood words a guest says for a night in: a good cry is a drama, light and feel-good is a comedy.
+  sad: 'drama', cry: 'drama', tearjerker: 'drama', tearjerkers: 'drama', emotional: 'drama', moving: 'drama', feelgood: 'comedy', lighthearted: 'comedy', hilarious: 'comedy',
   // A bare "fiction" is a genre of books and shows, never the album or band that carries the word.
   fiction: 'fiction', nonfiction: 'documentary', biography: 'biography', biographies: 'biography', memoir: 'biography', memoirs: 'biography',
 });
@@ -137,15 +139,21 @@ const MEDIA_KIND_WORDS = new Set(['show', 'shows', 'series', 'movie', 'movies', 
  * (a place) and "Wes Anderson films" (a name) are not media genres.
  * @param {string} mention @returns {string[]}
  */
+/** Words around a mood ("something a little funny", "a movie that makes me cry") that name no genre and no title. */
+const MOOD_FILLER = new Set(['something', 'little', 'bit', 'kinda', 'really', 'very', 'pretty', 'tonight', 'watch', 'to', 'that', 'makes', 'make', 'me', 'us', 'gonna', 'going', 'with', 'for', 'just', 'sweet', 'fun', 'light', 'easy', 'one', 'we', 'want', 'i']);
+
 export function mediaGenresOf(mention) {
-  const said = String(mention).toLowerCase().replace(/sci[\s-]*fi\b|science[\s-]+fiction/g, 'scifi')
+  const said = String(mention).toLowerCase()
+    // "nothing heavy", "not scary": what the guest does not want is never read as a genre.
+    .replace(/\b(nothing|not|no|without|never)\b[^,.;]*/g, ' ').replace(/feel[\s-]+good/g, 'feelgood').replace(/light[\s-]+hearted/g, 'lighthearted')
+    .replace(/sci[\s-]*fi\b|science[\s-]+fiction/g, 'scifi')
     .replace(/non[\s-]+fiction/g, 'nonfiction').replace(/true[\s-]+crime/g, 'truecrime').replace(/rom[\s-]*com\b/g, 'romance comedy');
   const words = tokens(said);
   if (!words.length) return [];
   const genres = [];
   for (const w of words) {
     if (Object.hasOwn(MEDIA_GENRES, w)) { if (!genres.includes(MEDIA_GENRES[w])) genres.push(MEDIA_GENRES[w]); }
-    else if (!MEDIA_KIND_WORDS.has(w)) return [];
+    else if (!MEDIA_KIND_WORDS.has(w) && !MOOD_FILLER.has(w)) return [];
   }
   return genres;
 }

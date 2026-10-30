@@ -128,3 +128,10 @@ test('cross_domain: a genre with entity signals keeps the entities as signals an
   assert.equal(sent[0]['filter.tags'], HORROR);
   assert.equal(sent[0]['signal.interests.tags'], undefined);
 });
+
+test('a mood said for a night in reads as genres, and what the guest does not want is dropped', () => {
+  assert.deepEqual(mediaGenresOf('funny romantic movie, nothing heavy'), ['comedy', 'romance']);
+  assert.deepEqual(mediaGenresOf('a movie that makes me cry'), ['drama']);
+  assert.deepEqual(mediaGenresOf('not scary, something funny'), ['comedy']);
+  assert.deepEqual(mediaGenresOf('The Grand Budapest Hotel'), []);
+});
