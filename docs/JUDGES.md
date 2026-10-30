@@ -7,7 +7,7 @@ its command or source in [MEASUREMENTS.md](MEASUREMENTS.md).
 
 - **Thirteen Qloo capabilities in the shipped code,** each with the parameters we send and what
   the live API did: [QLOO.md](QLOO.md). The list is `CAPABILITIES` in
-  `dashboard/src/pages/Landing.jsx`, and each entry is found in the server by the grep in
+  `dashboard/src/content/landing.js`, and each entry is found in the server by the grep in
   MEASUREMENTS.md.
 - **Every request goes through one client and one allowlist:** `server/lib/qloo.js` after
   `server/lib/pii-guard.js`. Each tool response records its upstream calls (`meta.upstream`).
