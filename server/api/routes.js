@@ -204,9 +204,11 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
     const demo = getProperty(DEMO_PROPERTY_ID);
     const toolsOk = Boolean(ctx.qloo);
     const number = env.demoNumber || null;
-    // The badge only says "answering" when the tool server is up, a number is configured,
-    // and the demo property has been published. Anything less is "test" or "busy".
-    const state = !toolsOk ? 'busy' : number && demo?.status === 'published' ? 'answering' : 'test';
+    // The public number belongs to the roaming concierge, not to a property, so the badge reads
+    // the line itself: "answering" when the tool server is up, a number is configured, and Qloo
+    // answers live. A mock or missing Qloo is "test"; a tool server that is down is "busy".
+    const qlooLive = ctx.qloo?.mode && ctx.qloo.mode !== 'mock';
+    const state = !toolsOk ? 'busy' : number && qlooLive ? 'answering' : 'test';
     return c.json({
       ok: true,
       checked_at: now().toISOString(),
