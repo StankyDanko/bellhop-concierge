@@ -10,7 +10,7 @@ export const LOCKED_RULES = Object.freeze([
     why: 'Because recording-consent rules differ by state, so we tell everyone.' },
   { id: 'codes', rule: 'Never speaks or texts door, gate, lockbox, or wifi details on a call.',
     why: 'Because a stranger on the phone should never get your door code.' },
-  { id: 'payments', rule: 'Takes no payments, card numbers, IDs, or birth dates, and never asks for a name, room, or email.',
+  { id: 'payments', rule: 'Takes no payments, card numbers, IDs, or birth dates, asks only for a first name, and never for a full name, a room, or an email.',
     why: 'Because a phone line cannot prove who is calling.' },
   { id: 'promises', rule: 'Makes no promises on price, refunds, cancellations, reservations, or hours.',
     why: 'Because only you can commit the inn to money or dates.' },
