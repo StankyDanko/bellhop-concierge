@@ -155,9 +155,23 @@ export function expiresAt(lastCall, firstCall, nights, ttlDays = TTL_DEFAULT_DAY
 }
 
 /**
+ * Words that are never a first name, even when a caller says them as one: fillers and answers a
+ * first reply often is ("um", "yeah", "hello"), and words a caller says to make the next call's
+ * greeting say something rude. A name is spoken back on the next call, word for word, so one of
+ * these would be heard in the greeting. Short on purpose: the first message only ever asks.
+ */
+export const NOT_A_NAME = new Set([
+  'um', 'umm', 'uh', 'uhh', 'er', 'erm', 'hmm', 'hm', 'mm', 'ah', 'oh', 'eh',
+  'yes', 'yeah', 'yep', 'no', 'nope', 'ok', 'okay', 'hello', 'hi', 'hey', 'sorry', 'what', 'huh',
+  'the', 'a', 'an', 'me', 'it', 'this', 'that', 'nobody', 'someone', 'anonymous', 'guest', 'caller',
+  'fuck', 'fucker', 'shit', 'bitch', 'ass', 'asshole', 'cock', 'cunt', 'pussy', 'bastard', 'damn', 'hitler', 'nazi',
+]);
+
+/**
  * A first name the guest said, safe to speak back on a later call: letters, apostrophes and
- * spaces only, at most two words and NAME_MAX characters. Empty string when nothing is left, so
- * a stray phrase, a number, or anything shaped like an instruction never becomes a name.
+ * spaces only, at most two words and NAME_MAX characters, and no word from NOT_A_NAME. Empty
+ * string when nothing is left, so a stray phrase, a filler, a number, or anything shaped like an
+ * instruction never becomes a name.
  * @param {unknown} s
  */
 export function cleanName(s) {
@@ -165,6 +179,7 @@ export function cleanName(s) {
   const t = s.normalize('NFKC').replace(/[^\p{L}' ]/gu, ' ').replace(/\s+/g, ' ').trim();
   const words = t.split(' ').filter(Boolean);
   if (!words.length || words.length > 2 || t.length > NAME_MAX) return '';
+  if (words.some((w) => NOT_A_NAME.has(w.toLowerCase().replace(/'/g, '')))) return '';
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
