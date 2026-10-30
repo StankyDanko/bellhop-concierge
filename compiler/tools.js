@@ -59,7 +59,7 @@ const b = (description) => ({ type: 'boolean', description });
 
 const TASTE = {
   type: 'array',
-  description: 'The resolved items exactly as resolve_taste returned them, one to eight.',
+  description: 'The resolved items exactly as resolve_taste returned them, up to eight. An empty list when the guest named nothing: the tool then goes by the kind of thing and what is popular, so never ask for a taste first.',
   items: {
     type: 'object',
     description: 'One resolved taste item.',

@@ -220,7 +220,9 @@ function addPriorSignals(params, own, remembered) {
 export async function recommendNearby(body, { qloo: client, toolSecret, memory, weather = null, timezone, now = () => new Date() }) {
   const kind = body?.kind === undefined || body?.kind === null ? 'any' : oneOf(body.kind, 'kind', [...KINDS]);
   const qloo = scopedClient(client, kind);
-  const taste = placeSafe(tasteSignals(body?.taste));
+  // No taste at all is allowed: the guest wants dinner and named nothing. The pick then comes
+  // from the kind and what is popular nearby, never from a question.
+  const taste = placeSafe(tasteSignals(body?.taste, 'taste', { min: 0 }));
   const companion = placeSafe(companionSignals(body?.companion_taste));
   const signalsIn = companion ? mergeTaste(taste, companion) : taste;
   const origin = latLng(body);
@@ -252,7 +254,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
     'filter.type': ENTITY_TYPES.place,
     ...shaped.params,
     ...locationParams(origin.lat, origin.lng, radius),
-    sort_by: 'affinity',
+    // With no signal there is nothing to be affine to: Qloo ranks by popularity on its own.
+    ...(signalsIn.signals.length ? { sort_by: 'affinity' } : {}),
     // headroom for the kids filter, and for activity and dining the tag check below (a small town's list is mostly lodging and shops)
     take: String(kind === 'activity' || kind === 'dining' || kind === 'drinks' ? 20 : Math.min(20, take * 3)),
   };
@@ -354,7 +357,8 @@ export async function recommendNearby(body, { qloo: client, toolSecret, memory, 
   } : undefined;
 
   // ---- counterfactual: same query with no taste signal (see counterfactual.js) ----
-  const cf = await popularityCounterfactual(qloo, params, places, usable,
+  // With no signal the picks already are the popular list, so there is nothing to contrast.
+  const cf = !signalsIn.signals.length ? { counterfactual: null, call: null } : await popularityCounterfactual(qloo, params, places, usable,
     { ranked: candidates, signalEffects: readSignalEffects(tasteBody, signalsIn.signals) });
   // ---- end counterfactual ----
 

@@ -153,7 +153,8 @@ async function fallbackPicks({ qloo, taste, target, take, base, namedGenres = []
  * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, now?: () => Date }} ctx
  */
 export async function crossDomain(body, { qloo, toolSecret, now, memory = null }) {
-  const taste0 = tasteSignals(body?.taste);
+  // No taste at all is allowed: a film or show then comes from the recent releases (the mood path).
+  const taste0 = tasteSignals(body?.taste, 'taste', { min: 0 });
   const target = oneOf(body?.target, 'target', TARGETS);
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
 
