@@ -1,0 +1,68 @@
+[
+ {
+  "start": 0,
+  "end": 5.72,
+  "speaker": "Marisol",
+  "text": "This is Marisol, your automated concierge at Casa Coralina, who am I speaking with?"
+ },
+ {
+  "start": 5.97,
+  "end": 8.08,
+  "speaker": "Guest",
+  "text": "Hey Marisol, it's Danny."
+ },
+ {
+  "start": 8.43,
+  "end": 10.47,
+  "speaker": "Guest",
+  "text": "What time is checkout Sunday?"
+ },
+ {
+  "start": 10.72,
+  "end": 15.28,
+  "speaker": "Marisol",
+  "text": "Checkout is ten in the morning Sunday. Want me to help plan your night while I have you?"
+ },
+ {
+  "start": 15.58,
+  "end": 17.95,
+  "speaker": "Guest",
+  "text": "Carmen wants live Latin music."
+ },
+ {
+  "start": 18.15,
+  "end": 20.54,
+  "speaker": "Guest",
+  "text": "Somewhere we can actually dance."
+ },
+ {
+  "start": 20.99,
+  "end": 26.93,
+  "speaker": "Marisol",
+  "text": "Cubaocho Museum and Performing Arts Center, a lively art museum in Little Havana with live music and a rum bar."
+ },
+ {
+  "start": 27.23,
+  "end": 32.7,
+  "speaker": "Guest",
+  "text": "Oh, that sounds amazing. One more. Somewhere Cuban for dinner before."
+ },
+ {
+  "start": 33.1,
+  "end": 38.53,
+  "speaker": "Marisol",
+  "text": "El Cristo Restaurant, a lively Cuban spot on Calle Ocho serving classic dishes all day."
+ },
+ {
+  "start": 38.83,
+  "end": 41.4,
+  "speaker": "Guest",
+  "text": "Perfect. Can you text me those two?"
+ },
+ {
+  "start": 42.3,
+  "end": 43.71,
+  "speaker": "Marisol",
+  "text": "It's on your phone, take a look."
+ }
+]
