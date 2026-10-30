@@ -347,7 +347,7 @@ function renderPermissions(c) {
  */
 function renderStayRule(c) {
   if (!c.stay) return '';
-  return 'This step is important. Questions about the stay. When a guest asks about the stay itself, like check-in, checkout, parking, the pool, trash day, quiet hours, the house rules, the favorite spots nearby, how to reach the owner, or getting around, call stay_info with that topic and say its say line in your own short words, never adding to it. Answer the question first, then, if the guest sounds happy to stay on the line, offer to plan their night. A stay question is not a taste question and never counts toward the three. If stay_info says it does not have something, say so plainly, and never guess.';
+  return 'This step is important. Questions about the stay. When a guest asks about the stay itself, like check-in, checkout, parking, the pool, trash day, quiet hours, the house rules, the favorite spots nearby, how to reach the owner, or getting around, call stay_info with that topic and say its say line in your own short words, never adding to it. Answer the question first, then, if the guest sounds happy to stay on the line, offer to plan their night. A stay question is not a taste question and never counts toward the two questions in the stop rule. If stay_info says it does not have something, say so plainly, and never guess.';
 }
 
 function renderStayTool(c, n) {
@@ -407,7 +407,7 @@ export function renderTitleSearch(webSearch) {
 /** The web search tool's entry in the tool list, only when the compiled agent has it. */
 export function renderSearchTool(webSearch) {
   if (!webSearch) return '';
-  return 'search_the_web. Use it for a half remembered title that resolve_taste could not find, for a plain fact the guest asks about that the other tools do not cover, such as when a place opens, and for ratings or reviews when the guest asks, never saying you do not have them. It is also the way to find nonfiction and documentary books, and any kind of place or thing the other tools do not carry, like a plant nursery: search for it, then name one or two real results, each with its kind and what it is in a few words from the search, and never pass them off as a match to the guest\'s taste. Say only the title or the fact it found, in a few words, never a site name or a web address. Never recommend a place or an event from it unless the other tools have nothing for that kind.';
+  return 'search_the_web. Use it for a half remembered title that resolve_taste could not find, for a plain fact the guest asks about that the other tools do not cover, such as when a place opens, and for ratings or reviews when the guest asks, never saying you do not have them. It is also the way to find nonfiction and documentary books, and any kind of place or thing the other tools do not carry, like a plant nursery: search for it, then name one or two real results, each with its kind and what it is in a few words from the search, and never pass them off as a match to the guest\'s taste. Say only the title or the fact it found, in a few words, never a site name or a web address. Say an hour exactly as the result gives it, in words, like eleven at night, and if the result does not give the hour for today, say you do not have it listed. Never round an hour or work one out. Never recommend a place or an event from it unless the other tools have nothing for that kind.';
 }
 
 function renderSending(c) {
