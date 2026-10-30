@@ -27,8 +27,9 @@ that fit, each with the reason it fits. Built for the
 
 1. **Call (833) 658-4321.** That's Hollis, the road concierge, for any city in the United
    States. Say where you are and mention something you've been into. She gives one pick at a
-   time, waits for your reaction, and offers to text the plan. The text comes from the same
-   number and links to a picks page.
+   time, waits for your reaction, and offers to text the plan. The text links to a picks page;
+   on the live server it is sent from the same toll-free number (`SMS_FROM_NUMBER` in the
+   server's env).
 2. **Open [`/property/miami`](https://concierge.southernsky.cloud/property/miami).** Casa
    Coralina, a fictional short-term rental in Miami, and the dashboard its owner would see:
    the text a guest gets, where every line came from, and the Qloo request behind each pick.
@@ -100,12 +101,13 @@ The same path as a sequence, tool by tool: [docs/ARCHITECTURE.md](docs/ARCHITECT
 - **Fresher picks.** Films and shows lean to the last three years unless the guest asks for
   older, a "lesser known" ask caps popularity, and what it already offered you doesn't come
   back.
-- **A text with the plan,** from the number they called, with one link to a picks page
+- **A text with the plan,** to the number that called, with one link to a picks page
   (`/p/<token>`, gone after 30 days).
 - **Memory, on a short leash.** Call back and the concierge remembers your first name, your
   town, your tastes, and what it already texted you, so the second call starts where the first
   left off. Ask it to forget you and `forget_guest` clears it. Memory lasts a week after the
-  last call by default and never more than 30 days from the first.
+  last call by default and never more than 30 days from the first. It is off unless the server
+  has `GUEST_MEMORY_SECRET` set; the live server does.
 
 ## What the owner gets
 
@@ -132,7 +134,7 @@ From checking a docs-first client against the live API. All twelve lessons are i
 - **The top pick isn't the proof; the list is.** With and without taste, the top pick sometimes
   matched while the rest of the list moved entirely.
 - **A slow right answer is a wrong answer on the phone.** A town as a signal took about thirteen
-  seconds; the voice platform waits about ten. It became a filter.
+  seconds, far too long for a caller waiting on the line. It became a filter.
 
 ## Honest limits
 
