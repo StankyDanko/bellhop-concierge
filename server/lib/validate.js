@@ -43,8 +43,9 @@ export const TASTE_MAX = 8;
  * entity id or a tag URN. Bare id strings are accepted too (name defaults to "").
  * @returns {{ signals: Array<{ id: string, name: string }>, entityIds: string[], tagIds: string[] }}
  */
-export function tasteSignals(v, name = 'taste') {
-  const list = arr(v, name, { min: 1, max: TASTE_MAX });
+export function tasteSignals(v, name = 'taste', { min = 1 } = {}) {
+  // With min 0 a missing list is an empty one: the guest named nothing yet.
+  const list = arr(min === 0 && (v === undefined || v === null) ? [] : v, name, { min, max: TASTE_MAX });
   const signals = list.map((item, i) => {
     const id = typeof item === 'string' ? item : item?.id ?? item?.entity_id ?? item?.tag_id;
     if (typeof id !== 'string' || !id.trim()) throw new InputError(`${name}[${i}] needs an id`);

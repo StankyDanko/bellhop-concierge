@@ -32,8 +32,11 @@ export const TEST_AGENTS = Object.freeze({ battery: { property_id: 'demo', perso
  * weatherTransport: a fake Open-Meteo transport; given, the app asks for a forecast (cached in the same in-memory cache).
  * memory: open an in-memory guest memory with its own clock (clock.advance(ms) moves it).
  * dashboard: mount the innkeeper dashboard on its own in-memory database.
+ * composedTextsOnly: send_sms sends only a body compose_itinerary issued on the same call, as the
+ *   real server does. Off by default here so a test can send a hand-written body; on in
+ *   composed-texts.test.js and the battery.
  */
-export function makeApp({ qlooTransport, weatherTransport, geocodeTransport, logger = silentLogger, sms, memory = false, dashboard = false, initRng, cache: givenCache } = {}) {
+export function makeApp({ qlooTransport, weatherTransport, geocodeTransport, logger = silentLogger, sms, memory = false, dashboard = false, initRng, cache: givenCache, composedTextsOnly = false } = {}) {
   const cache = givenCache ?? new ResponseCache({ path: ':memory:' });
   const qloo = createQlooClient({ config: qlooConfig, cache, logger, transport: qlooTransport });
   const ticketmaster = createTicketmasterClient({ config: tmConfig, cache, logger });
@@ -46,7 +49,7 @@ export function makeApp({ qlooTransport, weatherTransport, geocodeTransport, log
   const guestMemory = memory ? new GuestMemory({ path: ':memory:', secret: MEMORY_SECRET, now: clock.now }) : null;
   const dash = dashboard ? { db: openDashboardDb({ path: ':memory:', now: () => FIXED_NOW }), env: {}, distDir: join(tmpdir(), 'no-such-dist') } : undefined;
   const app = createApp({ secret: SECRET, qloo, ticketmaster, weather, geocoder, timezone: 'America/New_York', logger, sms: smsSender, sessions,
-    now: memory ? clock.now : () => FIXED_NOW, dashboard: dash, memory: guestMemory, agents: memory ? { ...TEST_AGENTS } : {}, initRng });
+    now: memory ? clock.now : () => FIXED_NOW, dashboard: dash, memory: guestMemory, agents: memory ? { ...TEST_AGENTS } : {}, initRng, composedTextsOnly });
   return { app, cache, sessions, memory: guestMemory, clock, weather, geocoder };
 }
 

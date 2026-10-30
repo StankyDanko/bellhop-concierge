@@ -42,6 +42,8 @@ export const FOREIGN_NAMESAKE_RATIO = 10;
 export const AMBIGUOUS_SAY = (name, state) => `Which ${name}, the one in ${state}?`;
 export const UNKNOWN_SAY = "I couldn't place that town, what state is it in?";
 export const UNKNOWN_IN_STATE_SAY = (name, state) => `I couldn't find ${name} in ${state}. What's a bigger town nearby?`;
+/** Said for a city outside the United States: the tools only look here, so the guest hears it once, plainly. */
+export const OUTSIDE_US_SAY = "I can only look in the United States for now. Is there a city here you're headed to?";
 export const NO_GEOCODER_SAY = 'I can only look around the inn right now.';
 
 /** The fifty states plus DC: full name and postal code. */
@@ -113,10 +115,10 @@ export const cityKey = (city) => city.toLowerCase().split(' ').map((w) => w.char
  * @param {any} body  the geocoding search response
  * @param {{ city: string, state: string | null }} asked
  * @returns {{ status: 'ok', label: string, lat: number, lng: number, timezone: string }
- *   | { status: 'ambiguous' | 'unknown', say: string }}
+ *   | { status: 'ambiguous' | 'unknown' | 'outside_us', say: string }}
  */
 export function chooseLocality(body, { city, state, foreign = false }) {
-  if (foreign) return { status: 'unknown', say: UNKNOWN_SAY };
+  if (foreign) return { status: 'outside_us', say: OUTSIDE_US_SAY };
   const list = Array.isArray(body?.results) ? body.results : [];
   const want = norm(city);
   const towns = list.filter((r) => r && r.country_code === 'US' && norm(r.name) === want
@@ -129,7 +131,11 @@ export function chooseLocality(body, { city, state, foreign = false }) {
     const inState = towns.find((r) => r.admin1 === state);
     return inState ? ok(inState) : { status: 'unknown', say: UNKNOWN_IN_STATE_SAY(city, state) };
   }
-  if (!towns.length) return { status: 'unknown', say: UNKNOWN_SAY };
+  if (!towns.length) {
+    // No US town by that name, but a place abroad has it: the guest is outside the US, not misheard.
+    const abroad = list.some((r) => r && r.country_code && r.country_code !== 'US' && norm(r.name) === want);
+    return abroad ? { status: 'outside_us', say: OUTSIDE_US_SAY } : { status: 'unknown', say: UNKNOWN_SAY };
+  }
   const [top] = towns;
   // The same name abroad, far bigger ("Toronto" said by a caller in Toronto): never a silent pick
   // of the small US town. Asked as the same yes-or-no question.

@@ -17,7 +17,9 @@ const STEPS = [
   { id: 'preview', label: 'Preview' },
   { id: 'publish', label: 'Publish' },
 ];
-const LANGS = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German'], ['pt', 'Portuguese'], ['it', 'Italian']];
+// The voice model speaks English only for now (compiler SPOKEN_LANGUAGES), so English is the one
+// language offered. A config that lists more still compiles: the agent says it helps in English.
+const LANGS = [['en', 'English']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
 const CATEGORIES = ['food', 'drinks', 'music', 'outdoors', 'arts', 'shopping', 'coffee', 'other'];
 const FIELD_LABELS = {
@@ -338,7 +340,7 @@ function OwnerToggles({ ctx, withAvoid = false }) {
       <Switch label="Mention paid extras" checked={d.permissions.upsell} onChange={(v) => ctx.update('permissions.upsell', v)}
         consequence={d.permissions.upsell ? 'On. If asked, it may mention an extra once, from your answers only.' : 'Off. It never offers anything the inn sells.'} />
       <fieldset className="fieldset" style={{ marginTop: 'var(--space-4)' }}>
-        <legend>Languages <span className="dim">(first one is where calls start, up to four)</span></legend>
+        <legend>Languages <span className="dim">(English for now: more need a multilingual voice)</span></legend>
         <div className="row">
           {LANGS.map(([code, name]) => (
             <button key={code} type="button" className="chip-btn" aria-pressed={langs.includes(code)} onClick={() => toggleLang(code)}>

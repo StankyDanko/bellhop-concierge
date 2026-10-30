@@ -58,6 +58,16 @@ export const RECENT_YEARS = 3;
  * filter, 0.8 turned blockbusters (0.88 to 0.96) into lesser-known titles (0.31 to 0.6).
  */
 export const LESSER_KNOWN_MAX = 0.8;
+/**
+ * The shortest film or show worth pitching for a night in, in minutes. A runtime only counts
+ * when Qloo's properties carry one; a title with no runtime is never dropped for it.
+ */
+export const MIN_RUNTIME_MINUTES = 40;
+
+/** A film or show long enough for a night in (or one with no runtime on file). */
+export const longEnough = (e) => !(typeof e.duration === 'number' && e.duration < MIN_RUNTIME_MINUTES);
+/** Described titles first, keeping Qloo's order within each group. */
+const describedFirst = (list) => [...list.filter((e) => e.summary), ...list.filter((e) => !e.summary)];
 
 const truthy = (v) => v === true || (typeof v === 'string' && /^(true|yes|1)$/i.test(v.trim()));
 
@@ -143,7 +153,8 @@ async function fallbackPicks({ qloo, taste, target, take, base, namedGenres = []
  * @param {{ qloo: import('../lib/qloo.js').QlooClient, toolSecret?: string, now?: () => Date }} ctx
  */
 export async function crossDomain(body, { qloo, toolSecret, now, memory = null }) {
-  const taste0 = tasteSignals(body?.taste);
+  // No taste at all is allowed: a film or show then comes from the recent releases (the mood path).
+  const taste0 = tasteSignals(body?.taste, 'taste', { min: 0 });
   const target = oneOf(body?.target, 'target', TARGETS);
   const take = num(body?.take ?? 3, 'take', { min: 1, max: 10 });
 
@@ -215,6 +226,22 @@ export async function crossDomain(body, { qloo, toolSecret, now, memory = null }
       delete loose['filter.popularity.max'];
       const again = await placeInsights(qloo, loose, shaped.cuisine, (e) => !inputIds.has(e.entity_id));
       found = { ...again, calls: [...found.calls, ...again.calls], bound: 'relaxed' };
+    }
+    // A film or show is pitched by its premise. When nothing under the freshness bound has one
+    // (a brand-new short, a title Qloo knows only by name), ask once more without the year floor
+    // and keep the described titles from that answer. Undescribed titles are the last resort.
+    if (RECENT_TARGETS.has(target)) {
+      found = { ...found, entities: found.entities.filter(longEnough) };
+      if (!found.entities.some((e) => e.summary) && params['filter.release_year.min'] && !found.bound) {
+        const loose = { ...params };
+        delete loose['filter.release_year.min'];
+        const again = await placeInsights(qloo, loose, shaped.cuisine, (e) => !inputIds.has(e.entity_id));
+        const described = again.entities.filter(longEnough).filter((e) => e.summary);
+        found = described.length
+          ? { ...found, entities: [...described, ...found.entities], calls: [...found.calls, ...again.calls], bound: 'described' }
+          : { ...found, calls: [...found.calls, ...again.calls] };
+      }
+      found = { ...found, entities: describedFirst(found.entities) };
     }
   } catch (err) {
     // A taste Qloo cannot use (a channel, an album, a show too new for its graph) is never a

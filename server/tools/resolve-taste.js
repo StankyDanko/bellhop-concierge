@@ -370,7 +370,9 @@ export const MAX_COMPANION_MENTIONS = 2;
 
 /** @param {unknown} v @param {string} name @param {number} min @param {number} max */
 function mentionList(v, name, min, max) {
-  return arr(v, name, { min, max }).map((m, i) => {
+  // A lone string ("loud and fun") is one mention, not a malformed call the guest pays for.
+  const list = typeof v === 'string' ? [v] : v;
+  return arr(list, name, { min, max }).map((m, i) => {
     if (typeof m !== 'string' || !m.trim() || m.length > 80) throw new InputError(`${name}[${i}] must be 1-80 characters`);
     return m.trim();
   });

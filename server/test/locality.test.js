@@ -9,7 +9,7 @@ import { fixtureTransport } from '../lib/transport.js';
 import { ResponseCache } from '../lib/cache.js';
 import { silentLogger } from '../lib/log.js';
 import {
-  AMBIGUOUS_SAY, GEOCODE_ENDPOINT, NO_GEOCODER_SAY, UNKNOWN_IN_STATE_SAY, UNKNOWN_SAY,
+  AMBIGUOUS_SAY, GEOCODE_ENDPOINT, NO_GEOCODER_SAY, OUTSIDE_US_SAY, UNKNOWN_IN_STATE_SAY, UNKNOWN_SAY,
   chooseLocality, createGeocoder, parseLocality,
 } from '../lib/geocode.js';
 import { LOCALITY_TOOLS, runWithLocality } from '../lib/locality.js';
@@ -62,7 +62,7 @@ test('chooseLocality: a named state picks that town; a bare name in two states a
 });
 
 test('the copy the caller hears has no em dash', () => {
-  for (const line of [AMBIGUOUS_SAY('Austin', 'Texas'), UNKNOWN_SAY, UNKNOWN_IN_STATE_SAY('Austin', 'Texas'), NO_GEOCODER_SAY]) {
+  for (const line of [AMBIGUOUS_SAY('Austin', 'Texas'), UNKNOWN_SAY, UNKNOWN_IN_STATE_SAY('Austin', 'Texas'), NO_GEOCODER_SAY, OUTSIDE_US_SAY]) {
     assert.ok(!line.includes('\u2014'), line);
   }
 });
@@ -129,11 +129,15 @@ test('an unknown town, or one outside the US, asks for the state and sends nothi
   assert.equal(unknown.json.say, "I couldn't place that town, what state is it in?");
   assert.deepEqual(sources(unknown.json.trace), ['geocode']);
   const foreign = await callTool(app, 'recommend_nearby', { taste: [THAI], ...PROPERTY, locality: 'Lantern Bay, England' });
-  assert.equal(foreign.json.say, UNKNOWN_SAY);
+  // A city abroad hears that the tools look in the US only, never a question about its state.
+  assert.equal(foreign.json.say, OUTSIDE_US_SAY);
+  assert.equal(foreign.json.reason, 'locality_outside_us');
+  assert.doesNotMatch(foreign.json.say, /state/);
   assert.deepEqual(foreign.json.trace, []);
-  // A bare name the fixture has only outside the US is unknown too.
+  // A bare name the fixture has only outside the US is outside the US too.
   const abroad = await callTool(app, 'recommend_nearby', { taste: [THAI], ...PROPERTY, locality: 'Lantern Bay' });
-  assert.equal(abroad.json.reason, 'locality_unknown');
+  assert.equal(abroad.json.reason, 'locality_outside_us');
+  assert.equal(abroad.json.say, OUTSIDE_US_SAY);
   // A well-known city is taken without a question even though a small town shares its name.
   const big = await callTool(app, 'recommend_nearby', { taste: [THAI], ...PROPERTY, locality: 'Metro Harbor' });
   assert.equal(big.json.locality, 'Metro Harbor, New York');

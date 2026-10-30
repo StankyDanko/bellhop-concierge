@@ -6,6 +6,8 @@
 //   - the body is at most 320 characters (compose_itinerary's budget) and is sent as is;
 //     nothing is appended here, the footer is already in it
 //   - every link in the body is https
+//   - the body is one compose_itinerary returned on this same call (lib/issued-texts.js), so a
+//     spoofed caller id cannot have the line text words of a caller's choosing
 //   - at most TEXTS_PER_CALL texts per call: the eleventh send carrying the same session_id is
 //     refused (429, sent false, CALL_CAP_SAY) and never reaches Twilio. A send that failed does not
 //     use up one of the call's texts. A send with no session_id, or an unfilled one, is held to the
@@ -88,14 +90,23 @@ export function createSendLimiter({ perHour = SENDS_PER_HOUR, perCall = TEXTS_PE
   };
 }
 
-/** @param {any} body @param {{ sms: import('../lib/twilio.js').SmsSender, smsLimiter: ReturnType<typeof createSendLimiter> }} ctx */
-export async function sendSms(body, { sms, smsLimiter }) {
+/**
+ * @param {any} body
+ * @param {{ sms: import('../lib/twilio.js').SmsSender, smsLimiter: ReturnType<typeof createSendLimiter>,
+ *           issuedTexts?: ReturnType<typeof import('../lib/issued-texts.js').createIssuedTexts>|null }} ctx
+ *   issuedTexts: when set, only a body compose_itinerary issued for this session_id is sent
+ */
+export async function sendSms(body, { sms, smsLimiter, issuedTexts = null }) {
   const to = typeof body?.to === 'string' ? body.to.trim() : '';
   if (!E164.test(to)) throw new InputError('to must be an E.164 phone number');
   if (typeof body?.body !== 'string') throw new InputError('body must be a string');
   const problem = bodyProblem(body.body);
   if (problem) throw new InputError(problem);
   const sessionId = sessionIdFrom(body);
+  // Only a body compose_itinerary returned on this call goes out (lib/issued-texts.js).
+  if (issuedTexts && !issuedTexts.has(sessionId, body.body)) {
+    throw new InputError('body must be the body compose_itinerary returned on this call, copied exactly. Call compose_itinerary, then send its body.');
+  }
   if (sessionId && !smsLimiter.claimCall(sessionId)) {
     // In test mode no text left the server, so saying the texts "went out" would be false.
     throw new RateLimited('text limit for this call reached', { service: 'twilio', say: sms.mode === 'mock' ? TEST_MODE_SAY : CALL_CAP_SAY });

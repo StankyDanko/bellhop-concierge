@@ -13,7 +13,7 @@
   "voice": {
     "persona_id": "marisol",
     "humor_level": 1,
-    "languages": ["en", "es"],
+    "languages": ["en"],
     "feel": "Like borrowing a friend's bungalow in the Grove, with her notes on the fridge."
   },
   "guests": {

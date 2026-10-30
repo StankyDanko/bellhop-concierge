@@ -123,7 +123,7 @@ checks that each persona's own guess sample line matches, so a renamed guess can
 | Names itself as the automated concierge in the opener, says the call is being recorded in its next turn, and, when asked, says it is a computer voice | Persona (`voice.persona_id`) |
 | Opener discloses that the call is recorded | Humor 0 to 2 (`voice.humor_level`, capped by the persona) |
 | Never speaks or texts door, gate, lockbox, or wifi details; those stay in `sms_only` | Languages (`voice.languages`) |
-| No payments, card numbers, IDs, birth dates; never asks for a room or an email, and asks only a first name, in the opener | House rules and never-bend rules (`rules`) |
+| No payments, card numbers, IDs, birth dates; asks only for a first name, never a full name, room, or email | House rules and never-bend rules (`rules`) |
 | No promises on price, refunds, cancellations, reservations, or hours | Owner's picks and the avoid list (`picks`, `avoid`) |
 | Only names places and events from a tool result or the owner's own notes | Up to five FAQ answers (`faq`) |
 | No safety, medical, or legal claims | Who the guest is sent to, for what, and when (`handoff`) |

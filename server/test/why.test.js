@@ -32,7 +32,7 @@ test('a tag Qloo attributes stays a driver but is named as a tag, never "fans of
   const w = buildWhy({ explainability: [{ tag_id: 'urn:tag:genre:place:restaurant:thai', score: 0.9 }] }, signals);
   assert.equal(w.basis, 'explainability');
   assert.deepEqual(w.drivers.map((d) => d.id), ['urn:tag:genre:place:restaurant:thai']);
-  assert.equal(w.why, 'Strong match for your overall taste; tagged Thai food');
+  assert.equal(w.why, 'Tagged Thai food');
 });
 
 test('the reason names the entity driver, then the pick\'s own cuisine and vibe tags', () => {
@@ -56,7 +56,7 @@ test('tag words: no driver still names the tag; no tags or a missing tag list is
   const thaiOnly = { explainability: null, tags: [{ tag_id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai' }] };
   const w = buildWhy(thaiOnly, signals);
   assert.equal(w.basis, 'affinity');
-  assert.equal(w.why, 'Strong match for your overall taste; tagged Thai');
+  assert.equal(w.why, 'Tagged Thai');
   assert.deepEqual(tagWordsFor({}, signals), []);
   assert.deepEqual(tagWordsFor({ tags: ['urn:tag:genre:place:restaurant:thai'] }, signals), [{ id: 'urn:tag:genre:place:restaurant:thai', name: 'Thai food' }]);
 });
@@ -92,6 +92,7 @@ test('keeps the best score when an id appears more than once', () => {
 });
 
 test('without explainability the reason is honest, not invented', () => {
-  assert.equal(buildWhy({ explainability: null }, signals).why, 'Strong match for your overall taste');
+  assert.equal(buildWhy({ explainability: null }, signals).why, '');
+  assert.ok(!/strong match/i.test(buildWhy({ explainability: null, tags: [] }, signals).why));
   assert.equal(buildWhy({ explainability: null }, []).why, 'Highly rated nearby');
 });

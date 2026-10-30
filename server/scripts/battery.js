@@ -525,7 +525,7 @@ async function mockCall() {
   // The fictional fixture towns (server/fixtures/geocode.search.json), so --locality works offline.
   const { fixtureTransport } = await import('../lib/transport.js');
   const geocodeTransport = fixtureTransport({ service: 'geocode', dir: new URL('../fixtures/', import.meta.url), files: { '/v1/search': 'geocode.search' } });
-  const { app, memory, clock } = makeApp({ memory: true, dashboard: true, weatherTransport, geocodeTransport });
+  const { app, memory, clock } = makeApp({ memory: true, dashboard: true, weatherTransport, geocodeTransport, composedTextsOnly: true });
   const call = async (tool, body) => {
     const t0 = performance.now();
     const res = await callTool(app, tool, body);

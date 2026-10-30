@@ -218,3 +218,9 @@ test('a mood answer steers its call but is never stored as a taste, in the line,
   assert.deepEqual(m.recallFor('conv-m-2').guest.entityIds, ['fx-artist-one']);
   assert.deepEqual(m.recallFor('conv-m-2').guest.tagIds, []);
 });
+
+test('a filler, a plain answer, or a word meant to make the greeting rude is never a name', () => {
+  for (const said of ['um', 'Uh', 'yeah', 'Hello', 'the', 'no', 'Hitler', 'Big Hitler', 'damn']) assert.equal(cleanName(said), '', said);
+  // Whole words only: a real name that merely contains a listed word is kept.
+  for (const name of ['Hana', 'Theo', 'Noah', 'Asha', 'Dick', 'Cassidy', 'Mary Ann']) assert.ok(cleanName(name), name);
+});

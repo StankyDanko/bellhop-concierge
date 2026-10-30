@@ -39,7 +39,11 @@ test('resolve_taste: unknown mentions are reported, not invented', async () => {
 test('resolve_taste: validates input and refuses PII', async () => {
   const { app } = makeApp();
   assert.equal((await callTool(app, 'resolve_taste', { mentions: [] })).status, 400);
-  assert.equal((await callTool(app, 'resolve_taste', { mentions: 'Sturgill' })).status, 400);
+  // A lone string is one mention, not a malformed call.
+  const lone = await callTool(app, 'resolve_taste', { mentions: 'Sturgill Simpson' });
+  assert.equal(lone.status, 200);
+  assert.ok(lone.json.resolved.some((r) => r.name === 'Sturgill Simpson'));
+  assert.equal((await callTool(app, 'resolve_taste', { mentions: 42 })).status, 400);
   const pii = await callTool(app, 'resolve_taste', { mentions: ['my email is pat@example.com'] });
   assert.equal(pii.status, 422);
   assert.equal(pii.json.error.code, 'pii_refused');
