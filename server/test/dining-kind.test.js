@@ -124,3 +124,16 @@ test('a film or show genre is never sent to a place search, with or without othe
     }
   }
 });
+
+test('a grocery with a deli counter, a convenience store, or a gas station is not somewhere to eat', async () => {
+  const { isDiningPlace } = await import('../lib/dining.js');
+  const deli = { tag_id: 'urn:tag:genre:place:deli', name: 'Deli' };
+  const at = (leaf, more = []) => ({ tags: [{ tag_id: `urn:tag:genre:place:${leaf}`, name: leaf }, deli, ...more] });
+  assert.equal(isDiningPlace(at('supermarket')), false);
+  assert.equal(isDiningPlace(at('grocery_store')), false);
+  assert.equal(isDiningPlace(at('convenience_store')), false);
+  assert.equal(isDiningPlace(at('gas_station')), false);
+  // A plain deli is still dinner, and a market that is filed as a restaurant stays in.
+  assert.equal(isDiningPlace({ tags: [deli] }), true);
+  assert.equal(isDiningPlace(at('supermarket', [{ tag_id: 'urn:tag:category:place:restaurant', name: 'restaurant' }])), true);
+});

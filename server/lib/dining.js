@@ -7,7 +7,9 @@
 // evidence of food. The tool checks each place's own tags here, the way lib/activity.js does.
 //
 // The rule reads Qloo's own place tags and the offerings it attaches:
-//   1. A place with a lodging leaf is out, whatever else it carries. Another DENIED leaf
+//   1. A place with a lodging leaf is out, whatever else it carries. So is a grocery, a
+//      convenience store, or a gas station, even with a deli counter, unless its own category
+//      is restaurant. Another DENIED leaf
 //      (a bank, an office, the rest of lib/activity.js DENIED) rules it out unless it is
 //      plainly a restaurant, because a bike shop that is also a cafe is still a cafe.
 //   2. A STRONG food leaf puts it in: the place's own category "restaurant", a restaurant
@@ -40,6 +42,11 @@ const WEAK = /^(?:restaurant_)?(bakery|dessert|desserts|donut_shop|ice_cream_sho
 const TREAT_SHOP = /^(?:restaurant_)?(juice_bar|juice_shop|smoothie_shop|dessert|desserts|dessert_shop|ice_cream_shop|frozen_yogurt_shop|donut_shop|snack_bar|candy_store|bubble_tea_shop)$/;
 /** Leaves that rule a place out even when it also serves food. */
 const LODGING = /(^|_)(hotel|motel|inn|lodge|lodging|hostel|rv_park|campground)(_|$)/;
+/**
+ * Leaves of a shop that sells food without serving a meal. A grocery with a deli counter is still
+ * a grocery, so these rule a place out unless its own category is restaurant.
+ */
+const GROCERY = /(^|_)(supermarket|grocery|grocer|grocery_store|convenience_store|gas_station|market_grocery)(_|$)/;
 /** Leaves that are retail. */
 const RETAIL = /(^|_)(store|supermarket|mall|superstore|warehouse_club)(_|$)|^shopping$/;
 /** Leaves of a venue, where a cuisine tag alone is not enough. */
@@ -57,6 +64,7 @@ export function isDiningPlace(e, { treats = false } = {}) {
   const tags = (e.tags ?? []).map((t) => String(t.tag_id));
   const leaves = tags.map(leafOf).filter(Boolean).map((l) => l.replace(/:/g, '_'));
   if (leaves.some((l) => LODGING.test(l))) return false;
+  if (leaves.some((l) => GROCERY.test(l)) && !tags.includes('urn:tag:category:place:restaurant')) return false;
   // A juice bar or a frozen yogurt counter is a snack, not dinner, unless the guest asked for one.
   if (!treats && leaves.some((l) => TREAT_SHOP.test(l)) && !leaves.some((l) => STRONG.test(l) && !BAR_CHILD.test(l) && !DIET_LABEL.test(l))) return false;
   const strong = tags.includes('urn:tag:category:place:restaurant') || leaves.some((l) => STRONG.test(l) && !BAR_CHILD.test(l));
