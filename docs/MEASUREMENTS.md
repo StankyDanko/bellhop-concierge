@@ -40,8 +40,7 @@ These change only with a commit, and the command shows the current value.
 ## On the landing page
 
 Every word on the landing lives in `dashboard/src/content/landing.js`; the scripted call lives in
-`dashboard/src/content/call-scene.js`. The script is a written example with fictional places, so
-its times and minutes ("a salsa band at nine", "six minutes away") are scene-setting, not claims.
+`dashboard/src/content/call-scene.js`. The script is the words of a real call to Marisol's line on 2026-10-30, trimmed for length, never reworded (the caller is an actor). Its times and minutes ("a salsa band at nine", "six minutes away") are scene-setting, not claims.
 
 | Number | Where it's said | Command or source |
 |---|---|---|
@@ -49,7 +48,7 @@ its times and minutes ("a salsa band at nine", "six minutes away") are scene-set
 | 12 of 12 test callers got a different list than the no-taste baseline | proof strip | the battery row under "Repo commands, live" below: `npm run battery -- --live --port <port> --cap 60`, 2026-10-22, criterion C6 |
 | 158 ms median Qloo insights answer, over 47 live calls | proof strip | the latency row under "Repo commands, live" below: `npm run prewarm -- --apply --cap 120`, 2026-10-22 |
 | Qloo, Ticketmaster, and Texts "live" chips | proof strip | not a number: read from `/api/health-summary` (`tools.qloo`, `tools.ticketmaster`, `tools.sms`) at page load; a chip shows only when the server says `live` |
-| Three inns, three voices | property tiles | `ls personas/` lists harper, marisol, and maybelle (plus road, the public line); Casa Coralina is `config/examples/miami-rental.json`, the other two tiles are marked Example |
+| One live on its own line, two examples | property tiles | `ls config/examples/` lists demo-inn, miami-rental, and road-line; Casa Coralina is `config/examples/miami-rental.json`, the other two tiles are marked Example |
 | At most 480 characters in the text | the scripted text | `grep -n "MAX_CHARS =" server/lib/sms.js`; the scripted text follows the real shape (`SENDER_TAG`, picks, `PAGE_LEAD`, `FOOTER`) |
 
 ## Any-city coverage (live, 2026-10-22)

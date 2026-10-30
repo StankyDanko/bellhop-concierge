@@ -23,7 +23,8 @@ its command or source in [MEASUREMENTS.md](MEASUREMENTS.md).
   number. An owner opens the
   [dashboard](https://concierge.southernsky.cloud/property/miami) and the
   [printable brief](https://concierge.southernsky.cloud/property/miami/brief). A new property
-  starts at the [builder](https://concierge.southernsky.cloud/build).
+  starts at the [builder](https://concierge.southernsky.cloud/build). A guest
+  at Casa Coralina calls Marisol at (706) 810-9262.
 - **One config file per property** ([`config/examples/`](../config/examples/)), compiled into a
   linted voice agent by [`bin/compile.js`](../bin/compile.js). Twelve guardrails are locked on.
 - **The conversation is designed, not just prompted.** One pick at a time, no "name a favorite"

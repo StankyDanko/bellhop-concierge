@@ -147,7 +147,7 @@ From checking a docs-first client against the live API. All twelve lessons are i
 4. **Small towns are thin.** Near a small city a cuisine filter can find single digits of
    places, so the filter relaxes once and the concierge stops claiming the cuisine.
 5. **Demographics describe people who share these tastes nearby,** never a caller.
-6. **US only, by city name,** on Open-Meteo's free, non-commercial geocoder and forecast.
+6. **US only, by city name, in English only for now,** on Open-Meteo's free, non-commercial geocoder and forecast.
 7. **The line has limits.** 300 calls a day, 3 at once, 10 texts per call, 12 per number per
    hour. Hackathon keys end after the event; `CACHE_FREEZE=1` keeps a pre-warmed demo answering.
 
