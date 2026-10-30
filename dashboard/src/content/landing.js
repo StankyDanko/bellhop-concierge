@@ -54,7 +54,7 @@ export const SCENE = {
 export const REAL_CALL = {
   eyebrow: 'Listen',
   title: 'Hear a real call.',
-  sub: 'Recorded on the live line. Nothing scripted on her side.',
+  sub: 'Recorded on the live line, trimmed for length. Nothing scripted on her side.',
   play: 'Play the call',
   pause: 'Pause',
   seek: 'Position in the call',
@@ -76,7 +76,7 @@ export const STEPS = {
     graph: 'Qloo taste graph',
     pick: 'Cubaocho',
     pickWhy: 'Live music and a rum bar in Little Havana, somewhere you can dance.',
-    sms: 'Bellhop Concierge: Tonight:\n- El Cristo Restaurant, lively cuban restaurant\n- Cubaocho Museum & Performing Arts Center, lively art museum\nTap for links: concierge.southernsky.cloud/p/zwK08X',
+    sms: 'Bellhop Concierge: Tonight:\n- El Cristo Restaurant, lively cuban restaurant\n- Cubaocho Museum & Performing Arts Center, lively art museum\nTap for links: concierge.southernsky.cloud/p/zwK08XvklPIi',
   },
 };
 
@@ -90,7 +90,7 @@ export const PROPERTIES = {
   eyebrow: 'For innkeepers',
   title: 'Every property gets its own concierge.',
   line: 'One config file. One number. A voice that knows checkout, the pool hours, and your kind of night.',
-  caption: 'Three inns, three voices, one config file each.',
+  caption: 'One live on its own line, two examples. Each starts from one config file.',
   build: 'Build yours',
   open: 'Open the dashboard',
   example: 'Example',
@@ -110,7 +110,7 @@ export const PROOF = {
   liveWord: 'live',
   // Each fact is listed in docs/MEASUREMENTS.md with the command that produced it.
   facts: [
-    { value: '13', label: 'Qloo capabilities in the call path, from entity search to explainability.' },
+    { value: '13', label: 'Qloo capabilities in the shipped code, from entity search to audience compare.' },
     { value: '12 of 12', label: 'test callers got a different list than the no-taste baseline.' },
     { value: '158 ms', label: 'median Qloo insights answer, over 47 live calls.' },
   ],
@@ -126,7 +126,7 @@ export const CLOSER = {
   title: 'Try it. Call Hollis.',
   sub: 'An automated line. Calls are recorded. Texts go only to the phone you call from.',
   callLabel: 'Call Hollis',
-  filmLabel: 'Hollis, anyone, anywhere',
+  filmLabel: 'Hollis, anyone, anywhere in the US',
   busy: 'We couldn\'t reach the concierge just now. The number stays the same; try again in a minute.',
   noNumber: 'The number appears here once the line is set up.',
 };

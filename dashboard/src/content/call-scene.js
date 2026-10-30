@@ -21,8 +21,8 @@ export const CALL_LINES = [
 export const SMS_AT = 27200;
 export const PAGE_AT = 28800;
 
-/** The text that call sent, as compose_itinerary wrote it (the picks link is shortened here). */
-export const SMS_BODY = 'Bellhop Concierge: Tonight:\n- El Cristo Restaurant, lively cuban restaurant\n- Cubaocho Museum & Performing Arts Center, lively art museum\nTap for links: concierge.southernsky.cloud/p/zwK08X\nvia Qloo + Ticketmaster. Reply STOP to opt out.';
+/** The text that call sent, as compose_itinerary wrote it. */
+export const SMS_BODY = 'Bellhop Concierge: Tonight:\n- El Cristo Restaurant, lively cuban restaurant\n- Cubaocho Museum & Performing Arts Center, lively art museum\nTap for links: concierge.southernsky.cloud/p/zwK08XvklPIi\nvia Qloo + Ticketmaster. Reply STOP to opt out.';
 
 export const PICKS = [
   { name: 'Cubaocho Museum & Performing Arts Center', detail: 'Little Havana, live music and a rum bar', why: 'Live Latin music, somewhere you can dance.' },
