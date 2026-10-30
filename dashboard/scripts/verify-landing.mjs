@@ -4,10 +4,11 @@
 //                                               use a mock server that is already running (smoke.mjs)
 // 1. The built HTML shell and bundle: title, meta, viewport-fit, landing strings in the bundle,
 //    removed strings gone, CSS tokens for both themes.
-// 2. Server-render the landing (Vite SSR) with a number in health, and each of the four visuals
-//    with the mock server's real payloads plus hand-written fake variants (agrees, top-1 only,
-//    gated, affinity-only). Check: the H1 and product sentence, every tel: link, every image has
-//    alt or an accessible name, no em dash / "AI" / "host" in rendered text.
+// 2. Server-render the landing (Vite SSR) with a number in health, and the shared visuals (the
+//    contrast, the call rail, the pick card, the area card) with the mock server's real payloads
+//    plus hand-written fake variants (agrees, top-1 only, gated, affinity-only). Check: the H1
+//    and the copy module agree, every tel: link, the section order, the scripted call and its
+//    text, every image has alt or an accessible name, no em dash / "AI" / "host" in rendered text.
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
@@ -65,12 +66,22 @@ const css = assets.filter((f) => f.endsWith('.css')).map((f) => readFileSync(joi
 check(html.includes('<title>Bellhop Concierge</title>'), 'built HTML keeps the title');
 check((html.match(/viewport-fit=cover/g) ?? []).length === 1, 'built HTML has viewport-fit=cover once');
 check(!/<img(?![^>]*\balt=)[^>]*>/i.test(html), 'built HTML: every <img> has alt (shell has none or all carry alt)');
-for (const s of ['The front desk concierge for short-term rentals and small inns.', 'What your words changed.', 'Your words moved the answer.', 'How a call becomes a plan.',
-  'Why this pick.', 'What your callers love.', 'Safe by default.', 'Run your own concierge.', 'Step through the call', 'Show each step',
-  'See the exact request', 'matches your words', 'Eleven questions, then a preview.']) {
+const COPY = await import(pathToFileURL(join(D, 'src/content/landing.js')).href);
+const SCRIPT = await import(pathToFileURL(join(D, 'src/content/call-scene.js')).href);
+for (const s of [COPY.HERO.title, COPY.HERO.sub, COPY.SCENE.title, COPY.REAL_CALL.title, COPY.MEMORY.title, COPY.PROPERTIES.title, COPY.PROOF.title, COPY.CLOSER.title,
+  ...COPY.STEPS.items.map((i) => i.title), SCRIPT.CALL_LINES[0].text, '/media/film-marisol.mp4', '/media/call-marisol.cues.json']) {
   check(js.includes(s), `bundle carries ${JSON.stringify(s)}`);
 }
-for (const s of ['about three minutes', 'Call the front desk at', 'How it works', 'Call the demo inn, free', '30 seconds', 'each with the reason it was picked', 'The reason shown with every pick']) check(!js.includes(s), `bundle no longer carries ${JSON.stringify(s)}`);
+for (const s of ['Number goes live at submission', 'until the Qloo key is live', 'Texts are in test mode until', 'Test mode', 'The front desk concierge for short-term rentals and small inns.']) {
+  check(!js.includes(s), `bundle no longer carries ${JSON.stringify(s)}`);
+}
+// Every landing number has a measuring command in docs/MEASUREMENTS.md.
+const measures = readFileSync(join(W, 'docs/MEASUREMENTS.md'), 'utf8');
+for (const f of COPY.PROOF.facts) check(measures.includes(f.value), `docs/MEASUREMENTS.md lists the proof number ${JSON.stringify(f.value)}`);
+check(COPY.CAPABILITIES.length === Number(COPY.PROOF.facts[0].value), `proof says ${COPY.PROOF.facts[0].value} capabilities, the list has ${COPY.CAPABILITIES.length}`);
+// The script never has the concierge read out a wifi password or a door code.
+check(!SCRIPT.CALL_LINES.some((l) => l.who === 'concierge' && /password|door code|wifi|wi-fi/i.test(l.text)), 'scripted concierge never reads a password or code');
+check(SCRIPT.CALL_LINES.every((l, i, a) => i === 0 || l.at > a[i - 1].at) && SCRIPT.SMS_AT > SCRIPT.CALL_LINES.at(-1).at && SCRIPT.PAGE_AT > SCRIPT.SMS_AT, 'scripted call: lines, then the text, then the page, in time order');
 // Tokens: dark is the :root default; light comes from the prefers-color-scheme block and [data-theme="light"].
 const blocks = {
   'dark default :root': /:root\{[^}]*--color-bg:/.test(css.replace(/\s+/g, '')),
@@ -104,26 +115,27 @@ try {
   const { WhyPick } = await server.ssrLoadModule('/src/components/WhyPick.jsx');
   const { AreaCard } = await server.ssrLoadModule('/src/components/AreaCard.jsx');
 
-  const health = { state: 'answering', data: { demo_number: '+15550100199', demo: { id: 'demo', name: 'The Juniper House' }, last_session_at: null, tools: { qloo: 'mock', ticketmaster: 'mock' }, checked_at: new Date().toISOString() } };
+  const health = { state: 'answering', data: { demo_number: '+15550100199', demo: { id: 'demo', name: 'The Juniper House' }, last_session_at: null, tools: { qloo: 'live', ticketmaster: 'live', sms: 'live' }, checked_at: new Date().toISOString() } };
   const land = render(h(Landing, { health }), 'landing (with a number)');
-  // The caveat follows the texting mode /health reports: texts are called real only when sms is live.
-  check(land.includes('The calls are real. Texts are in test mode until the toll-free number is approved.') && !land.includes('The calls and texts are real.'),
-    'answering with sms mock: texts said to be in test mode');
-  const smsLive = render(h(Landing, { health: { ...health, data: { ...health.data, tools: { ...health.data.tools, sms: 'live' } } } }), 'landing (sms live)');
-  check(smsLive.includes('The calls and texts are real.') && !smsLive.includes('test mode'), 'answering with sms live: calls and texts real');
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
-  check(h1 === 'The front desk concierge for short-term rentals and small inns.', `H1 = ${JSON.stringify(h1)}`);
+  check(h1 === COPY.HERO.title, `H1 = ${JSON.stringify(h1)}`);
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
-  check(land.includes('Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.'), 'product sentence present');
+  check(land.includes(COPY.HERO.sub), 'hero sub-line present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
-  check(tels.length >= 2 && tels.every((t) => t === 'tel:+15550100199'), `tel: links ${tels.length}, all tel:+15550100199`);
-  check(land.includes('Try it: call Hollis, the road concierge for any US city'), 'number card label names Hollis, the one public line');
-  check(land.includes('Featured property: <strong>Casa Coralina</strong>') && land.includes('href="/property/miami"'), 'Casa Coralina is the featured property, linked to its dashboard');
-  check(!/Juniper|Harper|\b706\b|transfer|three agents/i.test(land), 'landing has no Juniper, Harper, 706, transfer, or three agents');
+  check(tels.length === 2 && tels.every((t) => t === 'tel:+15550100199'), `tel: links ${tels.length} (hero and closer), all tel:+15550100199`);
+  check(land.includes('Answering now'), 'answering: the live badge shows by the number');
+  check(COPY.PROOF.live.every(([, label]) => land.includes(`${label} ${COPY.PROOF.liveWord}`)), 'all three services live: each live chip shows');
+  check(land.includes('href="/property/miami"'), 'Casa Coralina links to its dashboard');
+  check(!/\b706\b|three agents|Test mode/i.test(land), 'landing has no 706, three agents, or Test mode');
   const h2s = [...land.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
-  check(JSON.stringify(h2s) === JSON.stringify(['What your words changed.', 'How a call becomes a plan.', 'Why this pick.', 'What your callers love.', 'Safe by default.', 'Run your own concierge.']), `H2 order ${JSON.stringify(h2s)}`);
+  const wantH2 = [COPY.SCENE.title, COPY.STEPS.eyebrow, COPY.MEMORY.title, COPY.PROPERTIES.title, COPY.PROOF.title, COPY.CLOSER.title];
+  check(JSON.stringify(h2s) === JSON.stringify(wantH2), `H2 order ${JSON.stringify(h2s)}`);
+  check(land.includes(SCRIPT.CALL_LINES.at(-1).text) && land.includes('lx-sms-body'), 'scripted call: full transcript for screen readers and the text bubble');
+  check(land.includes('lx-film-still') && !land.includes('<video'), 'before the media check: the hero shows the still, no video tag');
+  const quiet = render(h(Landing, { health: { state: 'test', data: { ...health.data, tools: { qloo: 'mock', ticketmaster: 'mock', sms: 'mock' } } } }), 'landing (sample mode)');
+  check(!quiet.includes('Answering now') && !quiet.includes(`Qloo ${COPY.PROOF.liveWord}`), 'sample mode: no live badge, no live chips');
   const pending = render(h(Landing, { health: { state: 'test', data: { ...health.data, demo_number: null } } }), 'landing (no number)');
-  check(!/href="tel:/.test(pending) && pending.includes('Number goes live at submission'), 'no number: no tel: link, honest pending line');
+  check(!/href="tel:/.test(pending) && pending.includes(COPY.CLOSER.noNumber), 'no number: no tel: link, honest pending line');
 
   const sp = await get('/sample-pick');
   const ses = (await get('/properties/demo/sessions')).sample_session;
