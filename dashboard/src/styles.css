@@ -135,8 +135,8 @@ main { flex: 1; padding-block: var(--space-section); }
   animation: pulse 2s var(--ease-out) infinite;
 }
 .live-badge[data-state="answering"] { border-color: var(--color-live); color: var(--color-success-text); }
-.live-badge[data-state="test"] { border-color: var(--color-accent); color: var(--color-accent-text); }
-.live-badge[data-state="test"] .live-dot { background: transparent; border: 2px solid var(--color-accent); }
+.live-badge[data-state="test"], .live-badge[data-state="published"] { border-color: var(--color-accent); color: var(--color-accent-text); }
+.live-badge[data-state="test"] .live-dot, .live-badge[data-state="published"] .live-dot { background: transparent; border: 2px solid var(--color-accent); }
 .live-badge[data-state="busy"] { background: var(--color-warning-tint); border-color: transparent; color: var(--color-warning-text); }
 .live-badge[data-state="busy"] .live-dot { background: var(--color-warning); }
 .live-badge[data-state="paused"] .live-dot { background: var(--color-text-dim); }
