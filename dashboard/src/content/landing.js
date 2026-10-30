@@ -74,9 +74,9 @@ export const STEPS = {
     youSaid: 'You said',
     tastes: ['Live Latin music', 'Dancing'],
     graph: 'Qloo taste graph',
-    pick: 'La Clave Room',
-    pickWhy: 'Live Latin music, like you asked. Six minutes away.',
-    sms: 'Bellhop Concierge: Tonight:\n- La Clave Room, live salsa band at 9, 6 min\nTap for links: concierge.southernsky.cloud/p/x7Kq2',
+    pick: 'Cubaocho',
+    pickWhy: 'Live music and a rum bar in Little Havana, somewhere you can dance.',
+    sms: 'Bellhop Concierge: Tonight:\n- El Cristo Restaurant, lively cuban restaurant\n- Cubaocho Museum & Performing Arts Center, lively art museum\nTap for links: concierge.southernsky.cloud/p/zwK08X',
   },
 };
 

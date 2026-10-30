@@ -147,7 +147,7 @@ try {
   const h2s = [...land.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
   const wantH2 = [COPY.SCENE.title, COPY.STEPS.eyebrow, COPY.MEMORY.title, COPY.PROPERTIES.title, COPY.PROOF.title, COPY.CLOSER.title];
   check(JSON.stringify(h2s) === JSON.stringify(wantH2), `H2 order ${JSON.stringify(h2s)}`);
-  check(land.includes(SCRIPT.CALL_LINES.at(-1).text) && land.includes('lx-sms-body'), 'scripted call: full transcript for screen readers and the text bubble');
+  check([SCRIPT.CALL_LINES.at(-1).text, SCRIPT.CALL_LINES.at(-1).text.replace(/'/g, '&#x27;'), SCRIPT.CALL_LINES.at(-1).text.replace(/'/g, '&#39;')].some((t) => land.includes(t)) && land.includes('lx-sms-body'), 'scripted call: full transcript for screen readers and the text bubble');
   check(land.includes('lx-film-still') && !land.includes('<video'), 'before the media check: the hero shows the still, no video tag');
   const quiet = render(h(Landing, { health: { state: 'test', data: { ...health.data, tools: { qloo: 'mock', ticketmaster: 'mock', sms: 'mock' } } } }), 'landing (sample mode)');
   check(!quiet.includes('Answering now') && !quiet.includes(`Qloo ${COPY.PROOF.liveWord}`), 'sample mode: no live badge, no live chips');
