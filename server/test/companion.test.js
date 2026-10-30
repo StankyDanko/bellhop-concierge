@@ -82,7 +82,9 @@ test('resolve_taste: no companion fields for a solo guest; companion list is bou
   assert.equal('companion_resolved' in solo, false);
   const tooMany = await callTool(app, 'resolve_taste', { mentions: ['Sturgill Simpson'], companion_mentions: ['a', 'b', 'c'] });
   assert.equal(tooMany.status, 400);
-  const notList = await callTool(app, 'resolve_taste', { mentions: ['Sturgill Simpson'], companion_mentions: 'Kacey' });
+  const lone = await callTool(app, 'resolve_taste', { mentions: ['Sturgill Simpson'], companion_mentions: 'Thai food' });
+  assert.equal(lone.status, 200);
+  const notList = await callTool(app, 'resolve_taste', { mentions: ['Sturgill Simpson'], companion_mentions: { name: 'Kacey' } });
   assert.equal(notList.status, 400);
 });
 
