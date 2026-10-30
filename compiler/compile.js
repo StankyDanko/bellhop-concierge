@@ -29,6 +29,13 @@ export const LOCKED_SETTINGS = Object.freeze({
 });
 
 /**
+ * The languages the locked voice model speaks. eleven_flash_v2 is English only, so a line that
+ * promised Spanish would read Spanish words with English sounds. Other languages an innkeeper
+ * lists stay in the config, and the agent says plainly it helps in English for now.
+ */
+export const SPOKEN_LANGUAGES = Object.freeze(['en']);
+
+/**
  * The backup model is Claude only. With the platform's default cascade on, a slow answer from
  * the chosen model handed the call to a Gemini model that called a tool which does not exist,
  * about twenty five times, while the guest waited in silence. An override lists the models to
@@ -276,10 +283,13 @@ function renderHumor(level) {
 }
 
 function renderLanguages(codes) {
-  const names = codes.map((c) => LANGUAGE_NAMES[c] ?? c);
-  if (names.length === 1) return `Speak ${names[0]}.`;
-  return `Start in ${names[0]}. If the guest speaks ${names.slice(1).join(' or ')}, answer in that language for the rest of the call.`;
+  const others = unspokenLanguages(codes).map((c) => LANGUAGE_NAMES[c] ?? c);
+  if (!others.length) return 'Speak English.';
+  return `Speak English. If a guest speaks ${others.join(' or ')}, say kindly, in English, that you can only help in English for now, then carry on in English.`;
 }
+
+/** Listed languages the voice cannot speak yet. @param {string[]} codes */
+const unspokenLanguages = (codes) => codes.filter((c) => !SPOKEN_LANGUAGES.includes(c));
 
 function renderPicks(c) {
   const out = [];
@@ -580,7 +590,7 @@ export function compile(config, opts = {}) {
     conversation_config: {
       agent: {
         first_message: firstMessage,
-        language: c.voice.languages[0],
+        language: SPOKEN_LANGUAGES[0],
         ...(placeholders ? { dynamic_variables: { dynamic_variable_placeholders: placeholders } } : {}),
         prompt: {
           prompt,
@@ -657,6 +667,11 @@ export function compile(config, opts = {}) {
     ...t.params.transfers.map((x, i) => [`built_in_tools.${t.name}.transfers[${i}].condition`, x.condition]),
   ]);
   const lint = lintCompiled({ prompt, firstMessage, tools, agent, secrets, extraTexts: builtInTexts });
+  const unspoken = unspokenLanguages(c.voice.languages);
+  if (unspoken.length) {
+    lint.push({ rule: 'language', severity: 'warn', where: 'voice.languages',
+      excerpt: `${unspoken.map((x) => LANGUAGE_NAMES[x] ?? x).join(', ')} listed; the voice model speaks English only, so the agent says it helps in English for now` });
+  }
   if (transfers) {
     for (const [t, opt] of ROAD_TRANSFERS) {
       if (!opts[opt]) lint.push({ rule: 'placeholder', severity: 'warn', where: 'built_in_tools.transfer_to_agent', excerpt: `${t.placeholder.slice(1, -1)} not filled; pass ${opt} at deploy time` });

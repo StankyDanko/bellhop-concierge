@@ -128,7 +128,11 @@ test('owner toggles render; locked text does not move', () => {
   const r = compile(c, OPTS);
   assert.match(prompt(r), /you may mention it once/);
   assert.match(prompt(r), /The inn works with this business/);
-  assert.match(prompt(r), /If the guest speaks Spanish/);
+  // The voice model speaks English only: Spanish is answered in English, honestly, never promised.
+  assert.match(prompt(r), /If a guest speaks Spanish, say kindly, in English, that you can only help in English for now/);
+  assert.doesNotMatch(prompt(r), /answer in that language/);
+  assert.equal(r.agent.conversation_config.agent.language, 'en');
+  assert.ok(r.lint.some((l) => l.rule === 'language' && l.severity === 'warn'));
   assert.match(prompt(r), /Codes and passwords/);
 });
 
