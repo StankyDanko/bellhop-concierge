@@ -18,23 +18,26 @@ These change only with a commit, and the command shows the current value.
 
 | Number | Where it's said | Command |
 |---|---|---|
-| Text at most 480 characters | README, ARCHITECTURE, TESTING | `grep -n "MAX_CHARS =" server/lib/sms.js` |
+| Text at most 480 characters | ARCHITECTURE, TESTING | `grep -n "MAX_CHARS =" server/lib/sms.js` |
 | Twelve texts per number per hour | README, PRIVACY | `grep -n "SENDS_PER_HOUR =" server/tools/send-sms.js` |
 | Panels dark below five calls | README, ARCHITECTURE, PRIVACY | `grep -n "SESSION_GATE =" server/api/routes.js` |
 | Free-text taste capped at 80 characters | PRIVACY | `grep -n "MAX_FREE_TEXT =" server/lib/pii-guard.js` |
 | At most eight taste ids per place call | LEARNED | `grep -n "TASTE_MAX =" server/lib/validate.js` |
 | Eleven tools | README | `curl -s localhost:8787/health` lists them under `tools` (nine in `TOOLS`, plus `forget_guest` and `remember_guest` in `MEMORY_TOOLS`, server/app.js); `ls server/tools/` shows eleven tool files plus the shared `places.js` and `counterfactual.js`; server/test/tool-count-docs.test.js holds the docs to it |
-| Ten texts per call | privacy page (dashboard/src/legal-content.js) | `grep -n "TEXTS_PER_CALL\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
+| Ten texts per call | README, PRIVACY, privacy page (dashboard/src/legal-content.js) | `grep -n "TEXTS_PER_CALL\|claimCall" server/tools/send-sms.js`; enforced when the call carries its session id |
 | Twelve locked guardrails | README | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` |
-| Eleven builder questions | README | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
-| Calls a day by trust level: test 20, suggest 100, live 300 | README, the dashboard's line chip | `grep -n "daily_limit" compiler/compile.js` (`TRUST_LIMITS`; the public line and both demos are at trust level `live`: 300 a day, 3 at once); the chip labels are `grep -n "calls a day" dashboard/src/pages/Property.jsx` |
-| Twenty battery callers, two two-call sequences, twenty-four criteria | README, TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
-| Rain reorder at 50 percent or more, judged at 7 pm inn time | README, server README | `grep -n "RAIN_THRESHOLD_PCT =\|TARGET_HOUR =" server/lib/weather.js` |
+| Eleven builder questions | the landing page | `grep -c "ask: '" dashboard/src/pages/Builder.jsx` prints 12: the website start, then eleven questions |
+| Calls a day by trust level: test 20, suggest 100, live 300 | README (300 a day, 3 at once), compiler README, the dashboard's line chip | `grep -n "daily_limit" compiler/compile.js` (`TRUST_LIMITS`; the public line and both demos are at trust level `live`: 300 a day, 3 at once); the chip labels are `grep -n "calls a day" dashboard/src/pages/Property.jsx` |
+| Twenty battery callers, two two-call sequences, twenty-four criteria | TESTING | `/usr/bin/node -e "const s=require('./server/battery/scenarios.json');console.log(s.scenarios.length, s.sequences.length)"`; `grep -c "{ id: 'C" server/battery/criteria.js` |
+| Rain reorder at 50 percent or more, judged at 7 pm inn time | server README | `grep -n "RAIN_THRESHOLD_PCT =\|TARGET_HOUR =" server/lib/weather.js` |
 | Forecast cached one hour per inn; 1.5 s timeout | server README | `grep -n "weather" server/lib/cache.js`; `grep -n "WEATHER_TIMEOUT_MS" server/config.js` |
-| Similar-artist shows: three weeks ahead, 100 miles out (from Savannah, Charleston and Jacksonville are in range), five lookups at once | README, server README | `grep -n "TASTE_DAYS =\|TASTE_RADIUS_MILES =\|TASTE_CONCURRENCY =" server/tools/events-by-taste.js` |
+| Similar-artist shows: three weeks ahead, 100 miles out (from Savannah, Charleston and Jacksonville are in range), five lookups at once | server README | `grep -n "TASTE_DAYS =\|TASTE_RADIUS_MILES =\|TASTE_CONCURRENCY =" server/tools/events-by-taste.js` |
 | Geocoding answers cached 30 days; 2 s timeout | server README | `grep -n "geocode" server/lib/cache.js`; `grep -n "GEOCODE_TIMEOUT_MS" server/config.js` |
-| A bare city name is taken without a question at a million people or more | README, server README | `grep -n "WELL_KNOWN_POPULATION =" server/lib/geocode.js` |
+| A bare city name is taken without a question at a million people or more | server README | `grep -n "WELL_KNOWN_POPULATION =" server/lib/geocode.js` |
 | Road line cities shown only at five calls or more | server README | `grep -n "calls >= SESSION_GATE" server/api/routes.js` |
+| Guest memory: a week after the last call by default, never past 30 days from the first | README, PRIVACY | `grep -n "TTL_DEFAULT_DAYS =\|ABSOLUTE_LIFE_DAYS =" server/lib/memory.js`; on only with `GUEST_MEMORY_SECRET` set (`grep -n "GUEST_MEMORY_SECRET" server/config.js`) |
+| Picks page and short links last 30 days | README | `grep -n "LINK_TTL_DAYS =" server/lib/links.js` |
+| Films and shows from the last three years unless the guest asks for older | README | `grep -n "RECENT_YEARS =" server/tools/cross-domain.js` |
 | Tool budget 2.5 s, chain 6 s | TESTING | `grep -n "BUDGET_MS =" server/battery/criteria.js` |
 
 ## On the landing page
@@ -46,7 +49,7 @@ These change only with a commit, and the command shows the current value.
 | One to watch at the inn, when there is one | hero | `grep -n "one to watch at the inn" template/concierge.md` (cross_domain); the sample text has four lines: two places, one film, one event (`grep -n picks_included server/fixtures/sample-session.json`) |
 | At most 320 characters in the text | call rail | `grep -n "MAX_CHARS =" server/lib/sms.js` |
 | Dark until five calls | callers section | `grep -n "SESSION_GATE =" server/api/routes.js` |
-| Thirteen Qloo capabilities | capability list | the `CAPABILITIES` list in `dashboard/src/pages/Landing.jsx`, each entry found in the code by `grep -rn -e "ENDPOINTS\." -e "filter.parents.types" -e "'filter.tags'" -e "filter.results.entities" -e "feature.explainability" -e "popularNearby" -e "heatmap.dimensions" -e "output.heatmap.boundary" -e "urn:demographics" -e "urn:tag'" server/lib server/tools server/api`. Memory's `filter.exclude.entities` is not counted: it runs only with `GUEST_MEMORY_SECRET` set |
+| Thirteen Qloo capabilities | capability list, README, JUDGES | the `CAPABILITIES` list in `dashboard/src/pages/Landing.jsx`, each entry found in the code by `grep -rn -e "ENDPOINTS\." -e "filter.parents.types" -e "'filter.tags'" -e "filter.results.entities" -e "feature.explainability" -e "popularNearby" -e "heatmap.dimensions" -e "output.heatmap.boundary" -e "urn:demographics" -e "urn:tag'" server/lib server/tools server/api`. Memory's `filter.exclude.entities` is not counted: it runs only with `GUEST_MEMORY_SECRET` set |
 | Twelve rules always on | safety section | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` (the page reads the live count from `/api/guardrails`) |
 | Eleven builder questions | run-your-own section | `grep -c "title: '" dashboard/src/pages/Builder.jsx` prints 12: the intro, then eleven questions |
 | 1 mi scale on the area card | area card | the scale bar is drawn one mile long from the card's own miles-to-pixels `scale` (`grep -n "1 mi" dashboard/src/components/AreaCard.jsx`) |
@@ -86,7 +89,7 @@ Notes: geocoding made 95 lookups, 5 live (one per city) and 90 from the cache. T
 |---|---|---|
 | events_nearby with an artist, live Qloo and live Ticketmaster: 9.1 s cold with the five lookups one at a time; 5.8 s cold with them in parallel (about 3.1 s of it the uncached Qloo similar-artists call); 1.7 and 2.6 s in parallel with that Qloo answer cached, as prewarm leaves it. The cached case is the speed bar: prewarm covers the demo and battery artists | server README | before: the artist-shows caller of `npm run battery -- --live --only artist-shows,tonight-events,weekend-events --cap 40 --pace-ms 2000` on 2750945 with Ticketmaster live, 2026-10-22; after: the same command on this commit, then a script that warms the similar-artists call and times one events_nearby for two artists, 2026-10-22 |
 | Shows by taste from the demo inn, five touring artists tried (Morgan Wallen, Luke Combs, Taylor Swift, Zach Bryan, Chris Stapleton): all five resolve (the first three as Qloo persons, now accepted as the named act) and each returns 5 similar artists, but 0 of the 25 has a show within 100 miles and three weeks. A check of one set with no location filter found 6 shows anywhere in those three weeks, none in Georgia, South Carolina, or Florida. None fired, so the artist-shows caller keeps its artist | TESTING | a paced script (2 s, at most 20 Qloo calls; 10 used) calling resolve_taste then events_nearby with `artist` against live Qloo and live Ticketmaster from `server/.env`, 2026-10-22; the no-location check is the same attraction ids on Ticketmaster `/events.json` with only the dates |
-| The New York shows probe: one popular artist, five similar artists from Qloo; one of them had six shows in the next 21 days across four states, none within 100 miles of the New York point (the nearest about 189 miles). The query shape found what it should have; verdict: the calendar, not the code | README | a paced live probe script kept with the private campaign notes (`nyc-probe.mjs "<artist>" 1`, 16 calls in all: 4 Qloo, 12 Ticketmaster, no 429), 2026-10-22 |
+| The New York shows probe: one popular artist, five similar artists from Qloo; one of them had six shows in the next 21 days across four states, none within 100 miles of the New York point (the nearest about 189 miles). The query shape found what it should have; verdict: the calendar, not the code | this page only | a paced live probe script kept with the private campaign notes (`nyc-probe.mjs "<artist>" 1`, 16 calls in all: 4 Qloo, 12 Ticketmaster, no 429), 2026-10-22 |
 | The guest's list moved away from the no-taste list for 12 of 12 callers run, 3 held back by the call cap | README, QLOO | `npm run battery -- --live --port <port> --cap 60`, 2026-10-22, the `verdict` of each contrast in `raw.jsonl` (criterion C6). An earlier full run the same day, before the cap, gave 15 of 15 |
 | Ten of thirteen guessed shapes matched, one differed and was fixed, two not probed | LEARNED | `npm run probe:qloo`, 2026-10-22, read against the table in [`QLOO-NOTES.md`](../QLOO-NOTES.md) |
 | Latency medians: search 129 ms (17 calls), tags 143 ms (7), insights 158 ms (47, worst 1612 ms) | QLOO | `npm run prewarm -- --apply --cap 120 --out <file outside the repo>`, 2026-10-22, paced one call per 2 s |
@@ -98,7 +101,7 @@ Notes: geocoding made 95 lookups, 5 live (one per city) and 90 from the cache. T
 
 | Number | Where it's said | Request shape |
 |---|---|---|
-| Cuisine as a signal: 0 of 5 top picks carried it, on both profiles with a cuisine. As `filter.tags`: 3 of 3 and 5 of 5 | QLOO, LEARNED | `/v2/insights` place call with `signal.interests.tags=<CUISINE_GENRE_TAG>`, then the same with `filter.tags=<CUISINE_GENRE_TAG>`; count picks whose own `tags` list carries the tag |
+| Cuisine as a signal: 0 of 5 top picks carried it, on both profiles with a cuisine. As `filter.tags`: 3 of 3 and 5 of 5 | README, QLOO, LEARNED | `/v2/insights` place call with `signal.interests.tags=<CUISINE_GENRE_TAG>`, then the same with `filter.tags=<CUISINE_GENRE_TAG>`; count picks whose own `tags` list carries the tag |
 | 9 of 9 cuisines found a restaurant genre tag in the first ten | QLOO | `/v2/tags?filter.query=<bare cuisine word>&filter.parents.types=urn:entity:place&take=10`, nine cuisine words |
 | Dish tags as filters: zero places at 3 and 8 miles | QLOO | `/v2/insights` place call with `filter.tags=<DISH_TAG>` |
 | Tag attribution: 0 times across 18 lists, 90 results | README, QLOO, LEARNED | six signal variants (baseline, tags only, tags only at the highest weight, one tag, diversify, union) on three profiles; look for any `tag_id` in each result's explainability |
@@ -108,10 +111,10 @@ Notes: geocoding made 95 lookups, 5 live (one per city) and 90 from the cache. T
 | `take` prefix-stable, 18 of 18 | QLOO | `take` 3, 10, 20 at radius 1, 3, 8 miles, two profiles; compare top three |
 | Repeat requests: 0 of 5 moved | QLOO | identical baselines sent twice, two profiles |
 | `bias.trends=high` replaced 5 of 5, on 3 of 3 profiles | QLOO | baseline plus `bias.trends=<off,high,very_high>` |
-| Town as a signal: about 13 s; town as a filter: 10 of 10 within 6 miles | QLOO, LEARNED | `signal.location.query=<TOWN>` vs `filter.location.query=<TOWN>`; distance of each result from the inn |
+| Town as a signal: about 13 s; town as a filter: 10 of 10 within 6 miles | README, QLOO, LEARNED | `signal.location.query=<TOWN>` vs `filter.location.query=<TOWN>`; distance of each result from the inn |
 | Resy filter: 0 of 10 shared with the baseline | QLOO | baseline plus `filter.external.exists=resy` |
 | Diversify by city: 12 results across 6 towns | QLOO | 25 mile radius plus `diversify.by=properties.geocode.city&diversify.take=3` |
 | Named areas: median about 2 s | QLOO | heatmap plus `output.heatmap.boundary=urn:entity:locality` |
 | Lean list: 15 tags, all distinct, 9 kinds | QLOO | `/v2/insights?filter.type=urn:tag` with the sample fingerprint, `take=15` |
-| Coverage: single digits per cuisine near the demo inn (7 and 4) vs the 100-result cap in a large metro | QLOO | place call with `filter.tags=<CUISINE_GENRE_TAG>`, 3 miles, two pages, demo point vs a large metro point |
+| Coverage: single digits per cuisine near the demo inn (7 and 4) vs the 100-result cap in a large metro | README, QLOO | place call with `filter.tags=<CUISINE_GENRE_TAG>`, 3 miles, two pages, demo point vs a large metro point |
 | Rate limits: a 429 after about 60 calls in 6 minutes; 248 calls in about 2.5 minutes with none | QLOO | two experiment runs on the same key; counts of calls and 429s |
