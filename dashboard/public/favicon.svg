@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#14171f"/><path d="M8 22h16M10 22a6 6 0 0 1 12 0M16 13v-2" stroke="#e0b757" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Bellhop Concierge</title>
+  <rect width="64" height="64" rx="15" fill="#14171f"/>
+  <g transform="translate(32 32) scale(1.0) translate(-32 -34.3)">
+  <g fill="#e0b757">
+    <circle cx="32" cy="17" r="3.4"/>
+    <rect x="30.4" y="18.5" width="3.2" height="6" rx="1"/>
+    <path d="M13.5 43.5A18.5 18.5 0 0 1 50.5 43.5Z"/>
+    <rect x="9" y="46" width="46" height="5.2" rx="2.6"/>
+  </g>
+  <path d="M20.2 39.2A12.4 12.4 0 0 1 26.4 30.6" stroke="#14171f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
