@@ -39,18 +39,18 @@ These change only with a commit, and the command shows the current value.
 
 ## On the landing page
 
+Every word on the landing lives in `dashboard/src/content/landing.js`; the scripted call lives in
+`dashboard/src/content/call-scene.js`. The script is a written example with fictional places, so
+its times and minutes ("a salsa band at nine", "six minutes away") are scene-setting, not claims.
+
 | Number | Where it's said | Command or source |
 |---|---|---|
-| Up to three things a guest names | hero | `grep -n "three named things" template/concierge.md` (the stop rule) |
-| Up to three places nearby | hero | `grep -n "One to three picks" compiler/tools.js` (compose_itinerary's picks, as the agent is told) |
-| One to watch at the inn, when there is one | hero | `grep -n "one to watch at the inn" template/concierge.md` (cross_domain); the sample text has four lines: two places, one film, one event (`grep -n picks_included server/fixtures/sample-session.json`) |
-| At most 320 characters in the text | call rail | `grep -n "MAX_CHARS =" server/lib/sms.js` |
-| Dark until five calls | callers section | `grep -n "SESSION_GATE =" server/api/routes.js` |
-| Thirteen Qloo capabilities | capability list | the `CAPABILITIES` list in `dashboard/src/pages/Landing.jsx`, each entry found in the code by `grep -rn -e "ENDPOINTS\." -e "filter.parents.types" -e "'filter.tags'" -e "filter.results.entities" -e "feature.explainability" -e "popularNearby" -e "heatmap.dimensions" -e "output.heatmap.boundary" -e "urn:demographics" -e "urn:tag'" server/lib server/tools server/api`. Memory's `filter.exclude.entities` is not counted: it runs only with `GUEST_MEMORY_SECRET` set |
-| Twelve rules always on | safety section | `/usr/bin/node -e "import('./server/api/guardrails.js').then(m=>console.log(m.LOCKED_RULES.length))"` (the page reads the live count from `/api/guardrails`) |
-| Eleven builder questions | run-your-own section | `grep -c "title: '" dashboard/src/pages/Builder.jsx` prints 12: the intro, then eleven questions |
-| 1 mi scale on the area card | area card | the scale bar is drawn one mile long from the card's own miles-to-pixels `scale` (`grep -n "1 mi" dashboard/src/components/AreaCard.jsx`) |
-| "What is around here" is 9.0% of 10 million guest messages | run-your-own section | Conduit, "What 10 million guest messages are about", https://www.conduit.ai/blog/what-10-million-guest-messages-are-about, read 2026-10-22: the post's category is "property and area information at 9.0%" |
+| 13 Qloo capabilities | proof strip, and the list under it | the `CAPABILITIES` list in `dashboard/src/content/landing.js`, each entry found in the code by `grep -rn -e "ENDPOINTS\." -e "filter.parents.types" -e "'filter.tags'" -e "filter.results.entities" -e "feature.explainability" -e "popularNearby" -e "heatmap.dimensions" -e "output.heatmap.boundary" -e "urn:demographics" -e "urn:tag'" server/lib server/tools server/api`. Memory's `filter.exclude.entities` is not counted: it runs only with `GUEST_MEMORY_SECRET` set. `npm run verify:landing` holds the strip's number to the list's length |
+| 12 of 12 test callers got a different list than the no-taste baseline | proof strip | the battery row under "Repo commands, live" below: `npm run battery -- --live --port <port> --cap 60`, 2026-10-22, criterion C6 |
+| 158 ms median Qloo insights answer, over 47 live calls | proof strip | the latency row under "Repo commands, live" below: `npm run prewarm -- --apply --cap 120`, 2026-10-22 |
+| Qloo, Ticketmaster, and Texts "live" chips | proof strip | not a number: read from `/api/health-summary` (`tools.qloo`, `tools.ticketmaster`, `tools.sms`) at page load; a chip shows only when the server says `live` |
+| Three inns, three voices | property tiles | `ls personas/` lists harper, marisol, and maybelle (plus road, the public line); Casa Coralina is `config/examples/miami-rental.json`, the other two tiles are marked Example |
+| At most 480 characters in the text | the scripted text | `grep -n "MAX_CHARS =" server/lib/sms.js`; the scripted text follows the real shape (`SENDER_TAG`, picks, `PAGE_LEAD`, `FOOTER`) |
 
 ## Any-city coverage (live, 2026-10-22)
 
