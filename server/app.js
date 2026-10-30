@@ -58,6 +58,8 @@ const FALLBACK_SAY = "I couldn't reach my recommendations desk just now.";
 export const CACHE_MISS_SAY = "I can't reach my sources for that one right now.";
 /** Said when a text did not go out. The agent must never say it was sent. */
 const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
+/** Said when a lookup was refused for carrying personal data (an address, a number). */
+export const PII_REFUSED_SAY = 'I only need the city and state, never an address or a number.';
 
 /**
  * @param {object} deps
@@ -206,7 +208,9 @@ function toErrorResponse(tool, err, logger) {
   }
   if (err instanceof PiiViolation) {
     logger({ svc: 'tool', tool, error: 'pii_refused', detail: err.message });
-    return [{ ok: false, tool, status: 'error', error: { code: 'pii_refused', message: 'Request refused: it would have sent personal data upstream.' } }, 422];
+    // A street, a hotel, or a number reached a lookup: the agent gets one line to say that asks
+    // for the city alone, never a narration of the refusal.
+    return [{ ok: false, tool, status: 'error', error: { code: 'pii_refused', message: 'Request refused: it would have sent personal data upstream.' }, say: PII_REFUSED_SAY }, 422];
   }
   // A frozen cache with nothing for this request is not a failure of the server: answer 200 so
   // the voice platform hands the agent the line to say, and mark it plainly as not ok.
