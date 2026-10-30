@@ -1,6 +1,8 @@
-// A 16:9 film slot. Plays a muted loop as a preview; one tap restarts it with sound. When the
-// file is not on the server, the hero slot shows a designed still and any other slot renders
-// nothing, so a film that has not landed yet never leaves a broken box.
+// A 16:9 film slot. Plays a muted loop as a preview; one tap plays the film from the top with
+// sound. With a `preview` file, the loop is that short cut and the tap swaps in the full film, so
+// the page never downloads the whole film just to decorate the hero. When the file is not on the
+// server, the hero slot shows a designed still and any other slot renders nothing, so a film that
+// has not landed yet never leaves a broken box.
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../icons.jsx';
 import { useAsset, useReducedMotion } from './hooks.js';
@@ -19,8 +21,8 @@ function Placeholder({ quote, caption }) {
   );
 }
 
-export function FilmSlot({ src, poster, label, soundOn, soundOff, placeholder, className = '' }) {
-  const film = useAsset(src, 'video/');
+export function FilmSlot({ src, preview, poster, label, soundOn, soundOff, placeholder, note, className = '' }) {
+  const film = useAsset(preview ?? src, 'video/');
   const still = useAsset(poster, 'image/');
   const reduced = useReducedMotion();
   const ref = useRef(null);
@@ -42,20 +44,24 @@ export function FilmSlot({ src, poster, label, soundOn, soundOff, placeholder, c
     const v = ref.current;
     if (!v) return;
     if (sound) { v.muted = true; setSound(false); return; }
+    // Swapped by hand, inside the tap, so the browser counts the play as the reader's own.
+    if (preview && !v.currentSrc.endsWith(src)) v.src = src;
     v.muted = false;
+    v.loop = false;
     v.currentTime = 0;
     v.play?.().catch(() => {});
     setSound(true);
   };
 
   return (
+    <>
     <figure className={`lx-film ${className}`} data-sound={sound ? 'on' : 'off'}>
       <video
         ref={ref}
-        src={src}
+        src={preview ?? src}
         poster={still === 'ok' ? poster : undefined}
         muted={!sound}
-        loop
+        loop={!sound}
         playsInline
         preload="metadata"
         autoPlay={!reduced}
@@ -68,5 +74,7 @@ export function FilmSlot({ src, poster, label, soundOn, soundOff, placeholder, c
         {sound ? soundOff : soundOn}
       </button>
     </figure>
+    {note && <p className="lx-film-note">{note}</p>}
+    </>
   );
 }

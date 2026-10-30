@@ -75,6 +75,15 @@ for (const s of [COPY.HERO.title, COPY.HERO.sub, COPY.SCENE.title, COPY.REAL_CAL
 for (const s of ['Number goes live at submission', 'until the Qloo key is live', 'Texts are in test mode until', 'Test mode', 'The front desk concierge for short-term rentals and small inns.']) {
   check(!js.includes(s), `bundle no longer carries ${JSON.stringify(s)}`);
 }
+// The films and the call ship inside dist (vite copies public/media), and the server streams them.
+const KINDS = { '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.json': 'application/json' };
+for (const url of Object.values(COPY.MEDIA)) {
+  check(existsSync(join(D, 'dist', url)), `dist carries ${url}`);
+  const r = await fetch(`${BASE}${url}`, { method: 'HEAD' }).catch(() => null);
+  check(r?.ok && (r.headers.get('content-type') ?? '').startsWith(KINDS[url.slice(url.lastIndexOf('.'))]), `server answers ${url} as ${KINDS[url.slice(url.lastIndexOf('.'))]}`);
+}
+const ranged = await fetch(`${BASE}${COPY.MEDIA.heroFilm}`, { headers: { Range: 'bytes=0-1023' } }).catch(() => null);
+check(ranged?.status === 206 && (await ranged.arrayBuffer()).byteLength === 1024, `range request on ${COPY.MEDIA.heroFilm} answers 206 with 1024 bytes`);
 // Every landing number has a measuring command in docs/MEASUREMENTS.md.
 const measures = readFileSync(join(W, 'docs/MEASUREMENTS.md'), 'utf8');
 for (const f of COPY.PROOF.facts) check(measures.includes(f.value), `docs/MEASUREMENTS.md lists the proof number ${JSON.stringify(f.value)}`);
@@ -122,11 +131,19 @@ try {
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
   check(land.includes(COPY.HERO.sub), 'hero sub-line present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
-  check(tels.length === 2 && tels.every((t) => t === 'tel:+15550100199'), `tel: links ${tels.length} (hero and closer), all tel:+15550100199`);
+  const marisolTel = `tel:${COPY.MARISOL.number}`;
+  check(tels.length === 3 && tels.filter((t) => t === 'tel:+15550100199').length === 2 && tels.filter((t) => t === marisolTel).length === 1,
+    `tel: links ${tels.length}: hero and closer to tel:+15550100199, one to Marisol`);
   check(land.includes('Answering now'), 'answering: the live badge shows by the number');
   check(COPY.PROOF.live.every(([, label]) => land.includes(`${label} ${COPY.PROOF.liveWord}`)), 'all three services live: each live chip shows');
   check(land.includes('href="/property/miami"'), 'Casa Coralina links to its dashboard');
-  check(!/\b706\b|three agents|Test mode/i.test(land), 'landing has no 706, three agents, or Test mode');
+  // The 706 line is Marisol's. It may appear only inside the one Casa Coralina line, never loose.
+  const altLine = /<p class="lx-alt-line">[\s\S]*?<\/p>/.exec(land)?.[0] ?? '';
+  check(/Casa Coralina/.test(altLine) && /Marisol/.test(altLine) && /\b706\b/.test(altLine) && altLine.includes(`href="${marisolTel}"`),
+    'Marisol line: Casa Coralina, Marisol, and the 706 number together, as a tel: link');
+  check(!/\b706\b|7068109262/.test(land.replace(altLine, '')), '706 appears only in the Marisol line');
+  check(!/three agents|Test mode/i.test(land), 'landing has no three agents or Test mode');
+  check(land.includes('id="film"'), 'the #film anchor exists for the README link');
   const h2s = [...land.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
   const wantH2 = [COPY.SCENE.title, COPY.STEPS.eyebrow, COPY.MEMORY.title, COPY.PROPERTIES.title, COPY.PROOF.title, COPY.CLOSER.title];
   check(JSON.stringify(h2s) === JSON.stringify(wantH2), `H2 order ${JSON.stringify(h2s)}`);
@@ -135,7 +152,8 @@ try {
   const quiet = render(h(Landing, { health: { state: 'test', data: { ...health.data, tools: { qloo: 'mock', ticketmaster: 'mock', sms: 'mock' } } } }), 'landing (sample mode)');
   check(!quiet.includes('Answering now') && !quiet.includes(`Qloo ${COPY.PROOF.liveWord}`), 'sample mode: no live badge, no live chips');
   const pending = render(h(Landing, { health: { state: 'test', data: { ...health.data, demo_number: null } } }), 'landing (no number)');
-  check(!/href="tel:/.test(pending) && pending.includes(COPY.CLOSER.noNumber), 'no number: no tel: link, honest pending line');
+  const pendingTels = [...pending.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
+  check(pendingTels.every((t) => t === marisolTel) && pending.includes(COPY.CLOSER.noNumber), 'no number: no Hollis tel: link (Marisol\'s stays), honest pending line');
 
   const sp = await get('/sample-pick');
   const ses = (await get('/properties/demo/sessions')).sample_session;

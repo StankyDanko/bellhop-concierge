@@ -5,6 +5,7 @@
 
 export const MEDIA = {
   heroFilm: '/media/film-marisol.mp4',
+  heroLoop: '/media/film-marisol-loop.mp4',
   heroPoster: '/media/film-poster.jpg',
   hollisFilm: '/media/film-hollis.mp4',
   callAudio: '/media/call-marisol.mp3',
@@ -24,6 +25,14 @@ export const HERO = {
   soundOff: 'Mute',
   placeholderQuote: '\u201cWho am I speaking with?\u201d',
   placeholderCaption: 'Marisol answers at Casa Coralina, Miami',
+  filmNote: 'Edited from real calls.',
+};
+
+/** The Casa Coralina line: Marisol answers it. Shown once, quieter than the Hollis number. */
+export const MARISOL = {
+  lead: 'Staying at Casa Coralina?',
+  label: 'Call Marisol',
+  number: '+17068109262',
 };
 
 export const SCENE = {
