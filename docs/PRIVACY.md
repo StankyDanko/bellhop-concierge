@@ -9,8 +9,8 @@ named here is what makes each line true.
 
 | To | What goes | What never goes | Enforced by |
 |---|---|---|---|
-| Qloo | entity ids, tag ids, the inn's coordinates, a radius, filters (type, price, rating, cuisine), and the one free-text field: the taste the guest named, capped at 80 characters | a name, a phone number, an email, a room number, anything about the caller | `server/lib/pii-guard.js`: an allowlist of parameter names and value shapes, checked before every request. A taste that looks like an email, a phone number, or a room number is refused, and a test proves a refused request never reaches the network |
-| Ticketmaster | the inn's coordinates, a radius, a time window, a kind of event | anything about the caller | `server/lib/ticketmaster.js` builds the only request it can send |
+| Qloo | entity ids, tag ids, the coordinates being searched (the property's, or the city the caller named), a radius, filters (type, price, rating, cuisine), and the one free-text field: the taste the guest named, capped at 80 characters | a name, a phone number, an email, a room number, anything about the caller | `server/lib/pii-guard.js`: an allowlist of parameter names and value shapes, checked before every request. A taste that looks like an email, a phone number, or a room number is refused, and a test proves a refused request never reaches the network |
+| Ticketmaster | the same coordinates, a radius, a time window, a kind of event | anything about the caller | `server/lib/ticketmaster.js` builds the only request it can send |
 | The text sender | the plan text and the number that called | any other number | `send_sms` binds the recipient to the caller's own number; the agent can't choose it. At most twelve texts to one number in an hour (`SENDS_PER_HOUR` in `server/tools/send-sms.js`) and ten in one call (`TEXTS_PER_CALL`) |
 
 ## What is kept
@@ -21,7 +21,7 @@ The session log (`server/data/sessions.sqlite`, never in git) holds, per call:
   can be counted. Not the number.
 - returning-guest memory (`server/lib/memory.js`), off unless `GUEST_MEMORY_SECRET` is set, in its
   own SQLite file, keyed by a second keyed hash of the number with its own secret so it can never
-  be joined to the session log: the tastes that resolved (in the guest's own filtered words), the
+  be joined to the session log: the first name the caller gave, the town the call searched, the tastes that resolved (in the guest's own filtered words), the
   ids of places texted, party size, kids, nights, and which opening lines were heard. Seven days
   after the last call by default, the stated stay plus one day when said, never past fourteen days
   after the last call or thirty after the first. "Forget me" deletes it at once and unlinks past
@@ -30,8 +30,9 @@ The session log (`server/data/sessions.sqlite`, never in git) holds, per call:
 - counts: picks, events, whether a text went out.
 - the call trace: each upstream request, its endpoint and parameters, and how it was answered.
 
-Not kept, anywhere: the number itself, a name, a transcript, a recording, a message body. The
-voice platform records the call on its side; this server never stores the recording.
+Not kept, anywhere: the number itself, a transcript, a recording, a message body, and no name
+outside the memory above. The voice platform records the call on its side; this server never
+stores the recording.
 
 ## The five-call floor
 

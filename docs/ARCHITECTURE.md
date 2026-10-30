@@ -66,7 +66,7 @@ request and response shapes included, are in [`server/README.md`](../server/READ
 | `cross_domain` | Qloo `/v2/insights` | across categories: a film, a book, an artist, a podcast, a show, or a place, never one of the guest's own inputs |
 | `events_nearby` | Ticketmaster Discovery | what's on tonight or this weekend, each with a line to say as given |
 | `compose_itinerary` | none | the text, from verified tool fields only |
-| `send_sms` | the text sender | sent or not, to the caller's own number, at most three an hour |
+| `send_sms` | the text sender | sent or not, to the caller's own number, at most twelve to one number an hour and ten in one call |
 | `log_session` | none | stores the session row and its call trace |
 | `area_insights` | Qloo heatmap, demographics, compare | the innkeeper's panels, aggregate only |
 | `forget_guest` | none | erases the caller's returning-guest memory at once; it has nothing to erase unless memory is on |
@@ -114,7 +114,7 @@ request shape the demo makes into the cache while the key works, one live call p
 | Fixtures for tests and mock mode | `server/fixtures/` | yes, hand-written fakes with `fx-` ids and fictional places |
 | Keys | `server/.env` | never |
 
-What is never stored anywhere: a caller's number, a name, a transcript, a message body.
+What is never stored anywhere: a caller's number, a transcript, a message body. A first name is kept only in returning-guest memory, when memory is on ([PRIVACY.md](PRIVACY.md)).
 
 ## The innkeeper side
 
