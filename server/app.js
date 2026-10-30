@@ -25,6 +25,7 @@ import { stayInfo } from './tools/stay-info.js';
 import { stayLookup } from './lib/stay.js';
 import { observeTool, redactTrace } from './lib/memory.js';
 import { PickBook } from './lib/pick-book.js';
+import { createIssuedTexts } from './lib/issued-texts.js';
 import { conversationInit, INIT_BODY_MAX, INIT_PATH } from './hooks/conversation-init.js';
 import { mountDashboard } from './api/index.js';
 
@@ -74,18 +75,19 @@ const SMS_FAILED_SAY = "I wasn't able to send that text just now.";
  * @param {string} [deps.publicBaseUrl]  where the short links in a text point (PUBLIC_BASE_URL); the default is the hosted demo
  * @param {object} [deps.dashboard]  { db, env, distDir? } to mount the innkeeper dashboard (server/api/)
  * @param {import('./lib/memory.js').GuestMemory|null} [deps.memory]  returning-guest memory; null switches it off
+ * @param {boolean} [deps.composedTextsOnly]  send_sms sends only a body compose_itinerary issued on the same call (default true)
  * @param {Record<string, any>} [deps.agents]  voice agent id -> { property_id, persona, timezone } (CONCIERGE_AGENTS)
  * @param {() => number} [deps.initRng]  the variety pick's random source (tests pin it)
  * @param {(propertyId: string) => any} [deps.stays]  a property's config by id, for stay_info (lib/stay.js); defaults to the dashboard database, then config/examples
  */
 export const DEFAULT_PUBLIC_BASE_URL = 'https://concierge.southernsky.cloud';
 
-export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng, stays }) {
+export function createApp({ composedTextsOnly = true, publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qloo, ticketmaster, weather = null, geocoder = null, timezone, logger, sms, sessions, now, dashboard, cacheMode, memory = null, agents = {}, initRng, stays }) {
   if (!sms || !sessions) throw new Error('createApp needs an sms sender and a session store');
   const app = new Hono();
   // Short links for the text live in the session database, beside the log, and expire after 30 days.
   const links = sessions.db ? new LinkStore({ db: sessions.db, secret, baseUrl: publicBaseUrl, now }) : null;
-  const ctx = { links, qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), sessions, toolSecret: secret, memory, pickBook: new PickBook(),
+  const ctx = { links, qloo, ticketmaster, weather, geocoder, timezone, now, sms, smsLimiter: createSendLimiter(), issuedTexts: composedTextsOnly ? createIssuedTexts() : null, sessions, toolSecret: secret, memory, pickBook: new PickBook(),
     stays: stays ?? stayLookup({ db: dashboard?.db ?? null }) };
 
   // One tool list for /health and the dashboard's health summary, so the two always agree.
@@ -149,6 +151,11 @@ export function createApp({ publicBaseUrl = DEFAULT_PUBLIC_BASE_URL, secret, qlo
         // Remembered ids never reach the recorded trace (dashboard, fingerprint) or the response.
         redactTrace(trace, memoryRedact);
         ctx.pickBook.observe(result);
+        // The text compose_itinerary built is the only one send_sms will send on this call.
+        if (name === 'compose_itinerary' && ctx.issuedTexts && typeof result.body === 'string') {
+          const sid = sessionIdFrom(body);
+          if (sid) ctx.issuedTexts.note(sid, result.body);
+        }
         rememberCall(memory, name, body, result, logger);
         logger({ svc: 'tool', tool: name, status: result.status, ms: Date.now() - started });
         persistTrace(sessions, sessionIdFrom(body), name, trace, result.counterfactual, logger);
