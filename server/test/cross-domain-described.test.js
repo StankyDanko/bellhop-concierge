@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crossDomain, MIN_RUNTIME_MINUTES, MEDIA_POOL } from '../tools/cross-domain.js';
+import { crossDomain, MIN_RUNTIME_MINUTES, MEDIA_POOL, HORROR_TAG } from '../tools/cross-domain.js';
 import { buildWhy } from '../lib/why.js';
 import { normalizeEntity } from '../lib/qloo.js';
 
@@ -72,4 +72,13 @@ test('one film asked for is still chosen from a pool, so a described title leads
   const r = await crossDomain({ taste: [{ id: HORROR, name: 'Horror' }], target: 'movie', take: 1 }, { qloo, now: NOW });
   assert.equal(qloo.sent[0].take, String(MEDIA_POOL));
   assert.deepEqual(r.results.map((x) => x.entity_id), ['fx-told']);
+});
+
+test('horror is left out unless the guest asked for something scary', async () => {
+  const comedy = fakeQloo(() => [film('fx-told', { summary: 'A made-up comedy.' })]);
+  await crossDomain({ taste: [{ id: 'urn:tag:genre:media:comedy', name: 'Comedy' }], target: 'movie', take: 1 }, { qloo: comedy, now: NOW });
+  assert.equal(comedy.sent[0]['filter.exclude.tags'], HORROR_TAG);
+  const scary = fakeQloo(() => [film('fx-told', { summary: 'A made-up horror film.' })]);
+  await crossDomain({ taste: [{ id: HORROR, name: 'Horror' }], target: 'movie', take: 1 }, { qloo: scary, now: NOW });
+  assert.equal(scary.sent[0]['filter.exclude.tags'], undefined);
 });

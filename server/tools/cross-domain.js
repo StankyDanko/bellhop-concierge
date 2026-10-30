@@ -66,6 +66,8 @@ export const MIN_RUNTIME_MINUTES = 40;
 
 /** A film or show long enough for a night in (or one with no runtime on file). */
 export const MEDIA_POOL = 10;
+export const HORROR_TAG = 'urn:tag:genre:media:horror';
+const SCARY_GENRES = /:(horror|thriller)$/;
 export const longEnough = (e) => !(typeof e.duration === 'number' && e.duration < MIN_RUNTIME_MINUTES);
 /** Described titles first, keeping Qloo's order within each group. */
 const describedFirst = (list) => [...list.filter((e) => e.summary), ...list.filter((e) => !e.summary)];
@@ -177,6 +179,8 @@ export async function crossDomain(body, { qloo, toolSecret, now, memory = null }
   // A film or show is chosen from a pool, so a described title can lead even when one pick is asked for.
   if (RECENT_TARGETS.has(target)) params.take = String(Math.max(take, MEDIA_POOL));
   if (media?.genres.length) params['filter.tags'] = media.genres.join(',');
+  // Horror only when it was asked for: a guest who wants a laugh or a good cry never gets a scare.
+  if (RECENT_TARGETS.has(target) && !(media?.genres ?? []).some((g) => SCARY_GENRES.test(g))) params['filter.exclude.tags'] = HORROR_TAG;
 
   // Fresh by default: a guest has probably seen anything older than three years, so a film or
   // show comes from the last few years unless the guest asked for older ones. "Indie",
