@@ -80,6 +80,7 @@ export default function App() {
             <a href={repo ?? REPO_URL} rel="noopener">Source</a>
             <Link to="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</Link>
             <Link to="/terms" aria-current={path === '/terms' ? 'page' : undefined}>Terms</Link>
+            <Link to="/sms-opt-in" aria-current={path === '/sms-opt-in' ? 'page' : undefined}>Text opt-in</Link>
             <a href={DEVPOST_URL} rel="noopener">Devpost</a>
           </nav>
           <p>{FOOTER.sources}</p>

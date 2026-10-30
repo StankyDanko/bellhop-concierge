@@ -250,7 +250,7 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
             <p className="brief-eyebrow">The concierge line</p>
             {number
               ? <p className="brief-number tnum">{formatPhone(number)}</p>
-              : <p className="brief-number-pending">{featured ? 'Number goes live at submission' : 'Your number appears here once it is published'}</p>}
+              : <p className="brief-number-pending">{featured ? 'The number appears here once the line is set up' : 'Your number appears here once it is published'}</p>}
                       {id === 'miami' && number && <p className="brief-note">Hollis answers this line for a night out in any US city. The rental's own line is shared on request.</p>}
           </div>
         </header>

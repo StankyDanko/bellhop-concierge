@@ -58,7 +58,10 @@ export function useHealth() {
 const BADGE_LABEL = {
   checking: 'Checking the line',
   answering: 'Answering now',
-  test: 'Test mode',
+  // The line has a number but Qloo answers from fixtures (a local or mock server), or no number yet.
+  test: 'Sample answers',
+  // A property someone built and published from the builder.
+  published: 'Published',
   paused: 'Paused',
   // A sample property whose own line is not printed on the site.
   unlisted: 'Sample property, line unlisted',

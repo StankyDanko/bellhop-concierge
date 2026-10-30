@@ -315,7 +315,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   const rental = cfg.property.kind === 'rental';
   // Casa Coralina, the featured sample rental, has its own line, but the site never prints it.
   const unlisted = id === 'miami';
-  const badgeState = isDemo ? health.state : unlisted ? 'unlisted' : p.status === 'published' ? 'test' : 'paused';
+  const badgeState = isDemo ? health.state : unlisted ? 'unlisted' : p.status === 'published' ? 'published' : 'paused';
   /** How the panels name the place: the stay for a rental, the inn otherwise. */
   const place = rental ? 'the stay' : 'the inn';
   const list = sessions.data?.sessions ?? [];

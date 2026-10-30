@@ -133,7 +133,7 @@ top five averaged popularity 1.0; the taste lists averaged 0.70 to 0.72. In the 
 battery run the guest's list moved away from the town's for every caller run (12 of 12). The top pick alone
 can match while the rest of the list doesn't, which is why we compare whole lists.
 
-**What the product does:** two short lists side by side on the dashboard and the landing page,
+**What the product does:** two short lists side by side on the innkeeper dashboard,
 with how many sit on both. "Your tastes moved the answer: two of your three picks are not among
 the five most popular places nearby." When they match: "Here your taste and the town agree."
 Never in the text to the guest.

@@ -135,8 +135,8 @@ main { flex: 1; padding-block: var(--space-section); }
   animation: pulse 2s var(--ease-out) infinite;
 }
 .live-badge[data-state="answering"] { border-color: var(--color-live); color: var(--color-success-text); }
-.live-badge[data-state="test"] { border-color: var(--color-accent); color: var(--color-accent-text); }
-.live-badge[data-state="test"] .live-dot { background: transparent; border: 2px solid var(--color-accent); }
+.live-badge[data-state="test"], .live-badge[data-state="published"] { border-color: var(--color-accent); color: var(--color-accent-text); }
+.live-badge[data-state="test"] .live-dot, .live-badge[data-state="published"] .live-dot { background: transparent; border: 2px solid var(--color-accent); }
 .live-badge[data-state="busy"] { background: var(--color-warning-tint); border-color: transparent; color: var(--color-warning-text); }
 .live-badge[data-state="busy"] .live-dot { background: var(--color-warning); }
 .live-badge[data-state="paused"] .live-dot { background: var(--color-text-dim); }
@@ -234,6 +234,9 @@ main .hero-sms .sms { max-width: 22rem; background: var(--color-surface); } /* n
   display: flex; gap: var(--space-3); align-items: center;
 }
 .callbar .btn { flex: 1; min-height: 3.5rem; }
+/* .callbar sets display after .only-coarse, so restate the pointer rule for it: never on a desktop. */
+.callbar.only-coarse { display: none; }
+@media (hover: none), (pointer: coarse) { .callbar.only-coarse { display: flex; } }
 .cap-list { display: grid; gap: var(--space-2) var(--space-6); padding: 0; list-style: none; margin-top: var(--space-4); }
 @media (min-width: 768px) { .cap-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .cap-list li { padding-block: var(--space-2); border-bottom: 1px solid var(--color-border); min-width: 0; }

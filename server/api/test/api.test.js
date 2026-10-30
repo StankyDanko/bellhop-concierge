@@ -20,11 +20,13 @@ import { MASK, PROMPT_PREVIEW_CHARS, SESSION_GATE, entityNames } from '../routes
 const ADMIN = 'admin-token-0123456789';
 const FIXED_NOW = new Date('2026-10-16T18:00:00Z');
 
-function build({ env = { adminToken: ADMIN }, withSessions = true, fetchImpl, distDir } = {}) {
+function build({ env = { adminToken: ADMIN }, withSessions = true, fetchImpl, distDir, qlooMode } = {}) {
   const db = openDashboardDb({ path: ':memory:', now: () => FIXED_NOW });
   if (withSessions) { db.exec(SESSIONS_SCHEMA); migrateSessions(db); }
   const cache = new ResponseCache({ path: ':memory:' });
-  const qloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock: true, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger });
+  const mockQloo = createQlooClient({ config: { baseUrl: 'https://hackathon.api.qloo.com', apiKey: '', mock: true, timeoutMs: 1000, retries: 0 }, cache, logger: silentLogger });
+  // qlooMode stands in for a live client's reported mode; the calls themselves stay on fixtures.
+  const qloo = qlooMode ? { ...mockQloo, mode: qlooMode } : mockQloo;
   const ticketmaster = createTicketmasterClient({ config: { baseUrl: 'https://app.ticketmaster.com/discovery/v2', apiKey: '', mock: true, timeoutMs: 1000 }, cache, logger: silentLogger });
   const app = new Hono();
   mountDashboard(app, { db, env, fetchImpl, distDir: distDir ?? join(tmpdir(), 'no-such-dist'), toolNames: ['resolve_taste'],
@@ -275,22 +277,28 @@ describe('GET /api/properties/:id/insights', () => {
 });
 
 describe('landing data', () => {
-  it('health summary says test mode until a number is set and the demo is published', async () => {
+  it('health summary says test mode while Qloo answers from fixtures, even with a number', async () => {
     const { db, req } = build({ env: { adminToken: ADMIN, demoNumber: '+1 555 0100', repoUrl: 'https://github.com/example/repo' } });
     let r = await req('GET', '/api/health-summary');
     assert.equal(r.json.line.state, 'test');
     assert.equal(r.json.last_session_at, null);
     addSession(db, 1);
-    await req('POST', '/api/properties/demo/publish', { headers: admin });
     r = await req('GET', '/api/health-summary');
-    assert.equal(r.json.line.state, 'answering');
+    assert.equal(r.json.line.state, 'test');
     assert.equal(r.json.demo_number, '+1 555 0100');
     assert.equal(r.json.last_session_at, '2026-10-11T20:00:00Z');
     assert.equal(r.json.tools.qloo, 'mock');
   });
 
+  it('says answering when a number is set and Qloo is live, published demo or not', async () => {
+    const { req } = build({ qlooMode: 'live', env: { adminToken: ADMIN, demoNumber: '+1 555 0100' } });
+    const r = await req('GET', '/api/health-summary');
+    assert.equal(r.json.line.state, 'answering');
+    assert.equal(r.json.demo.status, 'draft');
+  });
+
   it('never says answering without a number', async () => {
-    const { req } = build();
+    const { req } = build({ qlooMode: 'live' });
     await req('POST', '/api/properties/demo/publish', { headers: admin });
     assert.equal((await req('GET', '/api/health-summary')).json.line.state, 'test');
   });

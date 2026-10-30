@@ -1,242 +1,196 @@
-// `/`: the judge landing. One idea per section, each one shown rather than told
-// (DESIGN-BRIEF section 3): the product and the number, what the guest's words changed,
-// how a call becomes a plan, why a pick was made, what the innkeeper sees, the safety rules,
-// and how to run your own. Every visual is fed by what the server returns.
+// `/`: the landing. One idea per screen, shown rather than told: the guest moment and the
+// number, a call as it happens, a real recording, how it works, one concierge per property,
+// the measured proof, and the number again. Every visible word lives in content/landing.js;
+// the scripted call lives in content/call-scene.js.
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api.js';
 import { Icon } from '../icons.jsx';
 import { Link } from '../router.jsx';
-import { Banner, formatPhone, LiveBadge, SampleBadge, SmsPreview, telHref, Toast, ViaChip } from '../components/ui.jsx';
-import { CallRail, Counterfactual } from '../components/QlooTrace.jsx';
-import { WhyPick } from '../components/WhyPick.jsx';
-import { AreaCard } from '../components/AreaCard.jsx';
+import { Banner, formatPhone, LiveBadge, telHref, Toast } from '../components/ui.jsx';
+import { FilmSlot } from '../components/landing/FilmSlot.jsx';
+import { CallScene } from '../components/landing/CallScene.jsx';
+import { RealCall } from '../components/landing/RealCall.jsx';
+import { HowSteps } from '../components/landing/HowSteps.jsx';
+import { CAPABILITIES, CLOSER, HERO, MEDIA, MEMORY, PROOF, PROPERTIES, REAL_CALL, SCENE, STEPS } from '../content/landing.js';
+import '../landing.css';
 
-/**
- * Every Qloo capability the tool server and dashboard call with memory off, counted from the code
- * (docs/MEASUREMENTS.md has the grep for each). Memory's filter.exclude.entities is left out: it
- * runs only when GUEST_MEMORY_SECRET is set.
- */
-const CAPABILITIES = [
-  ['Entity search', 'A band name becomes a Qloo artist id.', 'GET /search'],
-  ['Place-scoped tag search', '"Thai food" becomes the thai restaurant tag, never a film genre.', 'GET /v2/tags filter.parents.types'],
-  ['Location-scoped insights', 'Places near the inn, ranked for this guest.', 'GET /v2/insights filter.location'],
-  ['Cuisine as a hard filter', 'A guest who says thai gets thai places.', 'GET /v2/insights filter.tags'],
-  ['Cross-domain affinity', 'A music taste picks a restaurant, and a film to watch at the inn.', 'GET /v2/insights signal.* + filter.type'],
-  ['Per-person scoring', 'Which pick leans to the guest, the plus-one, or both.', 'GET /v2/insights filter.results.entities'],
-  ['Explainability', 'The reason behind a pick, when Qloo names one.', 'feature.explainability=true'],
-  ['Popularity baseline', 'What anyone nearby would be told, for the contrast.', 'GET /v2/insights, no signal'],
-  ['Heatmap', 'Where around the inn a taste runs hottest, with quality.', 'GET /v2/insights filter.type=urn:heatmap heatmap.dimensions'],
-  ['Named areas', 'The neighborhoods where callers\' tastes run hottest.', 'GET /v2/insights output.heatmap.boundary'],
-  ['Demographics', 'Which age groups lean toward guest tastes.', 'GET /v2/insights filter.type=urn:demographics'],
-  ['Tag insights', 'What callers lean toward, and what the town leans toward.', 'GET /v2/insights filter.type=urn:tag'],
-  ['Audience compare', 'Where the two lists share a tag.', 'GET /v2/analysis/compare'],
-];
-
-const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen'];
-
-/** One GET on mount; path null waits (the featured property's id is fixed). */
-function useGet(path) {
-  const [s, setS] = useState({ state: 'loading' });
-  useEffect(() => {
-    if (!path) return undefined;
-    let active = true;
-    api(path).then((r) => { if (active) setS(r.ok ? { state: 'ok', data: r.data } : { state: 'error' }); });
-    return () => { active = false; };
-  }, [path]);
-  return s;
-}
-
-/** The featured sample property: a fictional Miami short-term rental. Its own line is unlisted; the one public number is Hollis's. */
-const FEATURED = { id: 'miami', name: 'Casa Coralina' };
-
-function NumberCard({ number, onCopy, cardRef, live, health }) {
-  const badge = <LiveBadge state={health.state} lastSessionAt={health.data?.last_session_at} />;
-  if (!number) {
-    return (
-      <div className="number-card" ref={cardRef}>
-        <div className="number-card-head"><p className="micro">Try it: Hollis, the road concierge</p>{badge}</div>
-        <p className="the-number pending">Number goes live at submission</p>
-        <p className="caption">The phone line opens with the hackathon submission. Until then, everything on this page and the dashboard works in full.</p>
-      </div>
-    );
-  }
+/** The number as the page's one loud thing: a tel: link, with a copy button on desktop. */
+function CallNumber({ number, label, note, onCopy, cardRef, health }) {
+  if (!number) return <p className="lx-number-pending">{CLOSER.noNumber}</p>;
   const pretty = formatPhone(number);
   return (
-    <div className="number-card" ref={cardRef}>
-      <div className="number-card-head"><p className="micro">Try it: call Hollis, the road concierge for any US city</p>{badge}</div>
-      <a className="number-link" href={telHref(number)} aria-label={`Call ${pretty}`}>
-        <span className="the-number">{pretty}</span>
+    <div className="lx-number-block" ref={cardRef}>
+      <a className="lx-number" href={telHref(number)} aria-label={`${label}, ${pretty}`}>
+        <span className="lx-number-label"><Icon name="phone" />{label}</span>
+        <span className="lx-number-digits tnum">{pretty}</span>
       </a>
-      <p className="caption">{!live ? 'Hollis answers for any US city. Today the line answers with sample places until the Qloo key is live.'
-        : health.data?.tools?.sms === 'live' ? 'Hollis answers for any US city. The calls and texts are real.'
-          : 'Hollis answers for any US city. The calls are real. Texts are in test mode until the toll-free number is approved.'}</p>
-      <div className="row number-actions">
-        <a className="btn btn-primary btn-lg only-coarse" href={telHref(number)}><Icon name="phone" />Call Hollis now</a>
-        <button type="button" className="btn btn-primary only-fine" onClick={onCopy}><Icon name="copy" />Copy number</button>
-        <Link to="/build" className="btn btn-text">Build your own <Icon name="arrow" /></Link>
+      <div className="lx-number-meta">
+        {health?.state === 'answering' && <LiveBadge state="answering" lastSessionAt={health.data?.last_session_at} />}
+        {note && <span className="lx-number-note">{note}</span>}
+        {onCopy && <button type="button" className="btn btn-text only-fine" onClick={onCopy}><Icon name="copy" />{HERO.copy}</button>}
       </div>
     </div>
   );
 }
 
-/** A section: headline sentence, one supporting line, one visual. */
-function Chapter({ id, title, line, children, aside }) {
-  return (
-    <section className="chapter" aria-labelledby={id}>
-      <div className="chapter-head">
-        <h2 id={id}>{title}</h2>
-        {line && <p className="chapter-line">{line}</p>}
-        {aside}
-      </div>
-      {children}
-    </section>
+function Tile({ t, number }) {
+  const body = (
+    <>
+      <span className="lx-tile-top">
+        <Icon name="bell" />
+        <span className="lx-tile-kind">{t.kind}</span>
+        {!t.to && !t.tel && <span className="lx-tile-example">{PROPERTIES.example}</span>}
+      </span>
+      <span className="lx-tile-name">{t.name}</span>
+      <span className="lx-tile-place">{t.place}</span>
+      <span className="lx-tile-rule" aria-hidden="true" />
+      <span className="lx-tile-voice">Ask for <strong>{t.concierge}</strong></span>
+      {t.tel && number && <span className="lx-tile-number tnum">{formatPhone(number)}</span>}
+      {(t.to || (t.tel && number)) && <span className="lx-tile-go" aria-hidden="true"><Icon name="arrow" /></span>}
+    </>
   );
+  if (t.to) return <Link to={t.to} className="lx-tile" data-tone={t.tone}>{body}</Link>;
+  if (t.tel && number) return <a href={telHref(number)} className="lx-tile" data-tone={t.tone}>{body}</a>;
+  return <div className="lx-tile" data-tone={t.tone}>{body}</div>;
 }
 
 export default function Landing({ health }) {
-  const data = health.data;
-  const number = data?.demo_number;
-  const demoId = FEATURED.id;
-  const ready = health.state !== 'checking';
-  const pick = useGet('/sample-pick');
-  const itin = useGet(ready ? `/properties/${demoId}/itinerary-sample` : null);
-  const calls = useGet(ready ? `/properties/${demoId}/sessions` : null);
-  const insights = useGet(ready ? `/properties/${demoId}/insights?sample=1&radius=2` : null);
-  const fingerprint = useGet(ready ? `/properties/${demoId}/fingerprint?sample=1` : null);
-  const guardrails = useGet('/guardrails');
+  const number = health.data?.demo_number;
+  const tools = health.data?.tools ?? {};
+  const live = PROOF.live.filter(([k]) => tools[k] === 'live');
   const [toast, setToast] = useState('');
-  const cardRef = useRef(null);
+  const heroRef = useRef(null);
   const [showBar, setShowBar] = useState(false);
 
-  // Phone only: a sticky "Call now" bar appears once the number card scrolls away.
+  // Phone only: a sticky "Call Hollis" bar appears once the hero number scrolls away.
   useEffect(() => {
-    if (!number || !cardRef.current || !('IntersectionObserver' in window)) return undefined;
-    const io = new IntersectionObserver(([e]) => setShowBar(!e.isIntersecting), { threshold: 0 });
-    io.observe(cardRef.current);
+    if (!number || !heroRef.current || !('IntersectionObserver' in window)) return undefined;
+    const io = new IntersectionObserver(([e]) => setShowBar(!e.isIntersecting && e.boundingClientRect.top < 0), { threshold: 0 });
+    io.observe(heroRef.current);
     return () => io.disconnect();
   }, [number]);
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(number); setToast('Number copied.'); } catch { setToast(`The number is ${formatPhone(number)}.`); }
+    try { await navigator.clipboard.writeText(number); setToast(HERO.copied); } catch { setToast(formatPhone(number)); }
   };
 
-  const p = pick.state === 'ok' ? pick.data : null;
-  const cf = p && p.places?.length > 0 ? p.counterfactual : null;
-  const moved = cf?.verdict === 'moved' || (cf && !cf.verdict && cf.same === false);
-  const sms = itin.state === 'ok' ? itin.data.itinerary : null;
-  const session = calls.state === 'ok' ? calls.data.sample_session : null;
-  const firstPick = p?.places?.[0] ?? null;
-  // Twelve today: curl -s localhost:8787/api/guardrails | node -e '...locked.length' (LOCKED_RULES in server/api/guardrails.js).
-  const locked = guardrails.state === 'ok' ? guardrails.data.locked?.length : null;
-
   return (
-    <div className={`container landing${number ? ' has-callbar' : ''}`}>
-      {/* 1. Hero: the product statement, then the number (volume 1). */}
-      <section className="hero" aria-labelledby="hero-h">
-        <div className="hero-main">
-          <p className="product-name">Bellhop Concierge</p>
-          <h1 id="hero-h">The front desk concierge for short-term rentals and small inns.</h1>
-          {/* "three things": the stop rule (grep -n "three named things" template/concierge.md). "three places":
-              compose_itinerary's "One to three picks" (grep -n "One to three picks" compiler/tools.js); "one to
-              watch at the inn": cross_domain (grep -n "one to watch at the inn" template/concierge.md). */}
-          <p className="hero-lead">Guests call the number on the room card and name up to three things they love. A text follows with up to three places nearby, and one to watch at the inn when there is one, each with its reason when it fits.</p>
-          <NumberCard number={number} onCopy={copy} cardRef={cardRef} live={health.state === 'answering'} health={health} />
-          <p className="caption featured-line">
-            Featured property: <strong>{FEATURED.name}</strong>, a fictional short-term rental in Miami, shown on the dashboard below. One concierge answers each line. The rental's own line is shared on request; for a night out in any city, call Hollis.{' '}
-            <Link to={`/property/${FEATURED.id}`}>See the rental host's dashboard</Link>.
-          </p>
-          {health.state === 'busy' && (
-            <Banner tone="warning">We couldn't reach the concierge's tool server just now. The number stays the same; try again in a minute.</Banner>
-          )}
+    <div className={`lx${number ? ' has-callbar' : ''}`}>
+      {/* 1. Hero: the guest moment, the number, the film. */}
+      <section className="lx-hero" aria-labelledby="lx-hero-h">
+        <div className="lx-wrap lx-center">
+          <p className="lx-eyebrow">{HERO.eyebrow}</p>
+          <h1 id="lx-hero-h" className="lx-h1">{HERO.title}</h1>
+          <p className="lx-sub lx-hero-sub">{HERO.sub}</p>
+          <CallNumber number={number} label={HERO.callLabel} note={HERO.callNote} onCopy={copy} cardRef={heroRef} health={health} />
+          {health.state === 'busy' && <Banner tone="warning">{CLOSER.busy}</Banner>}
         </div>
-        {sms && (
-          <aside className="hero-sms" aria-labelledby="sms-h">
-            <div className="hero-sms-head">
-              <p className="micro" id="sms-h">The text a guest gets</p>
-              <SampleBadge>Sample</SampleBadge>
-            </div>
-            <SmsPreview itinerary={sms} />
-          </aside>
-        )}
+        <div className="lx-wrap lx-wide">
+          <FilmSlot src={MEDIA.heroFilm} poster={MEDIA.heroPoster} label={HERO.filmLabel} soundOn={HERO.soundOn} soundOff={HERO.soundOff}
+            placeholder={{ quote: HERO.placeholderQuote, caption: HERO.placeholderCaption }} className="lx-film-hero" />
+        </div>
       </section>
 
-      {/* 2. V2: what the guest's words changed, the two lists from the counterfactual call. */}
-      {pick.state !== 'error' && (
-        <Chapter id="words-h" title={moved ? 'Your words moved the answer.' : 'What your words changed.'}
-          line="The same search near the inn, once with what the guest said and once without it."
-          aside={p && <p className="row chapter-chips"><SampleBadge>Sample guest</SampleBadge><ViaChip upstream={p.upstream} /></p>}>
-          {pick.state === 'loading' && <div className="skeleton cf-skeleton" aria-busy="true" aria-label="Loading the comparison" />}
-          {cf && <Counterfactual cf={cf} mentions={p.mentions} />}
-          {p && !cf && <p className="dim">No sample pick came back for this area. Try again shortly.</p>}
-        </Chapter>
-      )}
+      {/* 2. A call as it happens: captions, then the text, then the picks page. */}
+      <section className="lx-section lx-band" aria-labelledby="lx-scene-h">
+        <div className="lx-wrap lx-center">
+          <p className="lx-eyebrow">{SCENE.eyebrow}</p>
+          <h2 id="lx-scene-h" className="lx-h2">{SCENE.title}</h2>
+          <p className="lx-sub">{SCENE.sub}</p>
+        </div>
+        <div className="lx-wrap lx-wide"><CallScene copy={SCENE} /></div>
+      </section>
 
-      {/* 3. V1: the request rail, grouped from a sample call's own trace. */}
-      <Chapter id="rail-h" title="How a call becomes a plan." line="One call, a handful of requests, in this order. The innkeeper sees every one.">
-        {calls.state === 'loading' && <div className="skeleton rail-skeleton" aria-busy="true" aria-label="Loading a sample call" />}
-        {calls.state === 'error' && <p className="dim">Request counts appear here after a call.</p>}
-        {session && (
-          <CallRail trace={session.trace} said={session.entities} plusOne={session.companion_mentions}
-            textChars={session.signed_text?.body?.length} header={<SampleBadge>Sample call</SampleBadge>} />
-        )}
-        <details className="cap-details">
-          <summary>Every Qloo capability this uses ({CAPABILITIES.length})</summary>
-          <ul className="cap-list">
-            {CAPABILITIES.map(([name, what, endpoint]) => (
-              <li key={name}><strong style={{ fontWeight: 600 }}>{name}.</strong> {what}<br /><code>{endpoint}</code></li>
-            ))}
+      {/* 3. A real recording with live captions; renders nothing until the file is on the server. */}
+      <RealCall src={MEDIA.callAudio} cuesUrl={MEDIA.callCues} copy={REAL_CALL} />
+
+      {/* 4. How it works: three steps beside one pinned stage. */}
+      <section className="lx-section" aria-labelledby="lx-how-h">
+        <div className="lx-wrap">
+          <h2 className="lx-eyebrow" id="lx-how-h">{STEPS.eyebrow}</h2>
+          <HowSteps copy={STEPS} />
+        </div>
+      </section>
+
+      {/* 4b. Memory: one line, one big idea. */}
+      <section className="lx-section lx-memory" aria-labelledby="lx-memory-h">
+        <div className="lx-wrap lx-center">
+          <p className="lx-eyebrow">{MEMORY.eyebrow}</p>
+          <h2 id="lx-memory-h" className="lx-h2 lx-h2-xl">{MEMORY.title}</h2>
+          <p className="lx-sub">{MEMORY.sub}</p>
+        </div>
+      </section>
+
+      {/* 5. One concierge per property. */}
+      <section className="lx-section lx-band" aria-labelledby="lx-props-h">
+        <div className="lx-wrap lx-center">
+          <p className="lx-eyebrow">{PROPERTIES.eyebrow}</p>
+          <h2 id="lx-props-h" className="lx-h2">{PROPERTIES.title}</h2>
+          <p className="lx-sub">{PROPERTIES.line}</p>
+        </div>
+        <div className="lx-wrap lx-wide">
+          <ul className="lx-tiles">
+            {PROPERTIES.tiles.map((t) => <li key={t.name}><Tile t={t} number={number} /></li>)}
           </ul>
-        </details>
-      </Chapter>
-
-      {/* 4. V3: one pick, its reason traced to the signal. */}
-      <Chapter id="why-h" title="Why this pick." line="Qloo names what a pick was drawn from when it can. When it cannot, the card says so instead of inventing one.">
-        {pick.state === 'loading' && <div className="skeleton why-skeleton" aria-busy="true" aria-label="Loading a sample pick" />}
-        {pick.state === 'error' && <Banner tone="warning">Qloo didn't answer this time. The concierge still takes calls and falls back to the innkeeper's own picks.</Banner>}
-        {firstPick && <WhyPick place={firstPick} request={p.request} />}
-      </Chapter>
-
-      {/* 5. V4 teaser: what the innkeeper sees. */}
-      <Chapter id="love-h" title="What your callers love." line={`For the rental host: the tastes of the people who call, on the map around ${FEATURED.name}. Labeled sample until five calls.`}>
-        {(insights.state === 'loading' || fingerprint.state === 'loading') && <div className="skeleton area-skeleton" aria-busy="true" aria-label="Loading the area card" />}
-        {insights.state === 'ok' && <AreaCard insights={insights.data} fingerprint={fingerprint.state === 'ok' ? fingerprint.data : null} compact />}
-        {insights.state === 'error' && <Link to="/property/miami" className="btn btn-text">Open the rental host dashboard</Link>}
-      </Chapter>
-
-      {/* 6. Proof chips: the safety rules, each one a link to where it shows. */}
-      <Chapter id="safe-h" title="Safe by default."
-        line={typeof locked === 'number' && locked > 0 ? `${WORDS[locked] ?? locked} rules are always on, for every inn.` : 'The same rules are always on, for every inn.'}>
-        <ul className="proof-chips">
-          <li><Link to="/property/miami/brief" className="proof-chip"><Icon name="check" />Says it is automated</Link></li>
-          <li><Link to="/privacy" className="proof-chip"><Icon name="lock" />Keeps no names or numbers</Link></li>
-          <li><Link to="/property/miami" className="proof-chip"><Icon name="dash" />Dark until five calls</Link></li>
-        </ul>
-      </Chapter>
-
-      {/* 7. Owner CTA. */}
-      <section className="chapter card card-lg own" aria-labelledby="own-h">
-        <div className="stack">
-          <h2 id="own-h">Run your own concierge.</h2>
-          {/* "Eleven": grep -c "title: '" dashboard/src/pages/Builder.jsx prints 12; entry 0 is the intro,
-              so the builder renders "Question n of 11" (qs.length - 1). */}
-          <p className="chapter-line">Eleven questions, then a preview. Nothing goes live until you publish.</p>
-          <p className="buyer-line">
-            For the innkeeper with no night desk: "what is around here" is 9.0% of 10 million guest messages (<a href="https://www.conduit.ai/blog/what-10-million-guest-messages-are-about" target="_blank" rel="noopener noreferrer">Conduit, 2026</a>).
+          <p className="lx-caption">{PROPERTIES.caption}</p>
+          <p className="lx-actions">
+            <Link to="/build" className="btn btn-primary btn-lg">{PROPERTIES.build}</Link>
+            <Link to="/property/miami" className="btn btn-secondary btn-lg">{PROPERTIES.open}</Link>
           </p>
-          <div className="row own-actions">
-            <Link to="/build" className="btn btn-primary btn-lg">Build yours</Link>
-            <Link to="/property/miami" className="btn btn-secondary btn-lg">See the rental host dashboard</Link>
-            <Link to="/property/miami/brief" className="btn btn-text">See the one-page brief</Link>
-          </div>
-          {data?.tools && (
-            <p className="micro mono">Tool server: Qloo {data.tools.qloo}, Ticketmaster {data.tools.ticketmaster}.{Number.isFinite(Date.parse(data.checked_at)) ? ` Checked ${new Date(data.checked_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}</p>
+        </div>
+      </section>
+
+      {/* 6. Proof, each number listed in docs/MEASUREMENTS.md with its command. */}
+      <section className="lx-section" aria-labelledby="lx-proof-h">
+        <div className="lx-wrap lx-center">
+          <p className="lx-eyebrow">{PROOF.eyebrow}</p>
+          <h2 id="lx-proof-h" className="lx-h2">{PROOF.title}</h2>
+          <p className="lx-sub">{PROOF.sub}</p>
+          {live.length > 0 && (
+            <ul className="lx-live" aria-label="Services the line uses, as the server reports them now">
+              {live.map(([k, label]) => <li key={k}><span className="lx-live-dot" aria-hidden="true" />{label} {PROOF.liveWord}</li>)}
+            </ul>
           )}
+        </div>
+        <div className="lx-wrap lx-wide">
+          <dl className="lx-facts">
+            {PROOF.facts.map((f) => (
+              <div key={f.value} className="lx-fact">
+                <dt className="lx-fact-value tnum">{f.value}</dt>
+                <dd className="lx-fact-label">{f.label}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="lx-links">
+            {PROOF.links.map((l) => <a key={l.href} href={l.href} rel="noopener">{l.label}<Icon name="arrow" /></a>)}
+          </p>
+          <details className="lx-caps">
+            <summary>{PROOF.capsSummary}</summary>
+            <ul>
+              {CAPABILITIES.map(([name, what, endpoint]) => (
+                <li key={name}><strong>{name}.</strong> {what} <code>{endpoint}</code></li>
+              ))}
+            </ul>
+          </details>
+        </div>
+      </section>
+
+      {/* 7. The number again, with the short Hollis film when it is on the server. */}
+      <section className="lx-section lx-closer" aria-labelledby="lx-closer-h">
+        <div className="lx-wrap lx-center">
+          <h2 id="lx-closer-h" className="lx-h2">{CLOSER.title}</h2>
+          <p className="lx-sub">{CLOSER.sub}</p>
+        </div>
+        <div className="lx-wrap lx-wide">
+          <FilmSlot src={MEDIA.hollisFilm} label={CLOSER.filmLabel} soundOn={HERO.soundOn} soundOff={HERO.soundOff} className="lx-film-closer" />
+        </div>
+        <div className="lx-wrap lx-center">
+          <CallNumber number={number} label={CLOSER.callLabel} />
         </div>
       </section>
 
       {number && showBar && (
         <div className="callbar only-coarse">
-          <a className="btn btn-primary" href={telHref(number)}><Icon name="phone" />Call Hollis · <span className="tnum">{formatPhone(number)}</span></a>
+          <a className="btn btn-primary" href={telHref(number)}><Icon name="phone" />{HERO.callLabel} · <span className="tnum">{formatPhone(number)}</span></a>
         </div>
       )}
       <Toast message={toast} onDone={() => setToast('')} />

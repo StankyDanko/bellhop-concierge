@@ -13,7 +13,7 @@ import '../trace.css';
 
 const SOURCE_LABEL = { qloo: 'Qloo', ticketmaster: 'Ticketmaster', weather: 'Open-Meteo', geocode: 'Open-Meteo' };
 
-export const MOCK_NOTE = 'Mock mode: names outside the sample set resolve to nothing until the Qloo key is live.';
+export const MOCK_NOTE = 'Sample mode: this server answers from hand-written fixtures, so names outside the sample set resolve to nothing.';
 
 /**
  * True for a call whose every taste lookup came back empty from the mock fixtures: the

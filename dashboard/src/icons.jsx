@@ -17,6 +17,10 @@ const P = {
   plus: 'M12 5v14M5 12h14',
   x: 'M6 6l12 12M18 6L6 18',
   arrow: 'M5 12h14M13 6l6 6-6 6',
+  sound: 'M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12',
+  muted: 'M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6',
+  play: 'M8 5l11 7-11 7z',
+  pause: 'M8 5v14M16 5v14',
 };
 
 export function Icon({ name, label, ...rest }) {

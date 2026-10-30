@@ -12,7 +12,7 @@ The spec ran ahead of the build in a few places. Where this file and the running
 - **No ring-back or in-browser call.** The landing offers the number to call. Sections 5.1 and 5.9 describe a flow that was designed and not built.
 - **Two sources besides the innkeeper: Qloo and Ticketmaster.** No other place source is used, so the blue source chip only ever says Ticketmaster.
 - **Light is the default theme,** with dark a full toggle, as recommended in section 1.
-- **Landing layout** follows section 9's order of volume; its exact copy lives in `dashboard/src/pages/Landing.jsx`.
+- **Landing layout** (rebuilt 2026-10-30): one idea per screen, big type, the number twice (hero and closer). Every visible word lives in `dashboard/src/content/landing.js`, the scripted call in `dashboard/src/content/call-scene.js`, the styles in `dashboard/src/landing.css`. Films and the recorded call load from `/media/` and hide cleanly when absent.
 Token files: `concierge.tokens.css` (this edition) layered over `tokens.css` (verbatim copy of the house sheet, so the public repo is self-contained). Components reference semantic tokens only [C1].
 
 ---

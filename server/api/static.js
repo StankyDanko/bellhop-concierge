@@ -2,8 +2,9 @@
 // Known client routes get index.html; files are served only from inside dist, by an
 // exact path check, so a crafted path cannot read anything else on disk.
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_DIST = fileURLToPath(new URL('../../dashboard/dist', import.meta.url));
@@ -12,7 +13,32 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8',
   '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.vtt': 'text/vtt; charset=utf-8',
 };
+
+/** Audio and video are streamed and answer byte ranges: Safari will not play a video without them. */
+const MEDIA = new Set(['.mp4', '.webm', '.mp3', '.m4a']);
+/** The most one range answer carries; the player asks again for the rest. */
+export const MAX_RANGE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Reads a single "bytes=a-b" range against a file size. Returns null for no header, 'bad' for a
+ * range that cannot be satisfied, else { start, end } with end inclusive and capped.
+ */
+export function parseRange(header, size) {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === '' && m[2] === '')) return 'bad';
+  let start;
+  let end;
+  if (m[1] === '') { start = Math.max(0, size - Number(m[2])); end = size - 1; } else {
+    start = Number(m[1]);
+    end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) return 'bad';
+  return { start, end: Math.min(end, start + MAX_RANGE_BYTES - 1) };
+}
 
 /**
  * Pages served as whole HTML documents, built from dashboard/src/legal-content.js by
@@ -40,7 +66,7 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'DENY',
   // Inline style attributes are used for data-driven bar widths; scripts are same-origin only.
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
 };
 
 /**
@@ -69,6 +95,17 @@ export function serveDashboard(app, { distDir = DEFAULT_DIST } = {}) {
       return send(c, index, 'no-cache');
     }
     const file = normalize(join(root, path));
+    if (file.startsWith(root) && existsSync(file) && statSync(file).isFile() && MEDIA.has(extname(file))) {
+      const size = statSync(file).size;
+      const range = parseRange(c.req.header('range'), size);
+      const head = { 'Content-Type': TYPES[extname(file)], 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=300', ...SECURITY_HEADERS };
+      if (range === 'bad') return c.body(null, 416, { ...head, 'Content-Range': `bytes */${size}` });
+      const { start, end } = range ?? { start: 0, end: size - 1 };
+      const stream = Readable.toWeb(createReadStream(file, { start, end }));
+      return c.body(stream, range ? 206 : 200, {
+        ...head, 'Content-Length': String(end - start + 1), ...(range ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
+      });
+    }
     if (file.startsWith(root) && existsSync(file) && statSync(file).isFile()) {
       return send(c, file, path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
     }
