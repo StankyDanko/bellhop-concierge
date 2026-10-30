@@ -65,6 +65,7 @@ export const LESSER_KNOWN_MAX = 0.8;
 export const MIN_RUNTIME_MINUTES = 40;
 
 /** A film or show long enough for a night in (or one with no runtime on file). */
+export const MEDIA_POOL = 10;
 export const longEnough = (e) => !(typeof e.duration === 'number' && e.duration < MIN_RUNTIME_MINUTES);
 /** Described titles first, keeping Qloo's order within each group. */
 const describedFirst = (list) => [...list.filter((e) => e.summary), ...list.filter((e) => !e.summary)];
@@ -173,6 +174,8 @@ export async function crossDomain(body, { qloo, toolSecret, now, memory = null }
   const shaped = target === 'place' ? placeTasteParams(taste) : { params: signalParams(taste), cuisine: [] };
   /** @type {Record<string,string>} */
   const params = { 'filter.type': ENTITY_TYPES[target], ...shaped.params, take: String(take) };
+  // A film or show is chosen from a pool, so a described title can lead even when one pick is asked for.
+  if (RECENT_TARGETS.has(target)) params.take = String(Math.max(take, MEDIA_POOL));
   if (media?.genres.length) params['filter.tags'] = media.genres.join(',');
 
   // Fresh by default: a guest has probably seen anything older than three years, so a film or

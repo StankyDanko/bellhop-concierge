@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crossDomain, MIN_RUNTIME_MINUTES } from '../tools/cross-domain.js';
+import { crossDomain, MIN_RUNTIME_MINUTES, MEDIA_POOL } from '../tools/cross-domain.js';
 import { buildWhy } from '../lib/why.js';
 import { normalizeEntity } from '../lib/qloo.js';
 
@@ -65,4 +65,11 @@ test('a result Qloo did not attribute never says "strong match"', () => {
   const signals = [{ id: 'fx-artist-a', name: 'Fx Artist' }];
   assert.equal(buildWhy({ explainability: null, tags: [] }, signals).why, '');
   assert.doesNotMatch(buildWhy({ explainability: null }, signals).why, /strong match/i);
+});
+
+test('one film asked for is still chosen from a pool, so a described title leads', async () => {
+  const qloo = fakeQloo((p) => [film('fx-bare'), film('fx-told', { summary: 'A made-up film about a late train.' })].slice(0, Number(p.take)));
+  const r = await crossDomain({ taste: [{ id: HORROR, name: 'Horror' }], target: 'movie', take: 1 }, { qloo, now: NOW });
+  assert.equal(qloo.sent[0].take, String(MEDIA_POOL));
+  assert.deepEqual(r.results.map((x) => x.entity_id), ['fx-told']);
 });
