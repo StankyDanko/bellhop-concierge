@@ -65,7 +65,7 @@ export const STEPS = {
   items: [
     { id: 'call', kicker: '01', title: 'Call.', body: 'The number on the room card. A warm voice asks about your night.' },
     { id: 'learn', kicker: '02', title: 'It learns what you love.', body: 'Not a quiz. You just talk; the tastes come out on their own.' },
-    { id: 'text', kicker: '03', title: 'Your night, texted.', body: 'One pick at a time, with the reason in your own words. Powered by Qloo\'s taste graph.' },
+    { id: 'text', kicker: '03', title: 'Your night, planned for you.', body: 'Sent by text, one pick at a time, with the reason in your own words. Powered by Qloo\'s taste graph.' },
   ],
   stage: {
     ringing: 'Calling',
