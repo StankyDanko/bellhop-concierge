@@ -37,7 +37,7 @@ export const MARISOL = {
 
 export const SCENE = {
   eyebrow: 'One call',
-  title: 'Pick up. She picks up.',
+  title: 'Call anytime. She picks up.',
   sub: 'No menu. No app. A voice that asks about your night and listens.',
   callTitle: 'Casa Coralina',
   callSub: 'Marisol, the concierge',
@@ -90,14 +90,13 @@ export const PROPERTIES = {
   eyebrow: 'For innkeepers',
   title: 'Every property gets its own concierge.',
   line: 'One config file. One number. A voice that knows checkout, the pool hours, and your kind of night.',
-  caption: 'One live on its own line, two examples. Each starts from one config file.',
+  caption: 'Two lines, both up and running. Each starts from one config file.',
   build: 'Build yours',
   open: 'Open the dashboard',
   example: 'Example',
   tiles: [
     { name: 'Casa Coralina', place: 'Coconut Grove, Miami', concierge: 'Marisol', kind: 'Rental', to: '/property/miami', tone: 'accent' },
-    { name: 'The Juniper House', place: 'Savannah, Georgia', concierge: 'Harper', kind: 'Inn', tone: 'taste' },
-    { name: 'Laurel Ridge Lodge', place: 'Blue Ridge, North Carolina', concierge: 'Maybelle', kind: 'Lodge', tone: 'plain' },
+    { name: 'On the road', place: 'Anywhere in the US', concierge: 'Hollis', kind: 'Public line', real: true, showNumber: true, tone: 'taste' },
   ],
 };
 

@@ -38,13 +38,13 @@ function Tile({ t, number }) {
       <span className="lx-tile-top">
         <Icon name="bell" />
         <span className="lx-tile-kind">{t.kind}</span>
-        {!t.to && !t.tel && <span className="lx-tile-example">{PROPERTIES.example}</span>}
+        {!t.to && !t.tel && !t.real && <span className="lx-tile-example">{PROPERTIES.example}</span>}
       </span>
       <span className="lx-tile-name">{t.name}</span>
       <span className="lx-tile-place">{t.place}</span>
       <span className="lx-tile-rule" aria-hidden="true" />
       <span className="lx-tile-voice">Ask for <strong>{t.concierge}</strong></span>
-      {t.tel && number && <span className="lx-tile-number tnum">{formatPhone(number)}</span>}
+      {(t.tel || t.showNumber) && number && <span className="lx-tile-number tnum">{formatPhone(number)}</span>}
       {(t.to || (t.tel && number)) && <span className="lx-tile-go" aria-hidden="true"><Icon name="arrow" /></span>}
     </>
   );
@@ -135,7 +135,7 @@ export default function Landing({ health }) {
           <p className="lx-sub">{PROPERTIES.line}</p>
         </div>
         <div className="lx-wrap lx-wide">
-          <ul className="lx-tiles">
+          <ul className="lx-tiles lx-tiles-two">
             {PROPERTIES.tiles.map((t) => <li key={t.name}><Tile t={t} number={number} /></li>)}
           </ul>
           <p className="lx-caption">{PROPERTIES.caption}</p>
