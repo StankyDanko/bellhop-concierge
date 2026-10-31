@@ -8,7 +8,8 @@ picking.**
 **Call (833) 658-4321** ·
 [Live site](https://concierge.southernsky.cloud) ·
 [Watch the films](https://concierge.southernsky.cloud/#film) ·
-<!-- YOUTUBE -->
+[Film 1 on YouTube](https://youtu.be/xfSDLy2nFkc) ·
+[Film 2 on YouTube](https://youtu.be/aesR_-wFXao) ·
 [How we use Qloo](docs/QLOO.md) ·
 [Devpost](https://devpost.com/software/bellhop-concierge) ·
 [AGPL-3.0](LICENSE)
