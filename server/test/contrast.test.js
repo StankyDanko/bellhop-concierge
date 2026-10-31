@@ -23,7 +23,7 @@ test('contrast: two of three picks off the town list says so, with overlap, move
   assert.equal(cf.moved5, 3);
   assert.equal(cf.picks_outside, 2);
   assert.deepEqual(cf.popularity_mean, { without: 0.95, with: 0.75 });
-  assert.equal(cf.say, 'Your tastes moved the answer: two of your three picks are not among the five most popular restaurants nearby.');
+  assert.equal(cf.say, 'Your tastes moved the answer: two of the three restaurants Qloo ranked are not among the five most popular nearby.');
   // Each list item is a name and an id, nothing else.
   assert.deepEqual(Object.keys(cf.with_list[0]).sort(), ['entity_id', 'name']);
   // The old top-1 line rides along.

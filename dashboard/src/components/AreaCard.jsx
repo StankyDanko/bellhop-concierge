@@ -22,12 +22,13 @@ const direction = (o) => DIRS[Math.round(((Math.atan2(o.east, o.north) * 180) / 
 /** Affinity 0..1 to bin 1..4. */
 const binOf = (a) => Math.min(4, Math.max(1, Math.floor((Number(a) || 0) * 4) + 1));
 
-function AreaMap({ inn, radius, cells, gated }) {
+function AreaMap({ inn, radius, cells, gated, place = 'the inn' }) {
+  const Place = place.charAt(0).toUpperCase() + place.slice(1);
   const scale = PLOT / radius;
   const rings = [...new Set([...RINGS.filter((r) => r < radius), radius])];
   const label = gated
-    ? 'The inn and its range rings. No areas are shaded until five calls have named a taste.'
-    : `The inn at the center with ${cells.length} shaded areas around it, darker where the tastes run stronger. The list below has the same information.`;
+    ? `${Place} and its range rings. No areas are shaded until five calls have named a taste.`
+    : `${Place} at the center with ${cells.length} shaded areas around it, darker where the tastes run stronger. The list below has the same information.`;
   return (
     <svg className="area-map" viewBox={`${-SIZE} ${-SIZE} ${2 * SIZE} ${2 * SIZE}`} role="img" aria-label={label}>
       {rings.map((r) => (
@@ -81,13 +82,13 @@ export function AreaCard({ insights, fingerprint, compact = false, place = 'the 
       </div>
       <div className="area-grid">
         <div className="area-plot">
-          <AreaMap inn={inn} radius={radius} cells={cells} gated={gated} />
+          <AreaMap inn={inn} radius={radius} cells={cells} gated={gated} place={place} />
           <p className="area-legend" aria-hidden="true">
             <span>Weaker</span>
             {[1, 2, 3, 4].map((b) => <span key={b} className={`area-sw heat-${b}`} />)}
             <span>Stronger</span>
             <span className="area-sw-inn" />
-            <span>The inn</span>
+            <span>{place.charAt(0).toUpperCase() + place.slice(1)}</span>
           </p>
         </div>
         <div className="area-side">

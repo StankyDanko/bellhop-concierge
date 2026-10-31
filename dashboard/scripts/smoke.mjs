@@ -73,7 +73,7 @@ try {
   check(asset && (await fetch(BASE + asset)).ok, `bundle ${asset} served`);
   // The innkeeper brief: the route is in the bundle (reached in-app from the dashboard link).
   const bundle = asset ? await (await fetch(BASE + asset)).text() : '';
-  check(bundle.includes('Front desk concierge brief') && bundle.includes('Need a plan tonight?'), 'bundle carries the innkeeper brief and room card');
+  check(bundle.includes('Concierge brief') && bundle.includes('Need a plan tonight?'), 'bundle carries the concierge brief and room card');
   const briefPath = '/property/miami/brief';
   if (APP_ROUTES.some((re) => re.test(briefPath))) {
     check((await fetch(BASE + briefPath)).status === 200, `${briefPath} returns 200 on a direct load`);

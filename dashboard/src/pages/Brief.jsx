@@ -1,4 +1,4 @@
-// `/property/:id/brief`: the one-page innkeeper brief. A letter-size document an innkeeper
+// `/property/:id/brief`: the one-page concierge brief. A letter-size document a rental host
 // prints or saves as PDF and hands to a co-owner, a manager, or a new hire, with a tear-off
 // room card at the bottom. Every section is built from the same read routes the dashboard
 // uses; nothing on this page is a number we did not measure.
@@ -9,6 +9,7 @@ import { Link } from '../router.jsx';
 import { RoomCard } from '../components/brief-room-card.jsx';
 import { formatPhone, SampleBadge } from '../components/ui.jsx';
 import { FingerprintSizeLine, inWords } from '../components/Fingerprint.jsx';
+import { MARISOL } from '../content/landing.js';
 // Fallback only, for when /api/guardrails cannot be reached: the same module the server
 // serves, so the printed list can never drift from the enforced one.
 import { LOCKED_RULES } from '../../../server/api/guardrails.js';
@@ -16,6 +17,15 @@ import '../brief.css';
 
 /** The sample guest the landing page and the dashboard already use (routes.js SAMPLE_MENTIONS). */
 const SAMPLE_TASTES = ['Sturgill Simpson', 'Thai food', 'Wes Anderson'];
+
+/** Properties with a live line of their own: the number, who answers, and how the cards say it. */
+const OWN_LINES = {
+  miami: {
+    number: MARISOL.number,
+    call: 'Call Marisol, the concierge',
+    note: 'Marisol answers this line for guests of Casa Coralina. For a night out in any US city, call Hollis at (833) 658-4321.',
+  },
+};
 const AGE = { '24_and_younger': '24 and under', '25_to_29': '25 to 29', '30_to_34': '30 to 34', '35_to_44': '35 to 44', '45_to_54': '45 to 54', '55_and_older': '55 and over' };
 
 function useApiOnce(path) {
@@ -98,7 +108,7 @@ function GuestTastes({ sessions }) {
       <ol className="brief-ranked">
         {top.map(([name, n]) => <li key={name}><span className="brief-cap">{name}</span><span className="num tnum">{n} of {list.length}</span></li>)}
       </ol>
-      <p className="brief-note">From the inn's own call log, {scope}. No names, numbers, or transcripts kept.</p>
+      <p className="brief-note">From this line's own call log, {scope}. No names, numbers, or transcripts kept.</p>
     </>
   );
 }
@@ -182,7 +192,7 @@ function AreaStrengths({ ins, inn }) {
 // ---- page -------------------------------------------------------------------------------------
 
 /** (e) How picks are made, as three numbered stations. Words and numerals carry it, so it reads in grayscale. */
-const STATIONS = ['The guest names things', 'Qloo ranks places near the inn', 'One text with the reasons'];
+const STATIONS = ['The guest names things', 'Qloo ranks places near the stay', 'One text with the reasons'];
 function PickRail() {
   return (
     <ol className="brief-rail" aria-label="How picks are made, in three steps">
@@ -202,8 +212,8 @@ export default function Brief({ id, health }) {
   const name = prop.data?.config?.property?.name;
 
   useEffect(() => {
-    // The title doubles as the file name when the innkeeper saves the page as a PDF.
-    if (name) document.title = `Innkeeper brief, ${name}`;
+    // The title doubles as the file name when the rental host saves the page as a PDF.
+    if (name) document.title = `Concierge brief, ${name}`;
   }, [name]);
   return <BriefView id={id} health={health} prop={prop} sessions={sessions} ins={ins} fp={fp} rails={rails} />;
 }
@@ -223,10 +233,11 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
   const cfg = prop.data.config;
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const town = townOf(cfg.property.address);
-  // The one public number (PUBLIC_DEMO_NUMBER via /api/health-summary) is Hollis's. It prints on the featured sample
-  // brief; Casa Coralina's own line is never printed. Any other property gets a write-in line: we never print a number we cannot vouch for.
-  const featured = id === 'miami' || id === 'demo';
-  const number = featured ? health?.data?.demo_number ?? null : null;
+  // A property with its own live line prints that number. The sample inn prints the public demo number
+  // (PUBLIC_DEMO_NUMBER via /api/health-summary). Any other property gets a write-in line: we never print a number we cannot vouch for.
+  const own = OWN_LINES[id] ?? null;
+  const featured = Boolean(own) || id === 'demo';
+  const number = own ? own.number : featured ? health?.data?.demo_number ?? null : null;
   const locked = rails.state === 'ok' ? rails.data.locked : LOCKED_RULES;
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ready = [sessions, ins, rails, fp].every((s) => s.state !== 'loading') && health?.state !== 'checking';
@@ -239,10 +250,10 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
         <button type="button" className="btn btn-primary" onClick={() => window.print()} disabled={!ready}>Print or save as PDF</button>
       </div>
 
-      <article className="brief-page" data-brief-ready={ready ? 'true' : 'false'} aria-label={`Innkeeper brief for ${cfg.property.name}`}>
+      <article className="brief-page" data-brief-ready={ready ? 'true' : 'false'} aria-label={`Concierge brief for ${cfg.property.name}`}>
         <header className="brief-head">
           <div className="brief-head-main">
-            <p className="brief-eyebrow">Front desk concierge brief</p>
+            <p className="brief-eyebrow">Concierge brief</p>
             <h1>{cfg.property.name}</h1>
             <p className="brief-meta">{town && <>{town} · </>}Prepared {today}</p>
           </div>
@@ -251,16 +262,16 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
             {number
               ? <p className="brief-number tnum">{formatPhone(number)}</p>
               : <p className="brief-number-pending">{featured ? 'The number appears here once the line is set up' : 'Your number appears here once it is published'}</p>}
-                      {id === 'miami' && number && <p className="brief-note">Hollis answers this line for a night out in any US city. The rental's own line is shared on request.</p>}
+            {own && number && <p className="brief-note">{own.note}</p>}
           </div>
         </header>
 
         <div className="brief-grid">
           <Section title="What it does" className="brief-span">
             <p className="brief-prose">
-              Guests call the front desk concierge from their own phone, wherever they are.
-              They name up to three things they love, like a band, a film, or a kind of food.
-              They get one text with up to three places nearby, each with its reason when it fits.
+              Guests call the concierge from their own phone, wherever they are.
+              They chat for a minute about their night, and she offers one pick at a time, each with a reason.
+              At the end she offers one text with the plan and a picks page link, sent only to the number that called.
             </p>
           </Section>
 
@@ -277,13 +288,13 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
             <PickRail />
             <ul className="brief-sources">
               <li><Src>Qloo</Src> The taste graph matches what a guest names to nearby places that people with that taste love, each with a reason.</li>
-              <li><Src>Ticketmaster</Src> Live music and events near the inn, tonight or this weekend.</li>
-              <li><Src>Innkeeper</Src> Your own favorites, by name, with the reason you gave.</li>
+              <li><Src>Ticketmaster</Src> Live music and events near the stay, tonight or this weekend.</li>
+              <li><Src>{cfg.property.kind === 'rental' ? 'Rental host' : 'Innkeeper'}</Src> Your own favorites, by name, with the reason you gave.</li>
             </ul>
             <p className="brief-note">Distances are given as the tools report them. Places are described only from what the tools return. Texts go only to the number that called.</p>
           </Section>
 
-          <Section title="What it will not do" className="brief-span" aside={<span className="brief-aside"><Icon name="lock" />Always on, for every inn</span>}>
+          <Section title="What it will not do" className="brief-span" aside={<span className="brief-aside"><Icon name="lock" />Always on, for every line</span>}>
             <ul className="brief-rules">
               {locked.map((r) => <li key={r.id}>{r.rule}</li>)}
             </ul>
@@ -293,8 +304,8 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
         <div className="brief-tear" aria-label="Room cards to cut out">
           <p className="brief-tear-label"><span aria-hidden="true">✂</span> Cut along the dashed lines: a room card for the welcome folder and a smaller one for the nightstand.</p>
           <div className="brief-cards">
-            <RoomCard name={cfg.property.name} number={number} call={id === 'miami' ? 'Call Hollis, the concierge' : undefined} variant="large" label="Room card, 4 by 6 proportions" />
-            <RoomCard name={cfg.property.name} number={number} call={id === 'miami' ? 'Call Hollis, the concierge' : undefined} variant="tent" label="Nightstand card, 3 by 5 proportions" />
+            <RoomCard name={cfg.property.name} number={number} call={own?.call} variant="large" label="Room card, 4 by 6 proportions" />
+            <RoomCard name={cfg.property.name} number={number} call={own?.call} variant="tent" label="Nightstand card, 3 by 5 proportions" />
           </div>
         </div>
       </article>

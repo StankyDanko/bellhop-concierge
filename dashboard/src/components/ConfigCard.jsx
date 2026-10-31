@@ -56,7 +56,7 @@ const plural = (n, w) => (n ? `${n} ${w}${n === 1 ? '' : 's'}` : '');
 function Provenance({ kind }) {
   if (kind === 'typed') return <span className="prov"><Icon name="keyboard" />Typed</span>;
   if (kind === 'default') return <span className="prov default">Default</span>;
-  if (kind === 'sample') return <span className="prov default">Sample inn</span>;
+  if (kind === 'sample') return <span className="prov default">Sample</span>;
   return null;
 }
 
@@ -68,7 +68,7 @@ export function readiness(d) {
 export default function ConfigCard({ draft, prov, onJump }) {
   const all = cells(draft);
   const { ready, total } = readiness(draft);
-  const name = draft.property?.name?.trim() || 'Your inn';
+  const name = draft.property?.name?.trim() || 'Your place';
   return (
     <section className="card config-card" aria-labelledby="cfg-h">
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -84,7 +84,7 @@ export default function ConfigCard({ draft, prov, onJump }) {
           <h3>{cell.ready && <Icon name="check" width="14" height="14" />}{cell.title}</h3>
           {cell.rows.map((r) => {
             const raw = getPath(draft, r.path);
-            const shown = r.secret ? (filled(raw) ? (raw === MASK ? 'Kept from the sample inn' : 'Saved, sent by text only') : '') : r.show ? r.show(raw) : (raw ?? '');
+            const shown = r.secret ? (filled(raw) ? (raw === MASK ? 'Kept from the sample' : 'Saved, sent by text only') : '') : r.show ? r.show(raw) : (raw ?? '');
             const has = filled(shown);
             const kind = has ? (prov[r.path] ?? 'typed') : null;
             return (

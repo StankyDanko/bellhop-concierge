@@ -34,7 +34,7 @@ const assets = readdirSync(join(D, 'dist/assets'));
 const js = assets.filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(D, 'dist/assets', f), 'utf8')).join('\n');
 const css = assets.filter((f) => f.endsWith('.css')).map((f) => readFileSync(join(D, 'dist/assets', f), 'utf8')).join('\n');
 for (const s of ['What your callers love.', 'Every call, and what it asked Qloo.', 'The text a guest gets.', 'Who shares these tastes nearby.',
-  'What to stock or partner with.', 'How to read this page', 'Back to the dashboard', 'The guest names things', 'Qloo ranks places near the inn',
+  'What to stock or partner with.', 'How to read this page', 'Back to the dashboard', 'The guest names things', 'Qloo ranks places near the stay',
   'One text with the reasons', 'What your concierge will be told.', 'Live line, 300 calls a day', 'Not published', "Your callers' taste fingerprint"]) {
   check(js.includes(s), `bundle carries ${JSON.stringify(s)}`);
 }
@@ -130,7 +130,7 @@ try {
   check(a.indexOf('area-card') < a.indexOf('Your callers lean toward') && a.indexOf('Your callers lean toward') < a.indexOf('id="calls"'), 'callers section: map, then lists, before the calls');
   check(ta.includes('No real calls on this line yet. The sample call below shows how each one will look.'), 'calls: honest empty state for the demo');
   check(a.includes('aria-label="A sample call"'), 'calls: sample call card shown, badged');
-  check(a.includes('class="whypick"') && ta.includes('Why the Qloo line was picked') || ta.includes('Why a pick was made, for the same sample guest'), 'the text: V3 why-this-pick reused');
+  check(a.includes('class="whypick"') && ta.includes('Why the Qloo line was picked') || ta.includes('Why a pick was made, for a sample guest'), 'the text: V3 why-this-pick reused');
   check(ta.includes('matches your words') || !P.pick.places?.[0]?.why_trace?.drivers?.some((d) => d.source === 'tag_match'), 'V3 keeps "matches your words"');
   check(ta.includes('at most 480 characters'), 'the text: 480 stated as at most');
   check(a.includes('Age and gender lean') && !ta.includes('Shown with example data until 5 calls'), 'more: demographics, no repeated floor sentence');
@@ -162,7 +162,7 @@ try {
   const br = render(h(BriefView, { ...bv, sessions: ok(P.sessions), ins: ok(P.ins), fp: ok(P.fp) }), 'brief: demo, gated');
   const tbr = textOf(br);
   check(tbr.includes('Back to the dashboard') && !tbr.includes('Back to the front desk'), 'brief: back link says dashboard');
-  check(br.includes('class="brief-rail"') && ['The guest names things', 'Qloo ranks places near the inn', 'One text with the reasons'].every((s) => tbr.includes(s)), 'brief: 3-station rail');
+  check(br.includes('class="brief-rail"') && ['The guest names things', 'Qloo ranks places near the stay', 'One text with the reasons'].every((s) => tbr.includes(s)), 'brief: 3-station rail');
   check(br.includes('class="brief-bricks"') && tbr.includes('0 of 5 so far'), 'brief: gate bricks and count under five calls');
   check((tbr.match(/An automated line\. Calls are recorded\./g) ?? []).length === 2, 'brief: both room cards say automated and recorded');
   check((br.match(/class="rc rc-/g) ?? []).length === 2, 'brief: two tear-off cards');

@@ -387,7 +387,7 @@ The response gains (fake values):
   "with_list": [{ "name": "Lemongrass Lantern", "entity_id": "fx-place-lemongrass-lantern" }],
   "overlap5": 1, "moved5": 4, "picks_outside": 2,
   "popularity_mean": { "without": 0.95, "with": 0.75 },
-  "say": "Your tastes moved the answer: two of your three picks are not among the five most popular places nearby.",
+  "say": "Your tastes moved the answer: two of the three places Qloo ranked are not among the five most popular nearby.",
   "top1": { "same": false, "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Sturgill Simpson go there." },
   "without_qloo_taste": { "name": "Harborside Burger Hall", "reason": "most popular place nearby" },
   "with_qloo": { "name": "Lemongrass Lantern", "why": "Fans of Sturgill Simpson love it; tagged Thai" },

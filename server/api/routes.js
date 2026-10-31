@@ -26,7 +26,7 @@ import { withTrace } from '../lib/upstream.js';
 import { aggregateFingerprint, entityIdsFromTrace, fingerprintSignals, isTagId, labelIds, liveSignals, parseIds, resolvedATaste } from '../lib/fingerprint.js';
 import { ENTITY_TYPES } from '../lib/qloo.js';
 import { locationParams } from '../tools/places.js';
-import { DEMO_PROPERTY_ID, ROAMING_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
+import { DEMO_PROPERTY_ID, RENTAL_DEMO_PROPERTY_ID, ROAMING_PROPERTY_ID, hasSessionsTable, loadSampleFingerprintSessions, sampleSessionAt } from './db.js';
 import { LOCKED_RULES, OWNER_TOGGLES } from './guardrails.js';
 
 export const ADMIN_HEADER = 'X-Admin-Token';
@@ -201,7 +201,8 @@ export function createApiRoutes({ db, sessionsDb, ctx, env = {}, fetchImpl = fet
   });
 
   api.get('/health-summary', (c) => {
-    const demo = getProperty(DEMO_PROPERTY_ID);
+    // The featured sample property is the Casa Coralina rental.
+    const demo = getProperty(RENTAL_DEMO_PROPERTY_ID);
     const toolsOk = Boolean(ctx.qloo);
     const number = env.demoNumber || null;
     // The public number belongs to the roaming concierge, not to a property, so the badge reads
@@ -499,7 +500,7 @@ async function personaCards() {
     const quotes = [...p.sections['sample lines'].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     const character = p.sections.voice.split(/(?<=\.)\s+/).slice(1, 2).join(' ');
     // kind: which places the builder offers this voice for (an inn, or a short-term rental).
-    return { id: p.id, display_name: p.display_name, title, humor_ceiling: p.humor_ceiling, character, sample: quotes[0] ?? '', opener: p.opener,
+    return { id: p.id, display_name: p.display_name, title, humor_ceiling: p.humor_ceiling, character, sample: quotes.find((q) => !q.includes('{{')) ?? '', opener: p.opener,
       kind: RENTAL_PERSONA_IDS.includes(p.id) ? 'rental' : 'inn' };
   });
 }

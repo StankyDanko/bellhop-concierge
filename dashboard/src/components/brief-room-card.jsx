@@ -1,4 +1,4 @@
-// The tear-off room card for the innkeeper brief. Black on white by construction: hairline
+// The tear-off room card for the concierge brief. Black on white by construction: hairline
 // borders, no fills, so it photocopies and prints on a monochrome laser without losing anything.
 import { Icon } from '../icons.jsx';
 import { formatPhone } from './ui.jsx';
@@ -13,7 +13,7 @@ function CardNumber({ number }) {
  * @param {{ name: string, number: string|null, call?: string, variant?: 'large'|'tent', label: string }} props
  *   large = 3:2 (a 4x6 card, scaled), tent = 5:3 (a 3x5 nightstand card, scaled)
  */
-export function RoomCard({ name, number, call = 'Call the front desk concierge', variant = 'large', label }) {
+export function RoomCard({ name, number, call = 'Call the concierge', variant = 'large', label }) {
   return (
     <figure className={`rc rc-${variant}`} aria-label={label}>
       <div className="rc-card">
@@ -21,7 +21,7 @@ export function RoomCard({ name, number, call = 'Call the front desk concierge',
         <p className="rc-hook">Need a plan tonight?</p>
         <p className="rc-call">{call}</p>
         <CardNumber number={number} />
-        <p className="rc-line">Tell it three things you love. It texts you up to three places nearby.</p>
+        <p className="rc-line">Chat a minute about your night. Your plan arrives by text.</p>
         <p className="rc-fine">An automated line. Calls are recorded.</p>
       </div>
     </figure>

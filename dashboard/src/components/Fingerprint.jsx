@@ -28,7 +28,7 @@ export function tasteCountText(tastes, count) {
 export function BasisTag({ basis, n }) {
   if (basis === 'callers') return <span className="chip chip-mono fp-tag fp-tag-callers" title={`Built from ${calls(n)} to this number`}>Callers <span className="tnum">{n}</span></span>;
   if (basis === 'sample') return <span className="chip chip-mono fp-tag fp-tag-sample" title={`Example data: ${calls(n)} from fictional callers`}>Sample</span>;
-  if (basis === 'area') return <span className="chip chip-mono fp-tag" title="No guest tastes used: the whole area around the inn">Area</span>;
+  if (basis === 'area') return <span className="chip chip-mono fp-tag" title="No guest tastes used: the whole area nearby">Area</span>;
   return null;
 }
 

@@ -229,7 +229,7 @@ export function stationsOf(trace, { said = [], plusOne = [], textChars } = {}) {
       caption: said.length ? `${quoted(said)}${plusOne.length ? `, and for the plus-one ${quoted(plusOne)}` : ''}.` : 'A band, a film, a kind of food.' },
     { id: 'resolve', label: 'Each name becomes a Qloo id', rows: resolve,
       caption: asked.length ? `${quoted([...new Set(asked)])}, looked up one by one.` : 'One lookup per thing named.' },
-    { id: 'ranked', label: 'Places near the inn, ranked by that taste', rows: ranked,
+    { id: 'ranked', label: 'Places nearby, ranked by that taste', rows: ranked,
       caption: `${plural(results(ranked), 'place')} came back, each with its reason.` },
     { id: 'person', label: 'Scored once per person', rows: person,
       caption: 'The same places, scored for the guest and for the plus-one. Nobody is named.' },
@@ -404,7 +404,7 @@ export function SampleSessionCard({ session }) {
           </section>
           {film && (
             <section className="sample-block" aria-label="Cross-domain pick">
-              <p className="micro">A film to watch at the inn</p>
+              <p className="micro">A film to watch tonight</p>
               <p className="sample-pick-head"><strong>{film.name}</strong>{film.year && <span className="dim tnum">{film.year}</span>}<SourceChip source="Qloo" /></p>
               <p className="dim sample-pick-why">{film.why}. Music taste in, a film out: one domain's signals, another's filter.type.</p>
             </section>

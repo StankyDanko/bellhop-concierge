@@ -108,8 +108,8 @@ export function describeContrast(withoutList, places, typeLabel = 'place', { ran
   } else if (picksOutside > 0) {
     const are = picksOutside === 1 ? 'is' : 'are';
     say = n === 1
-      ? `Your tastes moved the answer: your pick is not among the ${word(without.length)} most popular ${plural} nearby.`
-      : `Your tastes moved the answer: ${word(picksOutside)} of your ${word(n)} picks ${are} not among the ${word(without.length)} most popular ${plural} nearby.`;
+      ? `Your tastes moved the answer: the ${typeLabel} Qloo ranked is not among the ${word(without.length)} most popular nearby.`
+      : `Your tastes moved the answer: ${word(picksOutside)} of the ${word(n)} ${plural} Qloo ranked ${are} not among the ${word(without.length)} most popular nearby.`;
   } else {
     say = `Your picks are popular nearby too, and your tastes changed the rest: ${word(moved5)} of your top ${word(withL.length)} ${moved5 === 1 ? 'is' : 'are'} not among the town's most popular.`;
   }

@@ -1,5 +1,5 @@
-// The builder and the dashboard API for a short-term rental: the rental-or-inn choice comes up
-// front, the stay-sheet fields are optional and land where the schema expects them, a preview
+// The builder and the dashboard API for a short-term rental: the builder offers the rental path
+// only (the inn kind stays in the schema and the API), the stay-sheet fields are optional and land where the schema expects them, a preview
 // compiles Marisol with stay_info, and the Miami rental has its own dashboard with sample data.
 
 import { test } from 'node:test';
@@ -17,11 +17,12 @@ const post = async (app, path, body) => {
   return { status: r.status, json: await r.json() };
 };
 
-test('the builder asks inn or rental first, and carries every stay-sheet field as optional', () => {
+test('the builder offers the rental path only, and carries every stay-sheet field as optional', () => {
   const q0 = builder.slice(builder.indexOf("title: 'Start from your website or listing'"), builder.indexOf("title: 'Your place'"));
-  assert.match(q0, /name="kind"[\s\S]*onChange=\{ctx\.setKind\}/, 'the kind choice is in the first question');
-  assert.match(q0, /Short-term rental/);
-  assert.match(builder, /update\('property\.kind', next\);\s*update\('voice\.persona_id', next === 'rental' \? 'marisol' : 'harper'\);/, 'the persona follows the kind');
+  assert.match(q0, /short-term rental/, 'the first question names the rental path');
+  assert.doesNotMatch(q0, /name="kind"|label: 'Inn'|innkeeper/, 'no inn choice is offered');
+  assert.match(builder, /property: \{ kind: 'rental',[^}]*\},\s*voice: \{ persona_id: 'marisol',/, 'a blank draft is a rental with Marisol');
+  assert.match(builder, /property: \{ \.\.\.draft\.property, kind: 'rental' \}, voice: \{ \.\.\.draft\.voice, persona_id: 'marisol' \}/, 'an older inn draft moves to the rental path, persona with it');
   const house = builder.slice(builder.indexOf("title: 'The house'"), builder.indexOf("title: 'House rules'"));
   assert.ok(house.includes('STAY_ROWS.map') && house.includes('path={`stay.${k}`}'), 'The house renders one field per stay row');
   const rows = builder.slice(builder.indexOf('const STAY_ROWS = ['), builder.indexOf('const SAMPLES'));
@@ -35,7 +36,8 @@ test('the builder asks inn or rental first, and carries every stay-sheet field a
 });
 
 test('the persona step offers only the voices for the chosen kind', () => {
-  assert.match(builder, /\(p\.kind \?\? 'inn'\) === kind/);
+  assert.match(builder, /\(p\.kind \?\? 'inn'\) === kind && !HIDDEN_PERSONAS\.includes\(p\.id\)/);
+  assert.match(builder, /const HIDDEN_PERSONAS = \['harper', 'maybelle'\];/);
 });
 
 test('a preview compiles the Miami rental with Marisol and stay_info, and refuses Harper for a rental', async () => {

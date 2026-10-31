@@ -112,7 +112,7 @@ function render(page) {
 <style>${CSS}</style>
 </head>
 <body>
-<div class="top"><div class="wrap"><nav class="topnav" aria-label="Main"><a class="wordmark" href="/">${BELL}Bellhop Concierge</a><a href="/property/demo">Dashboard</a><a href="${esc(REPO_URL)}" rel="noopener">Source</a></nav></div></div>
+<div class="top"><div class="wrap"><nav class="topnav" aria-label="Main"><a class="wordmark" href="/">${BELL}Bellhop Concierge</a><a href="/property/miami">Dashboard</a><a href="${esc(REPO_URL)}" rel="noopener">Source</a></nav></div></div>
 <main class="wrap">
 <article aria-labelledby="legal-title">
 <header>

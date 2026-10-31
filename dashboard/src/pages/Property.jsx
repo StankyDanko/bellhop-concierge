@@ -340,15 +340,15 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
   return (
     <div className="container property">
       <header className="prop-head">
-        <p className="micro">{rental ? `Rental host dashboard${unlisted ? ', sample property in Miami' : ''}` : `Innkeeper dashboard${isDemo ? ', sample inn' : ''}`}</p>
+        <p className="micro">{rental ? `Rental host dashboard${unlisted ? ', a fictional rental in Miami' : ''}` : `Innkeeper dashboard${isDemo ? ', sample inn' : ''}`}</p>
         <h1>{cfg.property.name}</h1>
         <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
         <div className="prop-chips">
-          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={unlisted ? 'A fictional rental. Its line is shared on request. For a night out in any city, call Hollis at (833) 658-4321.' : undefined} />
+          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={unlisted ? 'Call Marisol at (706) 810-9262.' : undefined} />
           <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Not published'}</span>
           <span className="chip">{TRUST_WORDS[cfg.trust_level] ?? `Line limits: ${cfg.trust_level}`}</span>
           {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}
-          <Link to={`/property/${id}/brief`} className="btn btn-text prop-print">Print the innkeeper brief <Icon name="arrow" /></Link>
+          <Link to={`/property/${id}/brief`} className="btn btn-text prop-print">Print the {rental ? 'rental host' : 'innkeeper'} brief <Icon name="arrow" /></Link>
         </div>
       </header>
 
@@ -432,7 +432,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
       </Part>
 
       {/* 3. The text, where each line came from, and V3 for the Qloo line. */}
-      <Part id="text" title="The text a guest gets." line="One pick from Qloo, one listing from Ticketmaster, and one of your favorites, in at most 480 characters."
+      <Part id="text" title="The text a guest gets." line="The plan from the call: Qloo picks, Ticketmaster listings, and your own favorites, in at most 480 characters."
         aside={<SampleBadge>Sample guest</SampleBadge>}>
         <div className="grid grid-2">
           <div className="card">
@@ -448,14 +448,14 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
               </ol>
             )}
             <p className="dim text-note">
-              The same sample guest as the front page. Links are https only, and the whole text stays at most 480 characters long.
+              A sample guest who asked for Thai food. Links are https only, and the whole text stays at most 480 characters long.
             </p>
             {itin.state === 'ok' && <p style={{ marginTop: 'var(--space-2)' }}><ViaChip upstream={itin.data.upstream} /></p>}
           </div>
         </div>
         {whyPlace && (
           <div className="text-why">
-            <p className="micro">{matched ? 'Why the Qloo line was picked' : 'Why a pick was made, for the same sample guest'}</p>
+            <p className="micro">{matched ? 'Why the Qloo line was picked' : 'Why a pick was made, for a sample guest'}</p>
             <WhyPick place={whyPlace} request={pick.data.request} />
           </div>
         )}

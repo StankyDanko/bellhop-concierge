@@ -257,7 +257,7 @@
       "without": 0.89,
       "with": null
     },
-    "say": "Your tastes moved the answer: one of your three picks is not among the four most popular places nearby.",
+    "say": "Your tastes moved the answer: one of the three places Qloo ranked is not among the four most popular nearby.",
     "top1": {
       "same": false,
       "say": "Without your tastes, the top pick would be Harborside Burger Hall. With them, it is Lemongrass Lantern, because fans of Sturgill Simpson go there."

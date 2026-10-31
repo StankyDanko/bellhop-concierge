@@ -23,13 +23,13 @@ const LANGS = [['en', 'English']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
 const CATEGORIES = ['food', 'drinks', 'music', 'outdoors', 'arts', 'shopping', 'coffee', 'other'];
 const FIELD_LABELS = {
-  'property.name': 'Name of the inn', 'property.address': 'Street address', 'property.lat': 'Latitude', 'property.lng': 'Longitude',
+  'property.name': 'Name of the place', 'property.address': 'Street address', 'property.lat': 'Latitude', 'property.lng': 'Longitude',
   'property.website': 'Website', 'property.timezone': 'Time zone', 'voice.feel': 'The feeling you want', 'guests.typical': 'Who usually stays',
   'guests.here_for': 'What they come for', 'logistics.checkin': 'Check-in', 'logistics.checkout': 'Checkout', 'logistics.parking': 'Parking',
   'handoff.name': 'Your first name', 'handoff.hours': 'When you are reachable', 'handoff.triggers': 'Send guests to you for', 'handoff.phone_last4': 'Last four digits',
   'picks.name': 'A favorite spot name', 'picks.why': 'Why you love a spot', 'faq.q': 'A guest question', 'faq.a': 'An answer', 'avoid.name': 'A place to skip',
   'rules.list': 'House rules', 'rules.never_bend': 'Rules you never bend', picks: 'Your favorite spots',
-  'property.kind': 'Inn or short-term rental', 'stay.welcome': 'Your welcome', 'stay.amenities': 'Pool or building amenities',
+  'property.kind': 'Kind of place', 'stay.welcome': 'Your welcome', 'stay.amenities': 'Pool or building amenities',
   'stay.trash': 'Trash and recycling day', 'stay.quiet_hours': 'Quiet hours', 'stay.contact': 'How guests reach you', 'stay.transit': 'Getting around',
 };
 /** The stay sheet's fields, in the order the builder asks them (config/schema.js STAY_FIELDS). */
@@ -42,6 +42,13 @@ const STAY_ROWS = [
   ['transit', 'A tip for getting around', 200, 'The trolley stops at the corner.'],
 ];
 const SAMPLES = { inn: ['demo', 'the sample inn'], rental: ['miami', 'the sample rental'] };
+// Voices kept on the server for existing configs but not offered to a new place.
+const HIDDEN_PERSONAS = ['harper', 'maybelle'];
+/** The builder offers the short-term rental path only; an older saved draft is moved onto it. */
+function asRental(draft) {
+  if (draft?.property?.kind === 'rental') return draft;
+  return { ...draft, property: { ...draft.property, kind: 'rental' }, voice: { ...draft.voice, persona_id: 'marisol' } };
+}
 const LINT_WORDS = {
   em_dash: 'A long dash the voice stumbles on',
   forbidden_word: 'A word this product never uses',
@@ -61,8 +68,8 @@ const HUMOR_TEXT = [
 function blankConfig() {
   return {
     schema_version: 1,
-    property: { kind: 'inn', name: '', address: '', lat: '', lng: '', timezone: 'America/New_York', website: '' },
-    voice: { persona_id: 'harper', humor_level: 1, languages: ['en'], feel: '' },
+    property: { kind: 'rental', name: '', address: '', lat: '', lng: '', timezone: 'America/New_York', website: '' },
+    voice: { persona_id: 'marisol', humor_level: 1, languages: ['en'], feel: '' },
     guests: { typical: '', here_for: '' },
     logistics: { checkin: '', checkout: '', parking: '', access_note: '', wifi_note: '' },
     rules: { list: [], never_bend: [] },
@@ -150,16 +157,11 @@ function questions(ctx) {
   return [
     {
       title: 'Start from your website or listing',
-      ask: 'Is this an inn or a short-term rental? Paste your website so the concierge can text it to guests, then choose where to begin.',
+      ask: 'Paste your website so the concierge can text it to guests, then choose where to begin.',
       body: (
         <>
-          <Segmented name="kind" legend="What kind of place" value={kind} describedBy="kind-help"
-            options={[{ value: 'inn', label: 'Inn' }, { value: 'rental', label: 'Short-term rental' }]}
-            onChange={ctx.setKind} />
-          <p className="help dim" id="kind-help" style={{ marginTop: 'var(--space-2)' }}>
-            {kind === 'rental'
-              ? 'A home with no front desk. Guests can ask about the stay, like checkout or trash day, and you are the rental host they message.'
-              : 'A front desk with an innkeeper. Guests ask about the evening, and you handle the rest.'}
+          <p className="help dim" id="kind-help">
+            For a short-term rental: a home with no front desk. Guests can ask about the stay, like checkout or trash day, and you are the rental host they message.
           </p>
           <TextField ctx={ctx} path="property.website" label="Website" type="url" inputMode="url" autoComplete="url" placeholder="https://your-place.example" help="Optional. Must start with https. It is texted, never read aloud." />
           <Banner tone="info">Reading a listing automatically is coming in the hosted service. For now, start from {sampleName} and change what you like, or start blank.</Banner>
@@ -213,7 +215,7 @@ function questions(ctx) {
           <Segmented name="humor" legend="Humor" value={d.voice.humor_level} describedBy="humor-help"
             options={[{ value: 0, label: 'None' }, { value: 1, label: 'Dry' }, { value: 2, label: 'Light' }]}
             onChange={(v) => ctx.update('voice.humor_level', v)} />
-          <p className="help dim" id="humor-help" style={{ marginTop: 'var(--space-2)' }}>{HUMOR_TEXT[d.voice.humor_level]} Each persona has a ceiling; Harper stops at Dry.</p>
+          <p className="help dim" id="humor-help" style={{ marginTop: 'var(--space-2)' }}>{HUMOR_TEXT[d.voice.humor_level]} Each persona has a ceiling; Marisol stops at Dry.</p>
         </>
       ),
     },
@@ -338,7 +340,7 @@ function OwnerToggles({ ctx, withAvoid = false }) {
       <Switch label="Mention your partners" checked={d.permissions.suggest_partners} onChange={(v) => ctx.update('permissions.suggest_partners', v)}
         consequence={d.permissions.suggest_partners ? 'On. It may recommend a partner when it fits, and always says you work with them.' : 'Off. No business is presented as your partner.'} />
       <Switch label="Mention paid extras" checked={d.permissions.upsell} onChange={(v) => ctx.update('permissions.upsell', v)}
-        consequence={d.permissions.upsell ? 'On. If asked, it may mention an extra once, from your answers only.' : 'Off. It never offers anything the inn sells.'} />
+        consequence={d.permissions.upsell ? 'On. If asked, it may mention an extra once, from your answers only.' : 'Off. It never offers anything the place sells.'} />
       <fieldset className="fieldset" style={{ marginTop: 'var(--space-4)' }}>
         <legend>Languages <span className="dim">(English for now: more need a multilingual voice)</span></legend>
         <div className="row">
@@ -467,7 +469,7 @@ function PersonaStep({ ctx, onNext }) {
   const [list, setList] = useState(null);
   const kind = ctx.draft.property?.kind === 'rental' ? 'rental' : 'inn';
   // Only the voices for this kind of place: the server refuses a rental with an inn voice, and the reverse.
-  useEffect(() => { api('/personas').then((r) => setList(r.ok ? r.data.personas.filter((p) => (p.kind ?? 'inn') === kind) : [])); }, [kind]);
+  useEffect(() => { api('/personas').then((r) => setList(r.ok ? r.data.personas.filter((p) => (p.kind ?? 'inn') === kind && !HIDDEN_PERSONAS.includes(p.id)) : [])); }, [kind]);
   const sel = ctx.draft.voice.persona_id;
   const chosen = list?.find((p) => p.id === sel);
   return (
@@ -589,9 +591,9 @@ function PublishStep({ ctx, preview, publish, setPublish }) {
   const d = ctx.draft;
   const dlg = useRef(null);
   const [token, setToken] = useState(() => { try { return sessionStorage.getItem('bc-admin') ?? ''; } catch { return ''; } });
-  const [id, setId] = useState('demo');
+  const [id, setId] = useState('my-place');
   const idOk = /^[a-z0-9-]{1,40}$/.test(id);
-  const name = d.property.name?.trim() || 'your inn';
+  const name = d.property.name?.trim() || 'your place';
   const doPublish = async () => {
     dlg.current?.close();
     try { sessionStorage.setItem('bc-admin', token); } catch { /* storage blocked */ }
@@ -688,7 +690,7 @@ function PublishStep({ ctx, preview, publish, setPublish }) {
 
 export default function Builder() {
   const saved = useMemo(loadSaved, []);
-  const [draft, setDraft] = useState(saved?.draft ?? blankConfig());
+  const [draft, setDraft] = useState(() => (saved?.draft ? asRental(saved.draft) : blankConfig()));
   const [prov, setProv] = useState(saved?.prov ?? DEFAULT_PROV);
   const [step, setStep] = useState(saved?.step ?? 'interview');
   const [q, setQ] = useState(saved?.q ?? 0);
@@ -725,12 +727,6 @@ export default function Builder() {
     setQ(1);
   };
   const startBlank = () => { const b = blankConfig(); b.property.kind = kind; b.voice.persona_id = kind === 'rental' ? 'marisol' : 'harper'; setDraft(b); setProv(DEFAULT_PROV); setErrors({}); setQ(1); };
-  /** Inn or rental, chosen first: the persona follows, so the preview never pairs a rental with an inn voice. */
-  const setKind = (next) => {
-    if (next === kind) return;
-    update('property.kind', next);
-    update('voice.persona_id', next === 'rental' ? 'marisol' : 'harper');
-  };
 
   const runPreview = async () => {
     setPreview((p) => ({ ...p, state: 'loading' }));
@@ -744,7 +740,7 @@ export default function Builder() {
     if (own.q !== undefined) { setStep('interview'); setQ(own.q); } else setStep(own.step);
     setCardOpen(false);
   };
-  const ctx = { draft, update, errors, loadSample, startBlank, sampleState, setKind };
+  const ctx = { draft, update, errors, loadSample, startBlank, sampleState };
   const { ready, total } = readiness(draft);
 
   return (

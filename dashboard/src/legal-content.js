@@ -57,7 +57,7 @@ export const PRIVACY = {
       blocks: [{ ul: [
         'The concierge says it is automated in its first sentence and asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it also says it is a computer voice.',
         "The call runs on ElevenLabs' voice platform, which records it. This server never stores a transcript or a recording.",
-        'The demo line is answered by Hollis, a road concierge for any city in the United States. Casa Coralina, the sample rental shown on the dashboard, is fictional.',
+        'Two demo lines: Hollis, a road concierge for any US city, at (833) 658-4321, and Marisol at (706) 810-9262 for Casa Coralina, a fictional rental shown on the dashboard.',
       ] }],
     },
     {
@@ -78,9 +78,9 @@ export const PRIVACY = {
           'How many picks and events came back, and whether a text went out.',
           'A record of each request the call made to Qloo or Ticketmaster, so the dashboard can show where every pick came from. It never holds a number, a name, or a message.',
           'The picks page a text links to: the picks in that text (name, a few words, a time, a web address) under a random code, deleted 30 days after the text. It holds no number, no name, and nothing else about the call.',
-          'A short memory for the concierge: the first name you gave, the town you were in, the tastes you named, and the places it suggested or texted. It is filed under a separately keyed hash of your number and is deleted 7 days after your last call. Say "forget me" on any call and it is deleted then.',
+          'A short memory for the concierge: the first name you gave, the town you were in, the tastes you named, and the places it suggested or texted. It is filed under a separately keyed hash of your number and is deleted 7 days after your last call, and never kept more than 30 days. Say "forget me" on any call and it is deleted then.',
         ] },
-        { p: 'No transcripts. No message bodies. The innkeeper dashboard never sees the memory.' },
+        { p: 'No transcripts. No message bodies. The rental host dashboard never sees the memory.' },
       ],
     },
     {
@@ -98,8 +98,8 @@ export const PRIVACY = {
     },
     {
       id: 'dashboard',
-      heading: 'The innkeeper dashboard',
-      blocks: [{ p: "The innkeeper sees totals and rankings: which tastes came up, how many calls, how many texts. Never a caller's number or name. Until a property has five calls, the guest panels stay dark, so one guest can't be picked out of a short list. Anything shown before then is a labeled sample." }],
+      heading: 'The rental host dashboard',
+      blocks: [{ p: "The rental host sees totals and rankings: which tastes came up, how many calls, how many texts. Never a caller's number or name. Until a property has five calls, the guest panels stay dark, so one guest can't be picked out of a short list. Anything shown before then is a labeled sample." }],
     },
     questions([' The ', { text: 'terms', to: '/terms' }, ' cover the demo line and the code.']),
   ],
@@ -116,7 +116,7 @@ export const TERMS = {
       id: 'demo',
       heading: 'What this is',
       blocks: [{ ul: [
-        'A working demo. The line is answered by Hollis, a concierge for a night out in any US city. Casa Coralina, the sample short-term rental on the dashboard, is fictional.',
+        'A working demo with two lines: Hollis for a night out in any US city, and Marisol for Casa Coralina, a fictional short-term rental.',
         'The demo number takes up to three hundred calls a day, three at a time.',
         'It is offered as is, with no warranty of any kind. It may be slow, down, or changed without notice.',
       ] }],

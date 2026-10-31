@@ -124,7 +124,7 @@ try {
   const { WhyPick } = await server.ssrLoadModule('/src/components/WhyPick.jsx');
   const { AreaCard } = await server.ssrLoadModule('/src/components/AreaCard.jsx');
 
-  const health = { state: 'answering', data: { demo_number: '+15550100199', demo: { id: 'demo', name: 'The Juniper House' }, last_session_at: null, tools: { qloo: 'live', ticketmaster: 'live', sms: 'live' }, checked_at: new Date().toISOString() } };
+  const health = { state: 'answering', data: { demo_number: '+15550100199', demo: { id: 'miami', name: 'Casa Coralina' }, last_session_at: null, tools: { qloo: 'live', ticketmaster: 'live', sms: 'live' }, checked_at: new Date().toISOString() } };
   const land = render(h(Landing, { health }), 'landing (with a number)');
   const h1 = /<h1[^>]*>(.*?)<\/h1>/.exec(land)?.[1];
   check(h1 === COPY.HERO.title, `H1 = ${JSON.stringify(h1)}`);

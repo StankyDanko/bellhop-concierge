@@ -1,7 +1,7 @@
 // Every word the landing page shows, in one place, so the copy can be swapped without touching
 // a component. Numbers here are listed with their measuring command in docs/MEASUREMENTS.md.
 // House rules for these strings: no em dashes, never the two-letter abbreviation for the
-// software, "innkeeper" for the person at the desk.
+// software, "rental host" for the person who runs the place.
 
 export const MEDIA = {
   heroFilm: '/media/film-marisol.mp4',
@@ -63,9 +63,9 @@ export const REAL_CALL = {
 export const STEPS = {
   eyebrow: 'How it works',
   items: [
-    { id: 'call', kicker: '01', title: 'Call.', body: 'The number on the room card. A warm voice asks about your night.' },
+    { id: 'call', kicker: '01', title: 'Call.', body: 'Call the number. A warm voice asks about your night.' },
     { id: 'learn', kicker: '02', title: 'It learns what you love.', body: 'Not a quiz. You just talk; the tastes come out on their own.' },
-    { id: 'text', kicker: '03', title: 'Your night, planned for you.', body: 'Sent by text, one pick at a time, with the reason in your own words. Powered by Qloo\'s taste graph.' },
+    { id: 'text', kicker: '03', title: 'Your night, planned for you.', body: 'One pick at a time on the call, then one text with the plan and a link, sent only to your phone. Powered by Qloo\'s taste graph.' },
   ],
   stage: {
     ringing: 'Calling',
@@ -87,7 +87,7 @@ export const MEMORY = {
 };
 
 export const PROPERTIES = {
-  eyebrow: 'For innkeepers',
+  eyebrow: 'For rental hosts',
   title: 'Every property gets its own concierge.',
   line: 'One config file. One number. A voice that knows checkout, the pool hours, and your kind of night.',
   caption: 'Two lines, both up and running. Each starts from one config file.',
@@ -138,13 +138,13 @@ export const CLOSER = {
 export const CAPABILITIES = [
   ['Entity search', 'A band name becomes a Qloo artist id.', 'GET /search'],
   ['Place-scoped tag search', '"Thai food" becomes the thai restaurant tag, never a film genre.', 'GET /v2/tags filter.parents.types'],
-  ['Location-scoped insights', 'Places near the inn, ranked for this guest.', 'GET /v2/insights filter.location'],
+  ['Location-scoped insights', 'Places near the stay, ranked for this guest.', 'GET /v2/insights filter.location'],
   ['Cuisine as a hard filter', 'A guest who says thai gets thai places.', 'GET /v2/insights filter.tags'],
-  ['Cross-domain affinity', 'A music taste picks a restaurant, and a film to watch at the inn.', 'GET /v2/insights signal.* + filter.type'],
+  ['Cross-domain affinity', 'A music taste picks a restaurant, and a film to watch tonight.', 'GET /v2/insights signal.* + filter.type'],
   ['Per-person scoring', 'Which pick leans to the guest, the plus-one, or both.', 'GET /v2/insights filter.results.entities'],
   ['Explainability', 'The reason behind a pick, when Qloo names one.', 'feature.explainability=true'],
   ['Popularity baseline', 'What anyone nearby would be told, for the contrast.', 'GET /v2/insights, no signal'],
-  ['Heatmap', 'Where around the inn a taste runs hottest, with quality.', 'GET /v2/insights filter.type=urn:heatmap heatmap.dimensions'],
+  ['Heatmap', 'Where around the stay a taste runs hottest, with quality.', 'GET /v2/insights filter.type=urn:heatmap heatmap.dimensions'],
   ['Named areas', 'The neighborhoods where callers\' tastes run hottest.', 'GET /v2/insights output.heatmap.boundary'],
   ['Demographics', 'Which age groups lean toward guest tastes.', 'GET /v2/insights filter.type=urn:demographics'],
   ['Tag insights', 'What callers lean toward, and what the town leans toward.', 'GET /v2/insights filter.type=urn:tag'],

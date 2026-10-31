@@ -35,7 +35,7 @@ describe('static redirects', () => {
 describe('legal page share meta', () => {
   it('build-legal emits og and twitter meta plus a top nav', () => {
     const src = readFileSync(new URL('../../../dashboard/scripts/build-legal.mjs', import.meta.url), 'utf8');
-    for (const needle of ['og:title', 'og:description', 'og:image', 'twitter:card', 'summary_large_image', 'share.png', 'href="/property/demo"']) {
+    for (const needle of ['og:title', 'og:description', 'og:image', 'twitter:card', 'summary_large_image', 'share.png', 'href="/property/miami"']) {
       assert.ok(src.includes(needle), needle);
     }
   });

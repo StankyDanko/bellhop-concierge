@@ -84,7 +84,7 @@ export function SecretField({ ctx, path, label, help }) {
       <label htmlFor={id}>{label} <span className="prov secret"><Icon name="lock" />Never spoken aloud</span></label>
       <input id={id} className="input" type="password" autoComplete="off" spellCheck={false}
         value={hidden ? '' : raw}
-        placeholder={hidden ? "Hidden. Leave blank to keep the sample inn's note." : ''}
+        placeholder={hidden ? "Hidden. Leave blank to keep the sample's note." : ''}
         aria-invalid={error ? 'true' : undefined} aria-describedby={describedBy(id, help, error)}
         onChange={(e) => ctx.update(path, e.target.value)} />
       <Described id={id} help={help} error={error} />
