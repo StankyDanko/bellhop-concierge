@@ -92,7 +92,7 @@ function render(page) {
     return `<section aria-labelledby="${id}">\n<h2 id="${id}">${esc(sec.heading)}</h2>\n${sec.blocks.map(block).join('\n')}\n</section>`;
   }).join('\n');
   return `<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

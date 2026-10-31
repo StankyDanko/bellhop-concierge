@@ -1,5 +1,5 @@
-// Applies the saved theme before first paint (light is the default; see DESIGN-LANGUAGE.md section 1).
+// Applies the saved theme before first paint (dark is the default; a toggle click saves a pick).
 try {
-  var t = localStorage.getItem('bc-theme');
+  var t = localStorage.getItem('bc-theme-pick');
   if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
 } catch (e) { /* storage blocked: keep the default */ }

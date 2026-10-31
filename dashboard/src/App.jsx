@@ -15,14 +15,18 @@ import { Link, matchBrief, usePath } from './router.jsx';
 const DEVPOST_URL = 'https://devpost.com/software/bellhop-concierge';
 
 function ThemeToggle() {
-  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'light');
+  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'dark');
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem('bc-theme', theme); } catch { /* storage blocked */ }
   }, [theme]);
+  // Only a click saves a choice, so the dark default reaches everyone who never picked.
+  const pick = (t) => {
+    setTheme(t);
+    try { localStorage.setItem('bc-theme-pick', t); } catch { /* storage blocked */ }
+  };
   const next = theme === 'dark' ? 'light' : 'dark';
   return (
-    <button type="button" className="btn-text theme-toggle" onClick={() => setTheme(next)} aria-label={`Switch to ${next} theme`} style={{ background: 'none', border: 0, cursor: 'pointer' }}>
+    <button type="button" className="btn-text theme-toggle" onClick={() => pick(next)} aria-label={`Switch to ${next} theme`} style={{ background: 'none', border: 0, cursor: 'pointer' }}>
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} width="18" height="18" />
       <span className="visually-hidden">{next} theme</span>
     </button>
