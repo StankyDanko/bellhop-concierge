@@ -52,6 +52,10 @@ test('placeShape: food words and place words, never names or music and film cate
   assert.equal(cuisineCore('Mexican restaurants'), 'Mexican');
   assert.equal(cuisineCore('food'), 'food');
   assert.equal(cuisineCore('bbq'), 'barbecue');
+  // The tacos and pasta shop genre tags were empty in small towns, so those words ask the cuisine.
+  assert.equal(cuisineCore('tacos'), 'mexican');
+  assert.equal(cuisineCore('pasta'), 'italian');
+  assert.equal(cuisineCore('spaghetti'), 'spaghetti', 'other dishes stay dish tags');
 });
 
 test('a cuisine asks place tags for its bare word and takes the restaurant genre tag, not the first hit', async () => {

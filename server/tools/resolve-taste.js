@@ -191,8 +191,15 @@ export function placeShape(mention) {
  * Cuisine words asked under another spelling, because the place genre tag a guest means is
  * filed under it. "bbq" finds a genre tag that no place near the demo inn carries, while
  * "barbecue" finds the one barbecue places carry (measured on key day plus one, counts only).
+ * "tacos" and "pasta" match restaurant genre tags that are nearly empty: within 3 miles the
+ * tacos tag found 0 places in Boone, Senoia, and Austin, where mexican found 8, 1, and 10, and
+ * the pasta shop tag found 0 in Boone and Senoia, where italian found 5 and 3 (measured
+ * 2026-10-30, counts only). Other dishes stay dish tags, a soft signal, never a filter.
  */
-const CUISINE_ALIASES = Object.freeze({ bbq: 'barbecue', barbeque: 'barbecue' });
+const CUISINE_ALIASES = Object.freeze({
+  bbq: 'barbecue', barbeque: 'barbecue',
+  taco: 'mexican', tacos: 'mexican', pasta: 'italian',
+});
 
 /** "thai food" -> "thai"; "italian restaurants" -> "italian"; "bbq" -> "barbecue". The mention itself when nothing is left. */
 export function cuisineCore(mention) {
