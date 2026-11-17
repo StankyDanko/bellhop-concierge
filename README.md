@@ -36,8 +36,7 @@ that fit, each with the reason it fits. Built for the
    Coralina, a fictional short-term rental in Miami, and the dashboard its owner would see:
    the text a guest gets, where every line came from, and the Qloo request behind each pick.
    Its concierge is Marisol, who answers the stay questions first (checkout, parking, trash
-   night) and then asks about your evening. **Call Marisol at (706) 810-9262** to play the
-   guest at Casa Coralina.
+   night) and then asks about your evening.
 3. **Check the switches yourself.** The server says which services are live, so you don't have
    to take our word for it:
 
