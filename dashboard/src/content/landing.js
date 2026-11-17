@@ -28,13 +28,6 @@ export const HERO = {
   filmNote: 'Edited from real calls.',
 };
 
-/** The Casa Coralina line: Marisol answers it. Shown once, quieter than the Hollis number. */
-export const MARISOL = {
-  lead: 'Staying at Casa Coralina?',
-  label: 'Call Marisol',
-  number: '+17068109262',
-};
-
 export const SCENE = {
   eyebrow: 'One call',
   title: 'Call anytime. She picks up.',
@@ -90,7 +83,7 @@ export const PROPERTIES = {
   eyebrow: 'For rental hosts',
   title: 'Every property gets its own concierge.',
   line: 'One config file. One number. A voice that knows checkout, the pool hours, and your kind of night.',
-  caption: 'Two lines, both up and running. Each starts from one config file.',
+  caption: 'Hollis answers the public line. Casa Coralina is shown on its own page. Each starts from one config file.',
   build: 'Build yours',
   open: 'Open the dashboard',
   example: 'Example',

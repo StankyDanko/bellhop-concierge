@@ -9,7 +9,6 @@ import { Link } from '../router.jsx';
 import { RoomCard } from '../components/brief-room-card.jsx';
 import { formatPhone, SampleBadge } from '../components/ui.jsx';
 import { FingerprintSizeLine, inWords } from '../components/Fingerprint.jsx';
-import { MARISOL } from '../content/landing.js';
 // Fallback only, for when /api/guardrails cannot be reached: the same module the server
 // serves, so the printed list can never drift from the enforced one.
 import { LOCKED_RULES } from '../../../server/api/guardrails.js';
@@ -18,14 +17,6 @@ import '../brief.css';
 /** The sample guest the landing page and the dashboard already use (routes.js SAMPLE_MENTIONS). */
 const SAMPLE_TASTES = ['Sturgill Simpson', 'Thai food', 'Wes Anderson'];
 
-/** Properties with a live line of their own: the number, who answers, and how the cards say it. */
-const OWN_LINES = {
-  miami: {
-    number: MARISOL.number,
-    call: 'Call Marisol, the concierge',
-    note: 'Marisol answers this line for guests of Casa Coralina. For a night out in any US city, call Hollis at (833) 658-4321.',
-  },
-};
 const AGE = { '24_and_younger': '24 and under', '25_to_29': '25 to 29', '30_to_34': '30 to 34', '35_to_44': '35 to 44', '45_to_54': '45 to 54', '55_and_older': '55 and over' };
 
 function useApiOnce(path) {
@@ -233,11 +224,10 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
   const cfg = prop.data.config;
   const inn = { lat: cfg.property.lat, lng: cfg.property.lng };
   const town = townOf(cfg.property.address);
-  // A property with its own live line prints that number. The sample inn prints the public demo number
+  // The sample inn prints the public demo number
   // (PUBLIC_DEMO_NUMBER via /api/health-summary). Any other property gets a write-in line: we never print a number we cannot vouch for.
-  const own = OWN_LINES[id] ?? null;
-  const featured = Boolean(own) || id === 'demo';
-  const number = own ? own.number : featured ? health?.data?.demo_number ?? null : null;
+  const featured = id === 'demo';
+  const number = featured ? health?.data?.demo_number ?? null : null;
   const locked = rails.state === 'ok' ? rails.data.locked : LOCKED_RULES;
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ready = [sessions, ins, rails, fp].every((s) => s.state !== 'loading') && health?.state !== 'checking';
@@ -262,7 +252,6 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
             {number
               ? <p className="brief-number tnum">{formatPhone(number)}</p>
               : <p className="brief-number-pending">{featured ? 'The number appears here once the line is set up' : 'Your number appears here once it is published'}</p>}
-            {own && number && <p className="brief-note">{own.note}</p>}
           </div>
         </header>
 
@@ -304,8 +293,8 @@ export function BriefView({ id, health, prop, sessions, ins, fp, rails }) {
         <div className="brief-tear" aria-label="Room cards to cut out">
           <p className="brief-tear-label"><span aria-hidden="true">✂</span> Cut along the dashed lines: a room card for the welcome folder and a smaller one for the nightstand.</p>
           <div className="brief-cards">
-            <RoomCard name={cfg.property.name} number={number} call={own?.call} variant="large" label="Room card, 4 by 6 proportions" />
-            <RoomCard name={cfg.property.name} number={number} call={own?.call} variant="tent" label="Nightstand card, 3 by 5 proportions" />
+            <RoomCard name={cfg.property.name} number={number} variant="large" label="Room card, 4 by 6 proportions" />
+            <RoomCard name={cfg.property.name} number={number} variant="tent" label="Nightstand card, 3 by 5 proportions" />
           </div>
         </div>
       </article>

@@ -1,6 +1,5 @@
 // `/`: the landing. One idea per screen, shown rather than told: the guest moment and the
-// number, a call as it happens, a real recording, how it works, one concierge per property (with
-// Marisol's own line, quieter than the main number), the measured proof, and the number again.
+// number, a call as it happens, a real recording, how it works, one concierge per property, the measured proof, and the number again.
 // Every visible word lives in content/landing.js; the scripted call lives in content/call-scene.js.
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../icons.jsx';
@@ -10,7 +9,7 @@ import { FilmSlot } from '../components/landing/FilmSlot.jsx';
 import { CallScene } from '../components/landing/CallScene.jsx';
 import { RealCall } from '../components/landing/RealCall.jsx';
 import { HowSteps } from '../components/landing/HowSteps.jsx';
-import { CAPABILITIES, CLOSER, HERO, MARISOL, MEDIA, MEMORY, PROOF, PROPERTIES, REAL_CALL, SCENE, STEPS } from '../content/landing.js';
+import { CAPABILITIES, CLOSER, HERO, MEDIA, MEMORY, PROOF, PROPERTIES, REAL_CALL, SCENE, STEPS } from '../content/landing.js';
 import '../landing.css';
 
 /** The number as the page's one loud thing: a tel: link, with a copy button on desktop. */
@@ -139,10 +138,6 @@ export default function Landing({ health }) {
             {PROPERTIES.tiles.map((t) => <li key={t.name}><Tile t={t} number={number} /></li>)}
           </ul>
           <p className="lx-caption">{PROPERTIES.caption}</p>
-          <p className="lx-alt-line">
-            {MARISOL.lead}{' '}
-            <a href={telHref(MARISOL.number)}><Icon name="phone" />{MARISOL.label} <span className="tnum">{formatPhone(MARISOL.number)}</span></a>
-          </p>
           <p className="lx-actions">
             <Link to="/build" className="btn btn-primary btn-lg">{PROPERTIES.build}</Link>
             <Link to="/property/miami" className="btn btn-secondary btn-lg">{PROPERTIES.open}</Link>

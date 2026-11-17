@@ -344,7 +344,7 @@ export function PropertyView({ id, health, prop, sessions, reloadSessions, itin,
         <h1>{cfg.property.name}</h1>
         <p className="prop-lede">What the people who call your number love, every call with the requests behind it, and the text each guest gets.</p>
         <div className="prop-chips">
-          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} title={unlisted ? 'Call Marisol at (706) 810-9262.' : undefined} />
+          <LiveBadge state={badgeState} lastSessionAt={health.data?.last_session_at} />
           <span className={`chip ${p.status === 'published' ? 'chip-success' : ''}`}>{p.status === 'published' ? 'Published' : 'Not published'}</span>
           <span className="chip">{TRUST_WORDS[cfg.trust_level] ?? `Line limits: ${cfg.trust_level}`}</span>
           {delayed > 0 && <span className="chip chip-warning">{delayed} of 3 panels delayed</span>}

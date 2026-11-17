@@ -57,7 +57,7 @@ export const PRIVACY = {
       blocks: [{ ul: [
         'The concierge says it is automated in its first sentence and asks who is calling, then says the call is recorded in its very next line. If you ask whether it is a person, it also says it is a computer voice.',
         "The call runs on ElevenLabs' voice platform, which records it. This server never stores a transcript or a recording.",
-        'Two demo lines: Hollis, a road concierge for any US city, at (833) 658-4321, and Marisol at (706) 810-9262 for Casa Coralina, a fictional rental shown on the dashboard.',
+        'One demo line: Hollis, a road concierge for any US city, at (833) 658-4321. Casa Coralina, a fictional rental with its own concierge, Marisol, is shown on the dashboard.',
       ] }],
     },
     {
@@ -116,7 +116,7 @@ export const TERMS = {
       id: 'demo',
       heading: 'What this is',
       blocks: [{ ul: [
-        'A working demo with two lines: Hollis for a night out in any US city, and Marisol for Casa Coralina, a fictional short-term rental.',
+        'A working demo with one line: Hollis for a night out in any US city. Casa Coralina, a fictional short-term rental with its concierge, Marisol, is shown on the dashboard.',
         'The demo number takes up to three hundred calls a day, three at a time.',
         'It is offered as is, with no warranty of any kind. It may be slow, down, or changed without notice.',
       ] }],

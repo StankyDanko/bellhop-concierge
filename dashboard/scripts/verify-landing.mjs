@@ -131,17 +131,14 @@ try {
   check((land.match(/<h1/g) ?? []).length === 1, 'exactly one H1');
   check(land.includes(COPY.HERO.sub), 'hero sub-line present');
   const tels = [...land.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
-  const marisolTel = `tel:${COPY.MARISOL.number}`;
-  check(tels.length === 3 && tels.filter((t) => t === 'tel:+15550100199').length === 2 && tels.filter((t) => t === marisolTel).length === 1,
-    `tel: links ${tels.length}: hero and closer to tel:+15550100199, one to Marisol`);
+  check(tels.length === 2 && tels.every((t) => t === 'tel:+15550100199'),
+    `tel: links ${tels.length}: hero and closer only, both to tel:+15550100199`);
   check(land.includes('Answering now'), 'answering: the live badge shows by the number');
   check(COPY.PROOF.live.every(([, label]) => land.includes(`${label} ${COPY.PROOF.liveWord}`)), 'all three services live: each live chip shows');
   check(land.includes('href="/property/miami"'), 'Casa Coralina links to its dashboard');
-  // The 706 line is Marisol's. It may appear only inside the one Casa Coralina line, never loose.
-  const altLine = /<p class="lx-alt-line">[\s\S]*?<\/p>/.exec(land)?.[0] ?? '';
-  check(/Casa Coralina/.test(altLine) && /Marisol/.test(altLine) && /\b706\b/.test(altLine) && altLine.includes(`href="${marisolTel}"`),
-    'Marisol line: Casa Coralina, Marisol, and the 706 number together, as a tel: link');
-  check(!/\b706\b|7068109262/.test(land.replace(altLine, '')), '706 appears only in the Marisol line');
+  // The 706 line was retired (it is another project's number now): it must not appear anywhere on the landing.
+  check(!/\b706\b|7068109262|810-9262/.test(land), 'the retired 706 number appears nowhere on the landing');
+  check(!land.includes('lx-alt-line') && !/Call Marisol/.test(land), 'no Marisol call link on the landing');
   check(!/three agents|Test mode/i.test(land), 'landing has no three agents or Test mode');
   check(land.includes('id="film"'), 'the #film anchor exists for the README link');
   const h2s = [...land.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map((m) => m[1]);
@@ -153,7 +150,7 @@ try {
   check(!quiet.includes('Answering now') && !quiet.includes(`Qloo ${COPY.PROOF.liveWord}`), 'sample mode: no live badge, no live chips');
   const pending = render(h(Landing, { health: { state: 'test', data: { ...health.data, demo_number: null } } }), 'landing (no number)');
   const pendingTels = [...pending.matchAll(/href="(tel:[^"]*)"/g)].map((m) => m[1]);
-  check(pendingTels.every((t) => t === marisolTel) && pending.includes(COPY.CLOSER.noNumber), 'no number: no Hollis tel: link (Marisol\'s stays), honest pending line');
+  check(pendingTels.length === 0 && pending.includes(COPY.CLOSER.noNumber), 'no number: no tel: link at all, honest pending line');
 
   const sp = await get('/sample-pick');
   const ses = (await get('/properties/demo/sessions')).sample_session;

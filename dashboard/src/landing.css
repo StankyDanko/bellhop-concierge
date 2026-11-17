@@ -259,9 +259,6 @@ a.lx-tile:active { transform: scale(0.98); }
 .lx-tile-go { position: absolute; right: var(--space-4); bottom: var(--space-4); color: var(--color-accent-text); }
 .lx-tile-go svg { width: 1.25rem; height: 1.25rem; }
 .lx p.lx-caption { margin-top: var(--space-6); text-align: center; color: var(--color-text-dim); font-size: var(--text-md); }
-.lx p.lx-alt-line { margin: var(--space-4) auto 0; max-width: none; text-align: center; color: var(--color-text-dim); font-size: var(--text-md); }
-.lx-alt-line a { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--touch-min); font-weight: 600; white-space: nowrap; }
-.lx-alt-line a svg { width: 1rem; height: 1rem; }
 .lx-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-8); }
 
 /* ---- proof ------------------------------------------------------------------------------------- */

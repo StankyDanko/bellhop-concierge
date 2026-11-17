@@ -63,8 +63,8 @@ const BADGE_LABEL = {
   // A property someone built and published from the builder.
   published: 'Published',
   paused: 'Paused',
-  // A fictional property with a live line of its own.
-  unlisted: 'Fictional rental, live line',
+  // A fictional property shown as an example, with no line of its own.
+  unlisted: 'Fictional rental, example',
   busy: 'Line busy, try again in a minute',
 };
 
